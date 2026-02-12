@@ -331,7 +331,7 @@ function initBranches() {
 
             // Drag stores HTML
             var dragHTML = d.worstStores.map(function (s) {
-                return "<div class=\"d-flex justify-content-between align-items-start mb-1 pb-1\" style=\"border-bottom:1px solid #f3f4f6;cursor:pointer\" onclick=\"showTab('stores'); document.getElementById('storeSearch').value='" + s.code + "'; renderStoreList();\"><span class=\"text-dark\" style=\"font-size:0.78rem;line-height:1.3;word-break:break-word\">" + s.name + "</span><span class=\"badge ms-2 flex-shrink-0 " + (s.score < 84 ? "bg-danger" : "bg-warning text-dark") + "\" style=\"font-size:0.7rem\">" + s.score.toFixed(1) + "</span></div>";
+                return "<div class=\"d-flex justify-content-between align-items-start mb-1 pb-1\" style=\"border-bottom:1px solid #f3f4f6;cursor:pointer\" onclick=\"showTab('stores'); var inp=document.getElementById('filterSearch'); if(inp){inp.value='" + s.code + "'; updateStoreState('search', '" + s.code + "');}\"><span class=\"text-dark\" style=\"font-size:0.78rem;line-height:1.3;word-break:break-word\">" + s.name + "</span><span class=\"badge ms-2 flex-shrink-0 " + (s.score < 84 ? "bg-danger" : "bg-warning text-dark") + "\" style=\"font-size:0.7rem\">" + s.score.toFixed(1) + "</span></div>";
             }).join("");
 
             // Weak sections HTML

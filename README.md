@@ -26,9 +26,13 @@ This project generates premium HTML executive summaries and detailed reports for
     ```bash
     node inject_branches.js
     ```
-5.  Open the generated `report_v4.html` in your browser.
+5.  Inject the modernized Store Deep Dive table:
+    ```bash
+    node inject_store_list.js
+    ```
+6.  Open the generated `report_v4.html` in your browser.
 
-> **Important:** Always run steps 3 → 4 in order. Step 4 post-processes the HTML output from step 3.
+> **Important:** Run steps 3 → 4 → 5 in order. Step 4 relies on anchors that Step 5 replaces.
 
 ## Technologies
 - Node.js
