@@ -22,10 +22,10 @@
 
 ### Sprint 2: Field Utility Pack (PDF & Action Logic) 📄
 **Objective:** Make the dashboard printable and strictly actionable for physical field visits.
-- [ ] **Automated "Rapor Toko" (PDF):** 
+- [x] **Automated "Rapor Toko" (PDF):** 
     - Implement precise CSS `@media print` styling.
     - Format Deep Dive view into a clean single-page A4 report (Score + Trends + Issues).
-- [ ] **Managerial Action Checklist:**
+- [x] **Managerial Action Checklist:**
     - Develop a logic mapper (e.g., *If 'Toilet' < 84 -> Suggest "Check hourly cleaning log"*).
     - Generate a printable "To-Do List" for Supervisors based on low scores.
 

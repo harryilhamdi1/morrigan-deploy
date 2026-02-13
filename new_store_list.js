@@ -41,7 +41,21 @@ function injectStoreListUI(container) {
         }
         #storeDetailPanel .card:hover, #storeFullscreenContainer .card:hover {
             transform: none !important;
-            box-shadow: 0 .125rem .25rem rgba(0,0,0,.075) !important; /* Reset to Bootstrap default or light shadow */
+            box-shadow: 0 .125rem .25rem rgba(0,0,0,.075) !important;
+        }
+        @media print {
+            body * { visibility: hidden; }
+            #storeDetailPanel, #storeDetailPanel * { visibility: visible; }
+            #storeDetailPanel { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; display: block !important; }
+            .sidebar, .navbar, .btn, .battle-dropdown-container, .no-print { display: none !important; }
+            .card { border: none !important; box-shadow: none !important; break-inside: avoid; }
+            .card-header { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            /* Ensure charts are visible - heavy charts might need resize logic but this is a start */
+            .js-plotly-plot { width: 100% !important; }
+            .print-only { display: flex !important; margin-top: 50px; page-break-inside: avoid; }
+        }
+        @media screen {
+            .print-only { display: none !important; }
         }
     `;
     document.head.appendChild(style);
@@ -289,8 +303,10 @@ function renderModernStoreDetail(s, container, isFullscreen) {
         ? `<button class="btn btn-sm btn-light text-danger fw-bold px-3 py-1 rounded-pill shadow-sm bg-white border-0" onclick="window.close()">✕ Close Window</button>`
         : `<button class="btn btn-sm btn-light text-primary-custom fw-bold px-3 py-1 rounded-pill shadow-sm bg-white border-0" onclick="document.getElementById('storeDetailPanel').style.display='none'; window.scrollTo({top: 0, behavior: 'smooth'});">← Back to List</button>`;
 
+    var printBtn = `<button class="btn btn-sm btn-outline-light rounded-pill px-3 ms-2 no-print" onclick="window.print()">🖨️ Print Report</button>`;
+
     var openWindowBtn = !isFullscreen
-        ? `<button class="btn btn-sm btn-outline-light rounded-pill px-3" onclick="window.open('?store=${s.meta.code}', '_blank')">🔗 Open Independent Window</button>`
+        ? `<button class="btn btn-sm btn-outline-light rounded-pill px-3 no-print" onclick="window.open('?store=${s.meta.code}', '_blank')">🔗 Open Independent Window</button>`
         : "";
 
     // Qualitative Feedback
@@ -334,7 +350,7 @@ function renderModernStoreDetail(s, container, isFullscreen) {
                             </div>
                         </div>
                     </div>
-                    <div>${openWindowBtn}</div>
+                    <div>${openWindowBtn}${printBtn}</div>
                 </div>
                 <div class="d-flex justify-content-between align-items-end position-relative" style="z-index:2">
                     <div>
@@ -409,6 +425,22 @@ function renderModernStoreDetail(s, container, isFullscreen) {
                             <tbody></tbody>
                         </table>
                      </div>
+                </div>
+
+                <!-- SIGNATURE BLOCK (PRINT ONLY) -->
+                <div class="row mt-5 print-only">
+                    <div class="col-6">
+                        <div class="border-top border-dark pt-2 w-75">
+                            <p class="mb-0 fw-bold">Store Manager</p>
+                            <p class="small text-muted">Sign & Date</p>
+                        </div>
+                    </div>
+                    <div class="col-6 text-end">
+                        <div class="border-top border-dark pt-2 w-75 ms-auto text-start">
+                            <p class="mb-0 fw-bold">Area Manager / Supervisor</p>
+                            <p class="small text-muted">Sign & Date</p>
+                        </div>
+                    </div>
                 </div>
             </div>
             
