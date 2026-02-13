@@ -14,61 +14,63 @@ This project generates premium HTML executive summaries and detailed reports for
 - **Radar Chart:** Visual overlay of strength/weakness areas.
 - **Gap Analysis:** Definition of winning/losing categories.
 
-### 🗣️ Voice of Customer (VoC) Engine
-- **Sentiment Analysis:** Automated classification of customer feedback (Positive/Negative/Neutral).
-- **Word Cloud:** Visualization of frequently mentioned topics.
-- **Theme Breakdown:** Correlation of sentiment with operational areas (Service, Product, Ambience).
+## 🏗️ Project Structure (Refactored)
 
-### 🔍 Diagnostic Granularity
-- **Failed Items Drill-Down:** Identifies specific checklist items that caused a low section score (e.g., "Toilet Tisu Habis" vs just "Toilet Score: 50").
-- **Weighted Scoring:** Accurate calculation based on official Section Weights.
+The project has been refactored into a modular architecture for better maintainability and scalability.
 
----
+```
+/
+├── .github/                # GitHub Actions workflows
+├── CSV/                    # Input Data (Wave reports, Master Data)
+├── src/                    # Source Code
+│   ├── config/             # Configuration files (scoring, waves, action plans)
+│   ├── modules/            # Core logic modules (scorer, aggregator, data_loader)
+│   ├── templates/          # HTML templates for the report
+│   └── build.js            # Main build script
+├── package.json            # Project dependencies and scripts
+└── README.md               # Project documentation
+```
 
-## 🛠️ Usage
+## 🚀 How to Run
 
-### Quick Start (Automated Workflow)
-We have a comprehensive build script that runs the generator and all injection modules in the correct order:
+### Automated Build (Recommended)
+We have a unified build script that handles data loading, processing, and HTML generation in one go.
 
-1.  **Run the Build Workflow:**
-    ```bash
-    npm run build
-    ```
-    *(Note: You can add `"build": "node generate_report_v4.js && node inject_branches.js && node inject_store_list.js && node inject_voc.js"` to `package.json` scripts)*
+```bash
+npm run build
+```
 
-    **OR run manually in sequence:**
-    ```bash
-    # 1. Generate Base Report
-    node generate_report_v4.js
+This command executes `src/build.js`, which:
+1. Loads configuration and master data.
+2. Processes all CSV files defined in `src/config/waves.js`.
+3. Aggregates data for regions, branches, and stores.
+4. Generates the final `ESS Retail Analysis.html` using templates from `src/templates/`.
 
-    # 2. Inject Branch Analysis
-    node inject_branches.js
+### Manual Execution (Deprecated)
+The old monolithic scripts (`generate_report_v4.js`, etc.) have been archived (`.bak`) and replaced by the new modular system.
 
-    # 3. Inject Store Deep Dive & Battle Mode
-    node inject_store_list.js
+## 🛠️ Configuration & Customization
+- **Waves**: Edit `src/config/waves.js` to add new waves or change years.
+- **Scoring Logic**: Edit `src/config/scoring.js` for weights and thresholds.
+- **Action Plans**: Edit `src/config/action_plans.js` to update recommendations.
+- **HTML/CSS**: Edit files in `src/templates/` to change the report's look and feel.
 
-    # 4. Inject Voice of Customer Module
-    node inject_voc.js
-    ```
+## 🐛 Troubleshooting & Logic Fixes (Feb 2026)
 
-2.  **Open the Report:**
-    Open `ESS Retail In Depth Analysis.html` in your browser.
+During the refactoring process to a modular architecture, the following critical issues were identified and resolved:
 
----
+1. **Missing Action Plans in Report**:
+   - **Symptom**: `actionPlanConfig` was missing from the generated JSON payload, causing client-side errors.
+   - **Root Cause**: Invalid import in `src/build.js`. The `src/config/action_plans.js` module exports the object directly, but `build.js` attempted to destructure it as `{ ACTION_PLANS_MAP }`.
+   - **Fix**: Updated import to `const ACTION_PLANS_MAP = require(...)`.
 
-## 📂 Project Structure
+2. **Template Placeholder Corruption**:
+   - **Symptom**: Placeholders like `{{ REPORT_DATA_JSON }}` and `{ { SCRIPTS } }` appeared in the final HTML instead of being replaced by data/scripts.
+   - **Root Cause**: Encoding issues introduced extra spaces within the curly braces in `src/templates/base.html`, preventing the build script's regex from matching them.
+   - **Fix**: Normalized all placeholders in the template to standard format (e.g., `{{SCRIPTS}}`) and updated the build script to use robust regex with callback functions.
 
-| File | Purpose |
-|------|---------|
-| `generate_report_v4.js` | Main logic for data processing & base HTML generation |
-| `scoring_logic_vFinal.js` | Reference for validated scoring rules |
-| `item_drilldown.js` | Logic to identify specific failed checklist items |
-| `voc_analysis.js` | Engine for processing qualitative customer feedback |
-| `inject_*.js` | Post-processors that inject enhanced UI modules into the HTML |
-| `CSV/` | Raw data source (Waves + Master Data + Weights) |
+3. **Data Injection Safety**:
+   - **Symptom**: Syntax errors in browser console due to corrupted JSON.
+   - **Root Cause**: The JS `replace()` function treats `$` characters in the replacement string as special tokens (e.g., `$&`). Since user data contains `$`, this corrupted the JSON injection.
+   - **Fix**: Updated `src/build.js` to use `str.replace(regex, () => content)`, ensuring the content is treated as a raw literal string.
 
----
-
-## ⚠️ Important Notes
-- **Source of Truth:** The Final Score in the CSV is treated as the absolute truth. Our internal logic mimicsit but prioritizes the CSV value if available.
-- **Injection Logic:** The system uses a "Post-Processing Injection" pattern. We generate a base HTML file first, then use regex/string replacement to swap out simplified placeholder functions with complex, interactive modules. This avoids escaping hell in the main generator script.

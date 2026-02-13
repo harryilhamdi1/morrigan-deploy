@@ -1,0 +1,67 @@
+<div id="tab-voc" style="display:none;">
+    <h2 class="text-primary-custom mb-4">Voice of Customer</h2>
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 bg-primary text-white">
+                <div class="card-body text-center d-flex flex-column justify-content-center">
+                    <div class="display-4 fw-bold" id="vocTotal">0</div>
+                    <div class="small opacity-75">Total Feedback</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="display-4 fw-bold text-success" id="vocPositive">0</div>
+                    <div class="small text-muted">Positive Sentiments</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="display-4 fw-bold text-danger" id="vocNegative">0</div>
+                    <div class="small text-muted">Negative Sentiments</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="display-4 fw-bold text-secondary" id="vocNeutral">0</div>
+                    <div class="small text-muted">Neutral/Mixed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card h-100">
+                <div class="card-header-clean">Frequently Mentioned Topics</div>
+                <div class="card-body">
+                    <div id="vocWordCloud"
+                        style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; min-height: 300px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header-clean">Theme Sentiment Breakdown</div>
+                <div class="card-body p-0">
+                    <table class="table table-custom m-0">
+                        <thead>
+                            <tr>
+                                <th>Theme</th>
+                                <th class="text-end">Mentions</th>
+                                <th class="text-end">Sentiment</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vocThemes"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

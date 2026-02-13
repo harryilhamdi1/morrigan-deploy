@@ -1,0 +1,84 @@
+<div id="tab-stores" style="display:none;">
+    <h2 class="text-primary-custom mb-4">Store Deep Dive</h2>
+    <div class="card p-4 mb-4">
+        <div class="row align-items-end g-3">
+            <div class="col-md-4"><label class="form-label text-muted fw-bold small">SEARCH STORE</label><input
+                    type="text" class="form-control" id="storeSearch" placeholder="Enter store name or code..."
+                    onkeyup="renderStoreList()"></div>
+            <div class="col-md-3"><label class="form-label text-muted fw-bold small">SORT BY</label><select
+                    id="storeSort" class="form-select" onchange="renderStoreList()">
+                    <option value="name">Name (A-Z)</option>
+                    <option value="score_asc">Score (Lowest First)</option>
+                    <option value="score_desc">Score (Highest First)</option>
+                </select></div>
+            <div class="col-md-5"><label class="form-label text-muted fw-bold small">SELECT STORE</label><select
+                    id="storeSelect" class="form-select" onchange="loadStoreDetail()">
+                    <option value="">Select a Store...</option>
+                </select></div>
+        </div>
+    </div>
+    <div id="storeContent" style="display:none;">
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="score-box-large">
+                    <div class="text-uppercase opacity-75 small mb-2" id="stMeta"></div>
+                    <h3 class="mb-3" id="stName"></h3>
+                    <div class="display-1 fw-bold" id="stScore"></div>
+                    <div id="stContext" class="mb-2"></div>
+                    <div class="mt-3"><span class="badge bg-white text-dark px-3 py-2 rounded-pill shadow-sm">Latest
+                            Wave Score</span></div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header-clean">Performance Trend</div>
+                            <div class="card-body">
+                                <div id="stTrendChart" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header-clean">Store vs Region (Gap Analysis)</div>
+                            <div class="card-body">
+                                <div id="stRadarChart" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-7">
+                <div class="card h-100">
+                    <div class="card-header-clean">Latest Section Analysis</div>
+                    <div class="card-body p-0">
+                        <table class="table table-custom table-hover m-0" id="stSectionTable">
+                            <thead>
+                                <tr>
+                                    <th>Section</th>
+                                    <th class="text-end">Score</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="card h-100">
+                        <div class="card-header-clean text-danger">Recommended Action Plan</div>
+                        <div class="card-body" id="stActions"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-4">
+                <div class="card-header-clean">Qualitative Feedback</div>
+                <div class="card-body">
+                    <ul id="stFeedback" class="list-group list-group-flush"></ul>
+                </div>
+            </div>
+        </div>
+    </div>

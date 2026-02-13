@@ -1,0 +1,141 @@
+<div id="tab-summary">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-primary-custom mb-1">Executive Summary</h2>
+            <p class="text-muted m-0">High-level performance overview across all waves.</p>
+        </div>
+        <div class="text-end"><small class="text-muted d-block">Generated On</small><strong>{{GENERATED_DATE}}</strong>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-label">Current Overall Score</div>
+                        <div class="kpi-value" id="kpi-score">--</div>
+                    </div>
+                    <div class="kpi-trend" id="kpi-score-trend">--</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-label">Active Stores</div>
+                        <div class="kpi-value" id="kpi-stores">--</div>
+                    </div>
+                    <div class="kpi-trend text-muted">Across All Regions</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="kpi-card">
+                    <div>
+                        <div class="kpi-label">Critical Issues</div>
+                        <div class="kpi-value text-danger" id="kpi-actions">--</div>
+                    </div>
+                    <div class="kpi-trend text-muted">Sections < {{THRESHOLD}}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="kpi-card">
+                        <div>
+                            <div class="kpi-label">Best Performing Region</div>
+                            <div class="kpi-value text-success" style="font-size: 1.8rem;" id="kpi-best-region">--</div>
+                        </div>
+                        <div class="kpi-trend text-muted">Leading</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header-clean">Historical Performance Trend</div>
+            <div class="card-body">
+                <div id="summaryChart" style="height: 350px;"></div>
+            </div>
+        </div>
+        <h4 class="text-primary-custom mb-3">Section Analysis</h4>
+        <div class="row mb-5">
+            <div class="col-12">
+                <div id="sectionAnalysisGrid" class="row g-3"></div>
+            </div>
+        </div>
+        <h4 class="text-primary-custom mb-3">Ranking Logic</h4>
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header-clean text-success">🏆 Top Performing Stores</div>
+                    <div class="card-body p-0">
+                        <table class="table table-custom table-hover m-0">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Store Name</th>
+                                    <th class="text-end">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topStoresList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header-clean text-danger">⚠️ Lowest Performing Stores</div>
+                    <div class="card-body p-0">
+                        <table class="table table-custom table-hover m-0">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Store Name</th>
+                                    <th class="text-end">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bottomStoresList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header-clean bg-primary text-white">🏆 Regional Ranking</div>
+                    <div class="card-body p-0">
+                        <table class="table table-custom table-hover m-0">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Region</th>
+                                    <th class="text-end">Avg Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="regionRankList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header-clean bg-primary text-white">🏆 Branch Ranking (Top 5)</div>
+                    <div class="card-body p-0">
+                        <table class="table table-custom table-hover m-0">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Branch</th>
+                                    <th class="text-end">Avg Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="branchRankList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
