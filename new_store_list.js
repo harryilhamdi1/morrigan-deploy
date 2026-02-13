@@ -302,12 +302,29 @@ function renderModernStoreDetail(s, container, isFullscreen) {
         qualitativeText = `<p class="text-muted fst-italic">${qualitativeText}</p>`;
     }
 
+    // Comparison Options
+    var comparisonOptions = Object.values(reportData.stores)
+        .filter(x => x.meta.code !== s.meta.code) // Exclude self
+        .sort((a, b) => a.meta.name.localeCompare(b.meta.name))
+        .map(x => `<option value="${x.meta.code}">${x.meta.name} (${(x.results[curWave]?.totalScore || 0).toFixed(1)})</option>`)
+        .join("");
+
     container.innerHTML = `
         <div class="card border-0 shadow-lg overflow-hidden ${isFullscreen ? 'rounded-0 min-vh-100' : ''}">
             <!-- PREMIUM HEADER -->
             <div class="card-header bg-primary-custom text-white p-4 position-relative" style="background: linear-gradient(135deg, #002060 0%, #1e3a8a 100%);">
                 <div class="d-flex justify-content-between align-items-center mb-3 position-relative" style="z-index:2">
-                    <div>${backBtn}</div>
+                    <div class="d-flex align-items-center">
+                        ${backBtn}
+                        <!-- COMPARE CONTROL -->
+                        <div class="d-flex align-items-center bg-white rounded-pill px-3 py-1 ms-3 shadow-sm" style="transition:transform 0.2s">
+                            <span class="fw-bold text-muted me-2 text-uppercase small">⚔️ VS</span>
+                            <select class="form-select form-select-sm border-0 bg-transparent fw-bold text-primary" style="width:220px;box-shadow:none;cursor:pointer" onchange="renderComparison('${s.meta.code}', this.value)">
+                                <option value="">Select Opponent...</option>
+                                ${comparisonOptions}
+                            </select>
+                        </div>
+                    </div>
                     <div>${openWindowBtn}</div>
                 </div>
                 <div class="d-flex justify-content-between align-items-end position-relative" style="z-index:2">
@@ -325,6 +342,9 @@ function renderModernStoreDetail(s, container, isFullscreen) {
             </div>
 
             <div class="card-body p-4 bg-light">
+                <!-- BATTLE FIELD CONTAINER -->
+                <div id="battleField_${s.meta.code}" class="mb-5 animate__animated animate__fadeIn" style="display:none;"></div>
+
                 <!-- TOP ROW: TREND & QUALITATIVE -->
                 <div class="row g-4 mb-4">
                     <div class="col-lg-8">
@@ -464,3 +484,136 @@ function renderModernStoreDetail(s, container, isFullscreen) {
         issuesDiv.innerHTML = `<div class="col-12"><div class="alert alert-success border-0 shadow-sm d-flex align-items-center"><span class="fs-2 me-3">🎉</span><div><h6 class="alert-heading fw-bold mb-0">Excellent Performance!</h6><p class="mb-0 small">No critical issues found in this wave.</p></div></div></div>`;
     }
 }
+
+// --- BATTLE MODE LOGIC ---
+function renderComparison(codeA, codeB) {
+    const container = document.getElementById('battleField_' + codeA);
+    if (!codeB) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    const sA = reportData.stores[codeA];
+    const sB = reportData.stores[codeB];
+    const curWave = sortedWaves[sortedWaves.length - 1];
+
+    if (!sA || !sB) return;
+
+    container.style.display = 'block';
+    
+    // Data Prep
+    const sections = Object.keys(reportData.summary[curWave].sections).sort();
+    const scoresA = sections.map(sec => (sA.results[curWave] && sA.results[curWave].sections[sec] ? sA.results[curWave].sections[sec] : 0));
+    const scoresB = sections.map(sec => (sB.results[curWave] && sB.results[curWave].sections[sec] ? sB.results[curWave].sections[sec] : 0));
+    const totalA = (sA.results[curWave] && sA.results[curWave].totalScore) ? sA.results[curWave].totalScore : 0;
+    const totalB = (sB.results[curWave] && sB.results[curWave].totalScore) ? sB.results[curWave].totalScore : 0;
+    const diffTotal = totalA - totalB;
+
+    // Generate HTML Structure
+    container.innerHTML = \
+        <div class='card border-0 shadow-lg gradient-battle text-white overflow-hidden'>
+            <div class='card-header bg-transparent border-0 pt-4 pb-2 text-center'>
+                 <h2 class='fw-bold text-uppercase mb-0' style='letter-spacing:2px'>?? Battle Mode Analysis</h2>
+                 <p class='opacity-75'>Head-to-Head Comparison</p>
+            </div>
+            <div class='card-body p-4'>
+                 <div class='row align-items-center g-5'>
+                      <!-- VS HEADER -->
+                      <div class='col-12 text-center mb-2'>
+                           <div class='d-flex justify-content-center align-items-center gap-5'>
+                                <div class='text-end'>
+                                     <h3 class='fw-bold mb-0'>\ + sA.meta.name + \</h3>
+                                     <div class='display-4 fw-bold text-warning'>\ + totalA.toFixed(2) + \</div>
+                                </div>
+                                <div class='display-6 fw-bold opacity-50'>VS</div>
+                                <div class='text-start'>
+                                     <h3 class='fw-bold mb-0'>\ + sB.meta.name + \</h3>
+                                     <div class='display-4 fw-bold text-white'>\ + totalB.toFixed(2) + \</div>
+                                </div>
+                           </div>
+                           <div class='mt-2 badge \ + (diffTotal >= 0 ? 'bg-success' : 'bg-danger') + \ fs-6 px-3 py-2'>
+                                Gap: \ + (diffTotal > 0 ? '+' : '') + diffTotal.toFixed(2) + \
+                           </div>
+                      </div>
+
+                      <!-- RADAR CHART -->
+                      <div class='col-lg-5'>
+                           <div class='bg-white rounded-3 p-2 shadow-sm' style='height:400px'>
+                                <div id='battleRadar_\ + codeA + \' style='width:100%;height:100%'></div>
+                           </div>
+                      </div>
+
+                      <!-- GAP TABLE -->
+                      <div class='col-lg-7'>
+                           <div class='bg-white rounded-3 shadow-sm overflow-hidden text-dark h-100'>
+                                <div class='table-responsive h-100'>
+                                    <table class='table table-hover mb-0 align-middle'>
+                                        <thead class='bg-light small text-uppercase text-muted'>
+                                            <tr>
+                                                <th class='ps-4'>Section</th>
+                                                <th class='text-center'>\ + sA.meta.code + \</th>
+                                                <th class='text-center'>\ + sB.meta.code + \</th>
+                                                <th class='text-center'>Gap</th>
+                                                <th class='text-center pe-3'>Winner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id='battleTableBody_\ + codeA + \'></tbody>
+                                    </table>
+                                </div>
+                           </div>
+                      </div>
+                 </div>
+            </div>
+        </div>
+        <style>
+            .gradient-battle { background: linear-gradient(135deg, #1e3a8a 0%, #4338ca 50%, #7e22ce 100%); }
+        </style>
+    \;
+
+    // Render Table Rows
+    const tbody = document.getElementById('battleTableBody_' + codeA);
+    sections.forEach((sec, idx) => {
+        const valA = scoresA[idx];
+        const valB = scoresB[idx];
+        const diff = valA - valB;
+        const isWin = diff > 0;
+        const isTie = Math.abs(diff) < 0.01;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = \
+            <td class='ps-4 fw-bold text-muted small text-uppercase'>\ + sec + \</td>
+            <td class='text-center fw-bold \ + (valA > valB ? 'text-primary' : '') + \'>\ + valA.toFixed(1) + \</td>
+            <td class='text-center fw-bold \ + (valB > valA ? 'text-primary' : '') + \'>\ + valB.toFixed(1) + \</td>
+            <td class='text-center fw-bold \ + (diff > 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-muted')) + \'>
+                \ + (diff > 0 ? '+' : '') + diff.toFixed(1) + \
+            </td>
+            <td class='text-center pe-3'>
+                \ + (isTie ? '<span class=\\'badge bg-secondary\\'>DRAW</span>' : (isWin ? '<span class=\\'badge bg-warning text-dark\\'>?? WIN</span>' : '')) + \
+            </td>
+        \;
+        tbody.appendChild(row);
+    });
+
+    // Render Radar Chart
+    Plotly.newPlot('battleRadar_' + codeA, [
+        {
+            type: 'scatterpolar', r: scoresA, theta: sections, fill: 'toself', name: sA.meta.name,
+            line: { color: '#F59E0B' }, marker: { color: '#F59E0B' }
+        },
+        {
+            type: 'scatterpolar', r: scoresB, theta: sections, fill: 'toself', name: sB.meta.name,
+            line: { color: '#4338ca' }, marker: { color: '#4338ca' }
+        }
+    ], {
+        polar: {
+            radialaxis: { visible: true, range: [0, 100] }
+        },
+        margin: { t: 30, b: 30, l: 40, r: 40 },
+        showlegend: true,
+        legend: { orientation: 'h', y: -0.1 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+    }, { responsive: true, displayModeBar: false });
+}
+
