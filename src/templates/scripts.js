@@ -322,95 +322,103 @@ function initBranches() {
     var waves = sortedWaves;
     var cur = waves[waves.length - 1];
 
-    // 1. Branch vs Section Heatmap
+    // 1. Premium Heatmap
     var secKeys = Object.keys(reportData.summary[cur].sections).sort();
     var z_cat = [], z_val = [], z_txt_col = [];
+
+    // Premium Palette
+    var cRed = "#EF4444"; var cOrange = "#F59E0B"; var cBlueLight = "#60A5FA"; var cBlueDark = "#1E40AF";
+    var cTextDark = "#111827"; var cTextWhite = "#FFFFFF";
 
     bKeys.forEach(br => {
         var row_cat = [], row_val = [], row_col = [];
         secKeys.forEach(s => {
             var d = reportData.branches[br][cur];
             if (!d || !d.sections[s]) {
-                row_cat.push(null); row_val.push(""); row_col.push("black");
+                row_cat.push(null); row_val.push(""); row_col.push(cTextDark);
             } else {
                 var sc = d.sections[s].sum / d.sections[s].count;
                 row_val.push(sc.toFixed(1));
-                if (sc < 84) { row_cat.push(0); row_col.push("#991B1B"); }
-                else if (sc < 90) { row_cat.push(1); row_col.push("#92400E"); }
-                else if (sc < 95) { row_cat.push(2); row_col.push("#1e3a8a"); }
-                else { row_cat.push(3); row_col.push("#312E81"); }
+                if (sc < 84) { row_cat.push(0); row_col.push(cTextWhite); }
+                else if (sc < 90) { row_cat.push(1); row_col.push(cTextDark); }
+                else if (sc < 95) { row_cat.push(2); row_col.push(cTextDark); }
+                else { row_cat.push(3); row_col.push(cTextWhite); }
             }
         });
         z_cat.push(row_cat); z_val.push(row_val); z_txt_col.push(row_col);
     });
 
-    var colors = [[0, "#FECACA"], [0.25, "#FECACA"], [0.25, "#FDE68A"], [0.5, "#FDE68A"], [0.5, "#BFDBFE"], [0.75, "#BFDBFE"], [0.75, "#A5B4FC"], [1, "#A5B4FC"]];
+    var colors = [[0, cRed], [0.25, cRed], [0.25, cOrange], [0.5, cOrange], [0.5, cBlueLight], [0.75, cBlueLight], [0.75, cBlueDark], [1, cBlueDark]];
+
     Plotly.newPlot("branchHeatmap", [{
         x: secKeys, y: bKeys, z: z_cat, text: z_val, customdata: z_val,
-        type: "heatmap", colorscale: colors, zmin: 0, zmax: 3, xgap: 2, ygap: 2,
+        type: "heatmap", colorscale: colors, zmin: 0, zmax: 3, xgap: 3, ygap: 3,
         texttemplate: "<b>%{text}</b>", textfont: { color: z_txt_col, family: "Inter", size: 10 },
-        showscale: false
+        showscale: false, hoverongaps: false
     }], {
-        margin: { l: 150, b: 100, t: 10, r: 10 },
+        margin: { l: 150, b: 100, t: 20, r: 20 },
         font: { family: "Inter, sans-serif" }, height: 600,
-        xaxis: { tickangle: -45, title: "" }, yaxis: { title: "" },
+        xaxis: { tickangle: -45, title: "", tickfont: { size: 11, color: "#4B5563" } },
+        yaxis: { title: "", tickfont: { size: 11, color: "#4B5563", weight: "bold" } },
         paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
     }, config);
 
-    // 2. Branch Ranking Bar Chart (Simplified)
+    // 2. Premium Branch Ranking
     var dat = bKeys.map(br => { var d = reportData.branches[br][cur]; return { n: br, s: d ? d.sum / d.count : 0 }; }).sort((x, y) => x.s - y.s);
-    var cols = dat.map(x => x.s >= 84 ? "#4A7FB5" : "#DC3545");
-    Plotly.newPlot("branchBarChart", [{ x: dat.map(x => x.s), y: dat.map(x => x.n), type: "bar", orientation: "h", marker: { color: cols }, text: dat.map(x => x.s.toFixed(2)), textposition: "inside" }], {
-        margin: { l: 10, t: 10, b: 30, r: 10 }, xaxis: { range: [60, 105], showticklabels: false }, yaxis: { showticklabels: true, automargin: true }
+    var cols = dat.map(x => x.s >= 84 ? "#3B82F6" : "#EF4444"); // Blue-500 vs Red-500
+
+    Plotly.newPlot("branchBarChart", [{
+        x: dat.map(x => x.s), y: dat.map(x => x.n),
+        type: "bar", orientation: "h",
+        marker: { color: cols, line: { width: 0 } },
+        text: dat.map(x => x.s.toFixed(2)), textposition: "inside",
+        insidetextfont: { color: "white", family: "Inter", weight: "bold" },
+        hoverinfo: "x+y"
+    }], {
+        margin: { l: 10, t: 10, b: 30, r: 10 },
+        xaxis: { range: [60, 105], showticklabels: false, showgrid: false, zeroline: false },
+        yaxis: { showticklabels: true, automargin: true, tickfont: { family: "Inter", size: 11 } },
+        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
     }, { responsive: true, displayModeBar: false });
 
-    // 3. Branch Detail Cards (The "Manager View")
+    // 3. Branch Cards with SVG Sparklines
     var cont = document.getElementById("branchContainer");
     cont.innerHTML = "";
-
-    // Sort branches by Score Descending for the card list
     var cardsDat = [...dat].reverse();
 
     cardsDat.forEach(item => {
         var br = item.n;
         var score = item.s;
 
-        // Trend Data
+        // Trend Data for Sparkline
         var yTrend = waves.map(w => { var d = reportData.branches[br][w]; return d ? d.sum / d.count : null; });
-        var trendId = "brTrend_" + br.replace(/\s+/g, '');
+        var sparkHTML = generateSparkline(yTrend); // Use the helper!
 
-        // Focus Stores (Bottom 3)
+        // Focus Stores
         var stores = Object.values(reportData.stores).filter(s => s.meta.branch === br && s.results[cur]).map(s => ({ n: s.meta.name, s: s.results[cur].totalScore })).sort((a, b) => a.s - b.s);
         var bottom3 = stores.slice(0, 3);
-        var botHTML = bottom3.map(s => `<div class="d-flex justify-content-between small mb-1 border-bottom pb-1">
-            <span class="text-truncate" style="max-width:140px;" title="${s.n}">${s.n}</span>
+        var botHTML = bottom3.map(s => `<div class="d-flex justify-content-between small mb-2 border-bottom pb-1 border-light">
+            <span class="text-truncate text-secondary" style="max-width:140px;" title="${s.n}">${s.n}</span>
             <span class="fw-bold ${s.s < 84 ? 'text-danger' : 'text-dark'}">${s.s.toFixed(2)}</span>
         </div>`).join("");
 
         var col = document.createElement("div");
         col.className = "col-xl-3 col-lg-4 col-md-6";
         col.innerHTML = `
-            <div class="card h-100 shadow-sm border-0">
+            <div class="card h-100 shadow-sm border-0" style="transition: transform 0.2s;">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="fw-bold text-primary-custom text-truncate mb-0" style="max-width:70%;" title="${br}">${br}</h6>
-                        <span class="badge ${score < 84 ? 'bg-danger' : 'bg-primary'}">${score.toFixed(2)}</span>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold text-dark text-truncate mb-0" style="max-width:70%; font-size: 0.95rem;" title="${br}">${br}</h6>
+                        <span class="badge ${score < 84 ? 'bg-danger' : 'bg-primary'} rounded-pill px-3">${score.toFixed(2)}</span>
                     </div>
-                    <div id="${trendId}" style="height: 60px; margin: 0 -10px;"></div>
-                    <div class="mt-3">
-                        <div class="text-xs text-uppercase fw-bold text-danger mb-2" style="font-size:0.75rem; letter-spacing:0.5px;">🚨 Focus Stores (Lowest)</div>
+                    <div class="mb-3" style="height: 40px;">${sparkHTML}</div>
+                    <div>
+                        <div class="text-xs text-uppercase fw-bold text-secondary mb-2" style="font-size:0.75rem; letter-spacing:0.5px;">Focus Stores</div>
                         ${botHTML || '<div class="small text-muted">No data available</div>'}
                     </div>
                 </div>
             </div>`;
         cont.appendChild(col);
-
-        // Render Sparkline
-        Plotly.newPlot(trendId, [{
-            x: waves, y: yTrend, type: 'scatter', mode: 'lines', line: { color: score < 84 ? '#DC2626' : '#2563EB', width: 2 }, hoverinfo: 'y'
-        }], {
-            margin: { t: 5, b: 5, l: 5, r: 5 }, xaxis: { visible: false }, yaxis: { visible: false }, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
-        }, { displayModeBar: false });
     });
 }
 
@@ -427,6 +435,44 @@ function renderStoreList() {
     list.forEach(x => { var sc = x.results[w] ? x.results[w].totalScore.toFixed(2) : "N/A"; var opt = document.createElement("option"); opt.value = x.meta.code; opt.textContent = "[" + sc + "] " + x.meta.name; sel.appendChild(opt); });
 }
 
+var radarMode = 'region'; // Default
+
+function toggleRadar(mode) {
+    radarMode = mode;
+    var btnReg = document.querySelector("button[onclick=\"toggleRadar('region')\"]");
+    var btnBr = document.querySelector("button[onclick=\"toggleRadar('branch')\"]");
+    if (mode === 'region') {
+        btnReg.classList.add('active'); btnBr.classList.remove('active');
+    } else {
+        btnBr.classList.add('active'); btnReg.classList.remove('active');
+    }
+    loadStoreDetail(); // Re-render logic (or just update chart, but re-render is safe)
+}
+
+function generateSparkline(data) {
+    if (!data || data.length < 2) return "";
+    var w = 100, h = 30;
+    var max = 100, min = 60; // Fixed scale for consistency
+    var step = w / (data.length - 1);
+    var path = "M 0 " + (h - ((data[0] - min) / (max - min) * h));
+
+    for (var i = 1; i < data.length; i++) {
+        var val = data[i];
+        if (val === null) continue;
+        var x = i * step;
+        var y = h - ((val - min) / (max - min) * h);
+        path += " L " + x + " " + y;
+    }
+
+    var last = data[data.length - 1], first = data[0];
+    var color = last >= first ? "#059669" : "#DC2626"; // Green if up, Red if down
+
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" stroke="${color}" stroke-width="2" style="overflow:visible">
+        <path d="${path}" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${w}" cy="${h - ((last - min) / (max - min) * h)}" r="2" fill="${color}"/>
+    </svg>`;
+}
+
 function loadStoreDetail() {
     var c = document.getElementById("storeSelect").value; if (!c) return; document.getElementById("storeContent").style.display = "block";
     var s = reportData.stores[c], cur = s.results[sortedWaves[sortedWaves.length - 1]];
@@ -437,90 +483,108 @@ function loadStoreDetail() {
     document.getElementById("stMeta").textContent = s.meta.region + " | " + s.meta.branch;
     var stScore = cur.totalScore;
     document.getElementById("stScore").textContent = stScore.toFixed(2);
-    document.getElementById("stScore").className = "display-1 fw-bold " + (stScore < 84 ? "text-danger" : "text-dark");
+    document.getElementById("stScore").className = "display-3 fw-bold " + (stScore < 84 ? "text-danger" : "text-white");
 
-    // 2. Context Badges (Benchmarking)
-    var regData = reportData.regions[s.meta.region][currentWaveKey];
-    var natData = reportData.summary[currentWaveKey];
-    var regScore = regData ? regData.sum / regData.count : 0;
-    var natScore = natData ? natData.sum / natData.count : 0;
-    var vsReg = stScore - regScore;
-    var vsNat = stScore - natScore;
-
-    document.getElementById("stContext").innerHTML = `
-        <span class="badge ${vsReg >= 0 ? 'bg-success' : 'bg-danger'} me-1">${vsReg >= 0 ? '+' : ''}${vsReg.toFixed(1)} vs Region</span>
-        <span class="badge ${vsNat >= 0 ? 'bg-secondary' : 'bg-warning text-dark'}">${vsNat >= 0 ? '+' : ''}${vsNat.toFixed(1)} vs National</span>
-    `;
-
-    // 3. Performance Trend Line
+    // 2. Trend Line (Main Chart) - Luxury Style
     var y = sortedWaves.map(w => s.results[w] ? s.results[w].totalScore : null);
     Plotly.newPlot("stTrendChart", [{
         x: sortedWaves, y: y, type: "scatter", mode: "lines+markers",
-        line: { color: "#002060", width: 3 }, marker: { size: 8, color: "#002060", line: { color: "white", width: 2 } }
-    }], { margin: { t: 20, l: 30, r: 30, b: 30 }, yaxis: { gridcolor: "#f3f4f6" }, xaxis: { showgrid: false } }, config);
+        line: { color: "#1E3A8A", width: 4, shape: 'spline', smoothing: 1.3 },
+        marker: { size: 10, color: "#1E3A8A", line: { color: "white", width: 2 } },
+        fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)' // Soft blue gradient fill
+    }], {
+        margin: { t: 20, l: 30, r: 20, b: 30 },
+        yaxis: { gridcolor: "#F3F4F6", range: [60, 105], zeroline: false },
+        xaxis: { showgrid: false, zeroline: false },
+        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+        hoverlabel: { bgcolor: "#1E3A8A", font: { color: "white", family: "Inter" } }
+    }, config);
 
-    // 4. Radar Chart (Store vs Region) - The "Gap Analysis"
-    var secKeys = Object.keys(cur.sections).sort(); // Sort so shape is consistent
+    // 3. Radar Chart with Toggle Logic - Luxury Style
+    var secKeys = Object.keys(cur.sections).sort();
     var stVals = secKeys.map(k => cur.sections[k]);
-    var regVals = secKeys.map(k => regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0);
-
-    // Close the loop for radar chart
     var radarKeys = [...secKeys, secKeys[0]];
     var rSt = [...stVals, stVals[0]];
-    var rReg = [...regVals, regVals[0]];
+
+    var regData = reportData.regions[s.meta.region][currentWaveKey];
+    var brData = reportData.branches[s.meta.branch][currentWaveKey];
+
+    var compVals = [];
+    var compName = "";
+    var compColor = "";
+
+    if (radarMode === 'region') {
+        compVals = secKeys.map(k => regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0);
+        compName = "Region Avg";
+        compColor = "#9CA3AF";
+    } else {
+        compVals = secKeys.map(k => brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
+        compName = "Branch Avg";
+        compColor = "#F59E0B";
+    }
+    var rComp = [...compVals, compVals[0]];
 
     Plotly.newPlot("stRadarChart", [
         {
-            type: 'scatterpolar', r: rSt, theta: radarKeys.map(k => k.split(' ')[0]), // Shorten labels to A, B, C...
-            fill: 'toself', name: s.meta.name, line: { color: '#2563EB' }, marker: { size: 4 }
+            type: 'scatterpolar', r: rSt, theta: radarKeys.map(k => k.split(' ')[0]),
+            fill: 'toself', fillcolor: 'rgba(37, 99, 235, 0.2)', // Transparent blue fill
+            name: 'Store', line: { color: '#2563EB', width: 3 }, marker: { size: 1 }
         },
         {
-            type: 'scatterpolar', r: rReg, theta: radarKeys.map(k => k.split(' ')[0]),
-            name: 'Regional Avg', line: { color: '#9CA3AF', dash: 'dot', width: 2 }, marker: { size: 1 }, hoverinfo: 'none'
+            type: 'scatterpolar', r: rComp, theta: radarKeys.map(k => k.split(' ')[0]),
+            name: compName, line: { color: compColor, dash: 'dot', width: 2 }, marker: { size: 1 }, hoverinfo: 'skip'
         }
     ], {
         polar: {
-            radialaxis: { visible: true, range: [0, 100], tickfont: { size: 8 } },
-            angularaxis: { tickfont: { size: 10, family: "Inter, sans-serif" } }
+            radialaxis: { visible: true, range: [0, 100], tickfont: { size: 9, color: "#9CA3AF" }, gridcolor: "#E5E7EB", linecolor: "rgba(0,0,0,0)" },
+            angularaxis: { tickfont: { size: 10, family: "Inter, sans-serif", weight: "bold" }, gridcolor: "#E5E7EB", linecolor: "#E5E7EB" },
+            bgcolor: 'rgba(0,0,0,0)'
         },
-        showlegend: true, legend: { orientation: "h", y: -0.1 },
-        margin: { t: 20, l: 30, r: 30, b: 20 },
-        font: { family: "Inter, sans-serif" }
+        showlegend: true, legend: { orientation: "h", y: -0.15, font: { family: "Inter", size: 11 } },
+        margin: { t: 20, l: 40, r: 40, b: 20 },
+        font: { family: "Inter, sans-serif" },
+        paper_bgcolor: 'rgba(0,0,0,0)'
     }, config);
 
-
-    // 5. Section Table with Benchmarks
-    var tb = document.querySelector("#stSectionTable tbody"), acts = document.getElementById("stActions");
-    tb.innerHTML = ""; acts.innerHTML = "";
+    // 4. Section Table with Sparklines
+    var tb = document.querySelector("#stSectionTable tbody");
+    tb.innerHTML = "";
 
     Object.entries(cur.sections).forEach(([k, v]) => {
         var isBad = v < 84;
-        // Find gap vs region for this section
-        var secRegScore = regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0;
-        var gap = v - secRegScore;
-        var gapHTML = `<span class="small ${gap >= 0 ? 'text-success' : 'text-danger'}">(${gap >= 0 ? '+' : ''}${gap.toFixed(1)})</span>`;
+
+        // Calculate Gap
+        var avg = radarMode === 'region' ?
+            (regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0) :
+            (brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
+        var gap = v - avg;
+        var gapHTML = `<span class="small fw-bold ${gap >= 0 ? 'text-success' : 'text-danger'}">${gap >= 0 ? '+' : ''}${gap.toFixed(1)}</span>`;
+
+        // Generate Sparkline Data
+        var sparkData = sortedWaves.map(w => s.results[w] && s.results[w].sections[k] !== undefined ? s.results[w].sections[k] : null);
+        var sparkHTML = generateSparkline(sparkData);
 
         tb.innerHTML += `<tr>
-            <td>${k}</td>
-            <td class="text-end fw-bold ${isBad ? "text-danger" : ""}">${v.toFixed(2)}</td>
-            <td class="text-end">${gapHTML}</td>
-            <td class="text-center">${isBad ? "<span class='badge bg-danger'>⚠️</span>" : "<span class='badge bg-success'>✅</span>"}</td>
+            <td class="fw-bold text-dark" style="font-size:0.9rem;">${k}</td>
+            <td>${sparkHTML}</td>
+            <td class="text-end fw-bold ${isBad ? "text-danger" : "text-dark"}">${v.toFixed(2)}</td>
+            <td class="text-center">${gapHTML}</td>
+            <td class="text-center">${isBad ? "<span class='badge bg-soft-danger text-danger'>⚠️ CRITICAL</span>" : "<span class='badge bg-soft-success text-success'>OK</span>"}</td>
         </tr>`;
-
-        if (isBad) acts.innerHTML += `<div class="action-card"><strong>${k} (${v.toFixed(2)})</strong><p class="small text-muted m-0">${reportData.actionPlanConfig[k] || "Review Standards"}</p></div>`;
     });
-    if (!acts.innerHTML) acts.innerHTML = "<div class='alert alert-success'>No critical issues found!</div>";
 
-
-    // 6. Qualitative
+    // 5. Qualitative Feedback
     var fbList = document.getElementById("stFeedback"); fbList.innerHTML = "";
     if (cur.qualitative && cur.qualitative.length > 0) {
         cur.qualitative.forEach(q => {
             var badge = q.sentiment === 'positive' ? '<span class="badge bg-success">POS</span>' : (q.sentiment === 'negative' ? '<span class="badge bg-danger">NEG</span>' : '<span class="badge bg-secondary">NEU</span>');
-            fbList.innerHTML += `<li class="list-group-item"><div class="d-flex justify-content-between"><strong>${q.category}</strong>${badge}</div><p class="mb-0 small text-muted">${q.text}</p></li>`;
+            fbList.innerHTML += `<div class="p-3 bg-white rounded shadow-sm border-start border-4 ${q.sentiment === 'negative' ? 'border-danger' : 'border-success'}">
+                <div class="d-flex justify-content-between mb-1"><span class="fw-bold small text-uppercase text-muted">${q.category}</span>${badge}</div>
+                <p class="mb-0 small text-dark">"${q.text}"</p>
+            </div>`;
         });
     } else {
-        fbList.innerHTML = "<li class='list-group-item text-muted'>No feedback recorded for this wave.</li>";
+        fbList.innerHTML = "<div class='text-center text-muted py-4 small'>No feedback recorded</div>";
     }
 }
 

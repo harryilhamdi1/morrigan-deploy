@@ -1,84 +1,152 @@
 <div id="tab-stores" style="display:none;">
-    <h2 class="text-primary-custom mb-4">Store Deep Dive</h2>
-    <div class="card p-4 mb-4">
-        <div class="row align-items-end g-3">
-            <div class="col-md-4"><label class="form-label text-muted fw-bold small">SEARCH STORE</label><input
-                    type="text" class="form-control" id="storeSearch" placeholder="Enter store name or code..."
-                    onkeyup="renderStoreList()"></div>
-            <div class="col-md-3"><label class="form-label text-muted fw-bold small">SORT BY</label><select
-                    id="storeSort" class="form-select" onchange="renderStoreList()">
-                    <option value="name">Name (A-Z)</option>
-                    <option value="score_asc">Score (Lowest First)</option>
-                    <option value="score_desc">Score (Highest First)</option>
-                </select></div>
-            <div class="col-md-5"><label class="form-label text-muted fw-bold small">SELECT STORE</label><select
-                    id="storeSelect" class="form-select" onchange="loadStoreDetail()">
+
+    <!-- 1. Top Controls (Search & Filters) -->
+    <div class="card p-3 mb-4 border-0 shadow-sm">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-0"><svg style="width:16px;height:16px"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg></span>
+                    <input type="text" class="form-control border-0 bg-light" id="storeSearch"
+                        placeholder="Search Store Name or ID..." onkeyup="renderStoreList()">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select id="storeSelect" class="form-select border-0 bg-light" onchange="loadStoreDetail()">
                     <option value="">Select a Store...</option>
-                </select></div>
+                </select>
+            </div>
+            <div class="col-md-4 text-end">
+                <select id="storeSort" class="form-select d-inline-block w-auto border-0 bg-light text-muted small"
+                    onchange="renderStoreList()">
+                    <option value="name">Sort: Name (A-Z)</option>
+                    <option value="score_asc">Sort: Score (Low-High)</option>
+                    <option value="score_desc">Sort: Score (High-Low)</option>
+                </select>
+                <button class="btn btn-link text-muted"
+                    onclick="document.getElementById('storeSearch').value=''; renderStoreList()">Reset</button>
+            </div>
         </div>
     </div>
+
+    <!-- Store Detail Content (Initially Hidden) -->
     <div id="storeContent" style="display:none;">
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="score-box-large">
-                    <div class="text-uppercase opacity-75 small mb-2" id="stMeta"></div>
-                    <h3 class="mb-3" id="stName"></h3>
-                    <div class="display-1 fw-bold" id="stScore"></div>
-                    <div id="stContext" class="mb-2"></div>
-                    <div class="mt-3"><span class="badge bg-white text-dark px-3 py-2 rounded-pill shadow-sm">Latest
-                            Wave Score</span></div>
+
+        <!-- 2. Hero Header (Dark Blue) -->
+        <div class="rounded-3 p-4 mb-4 text-white position-relative shadow-sm"
+            style="background-color: #002060; overflow:hidden;">
+            <!-- Background Decoration -->
+            <div
+                style="position:absolute; right:-50px; top:-50px; width:300px; height:300px; background:radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0) 70%); border-radius:50%;">
+            </div>
+
+            <div class="d-flex justify-content-between align-items-start position-relative">
+                <div>
+                    <div class="d-flex gap-2 mb-2">
+                        <button class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="showTab('branches')">←
+                            Back to List</button>
+                        <button class="btn btn-light btn-sm rounded-pill px-3 text-primary-custom fw-bold"
+                            onclick="alert('Battle Mode Coming Soon!')">⚔️ Select Opponent</button>
+                    </div>
+                    <h2 class="fw-bold mb-1" id="stName">Store Name</h2>
+                    <div class="opacity-75 small text-uppercase fw-bold" id="stMeta" style="letter-spacing:1px;">REGION
+                        • BRANCH</div>
+                </div>
+                <div class="text-end">
+                    <div class="d-flex gap-2 justify-content-end mb-2">
+                        <button class="btn btn-outline-light btn-sm rounded-pill px-3"
+                            onclick="window.open(window.location.href, '_blank')">Open Independent Window</button>
+                        <button class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="window.print()">Print
+                            Report</button>
+                    </div>
+                    <div class="display-3 fw-bold" id="stScore">--</div>
+                    <div class="small opacity-75">CURRENT FINAL SCORE</div>
                 </div>
             </div>
-            <div class="col-md-8">
-                <div class="row">
-                    <div class="col-md-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header-clean">Performance Trend</div>
-                            <div class="card-body">
-                                <div id="stTrendChart" style="height: 300px;"></div>
-                            </div>
-                        </div>
+        </div>
+
+        <!-- 3. Top Row: Trend Chart & Radar Chart -->
+        <div class="row g-4 mb-4">
+            <!-- Left: Overall Trend -->
+            <div class="col-xl-7">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-dark mb-4">Overall Performance Trend</h6>
+                        <div id="stTrendChart" style="height: 300px;"></div>
                     </div>
-                    <div class="col-md-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header-clean">Store vs Region (Gap Analysis)</div>
-                            <div class="card-body">
-                                <div id="stRadarChart" style="height: 300px;"></div>
+                </div>
+            </div>
+            <!-- Right: Radar Chart (Spider Stats) -->
+            <div class="col-xl-5">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h6 class="fw-bold text-dark mb-0">Gap Analysis (Spider Stats)</h6>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary active"
+                                    onclick="toggleRadar('region')">vs Region</button>
+                                <button type="button" class="btn btn-outline-secondary"
+                                    onclick="toggleRadar('branch')">vs Branch</button>
                             </div>
                         </div>
+                        <div id="stRadarChart" style="height: 300px;"></div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-7">
-                <div class="card h-100">
-                    <div class="card-header-clean">Latest Section Analysis</div>
-                    <div class="card-body p-0">
-                        <table class="table table-custom table-hover m-0" id="stSectionTable">
-                            <thead>
-                                <tr>
-                                    <th>Section</th>
-                                    <th class="text-end">Score</th>
-                                    <th class="text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+
+        <!-- 4. Critical Issues Banner -->
+        <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center justify-content-between p-3 mb-4 rounded-3"
+            id="stBanner">
+            <div class="d-flex align-items-center">
+                <span class="fs-4 me-3">⚠️</span>
+                <div>
+                    <h6 class="fw-bold mb-0">Critical Issues (< 84)</h6>
+                            <small id="stBannerText">Multiple sections require immediate attention.</small>
                 </div>
-                <div class="col-md-5">
-                    <div class="card h-100">
-                        <div class="card-header-clean text-danger">Recommended Action Plan</div>
-                        <div class="card-body" id="stActions"></div>
+            </div>
+            <button class="btn btn-light btn-sm text-danger fw-bold shadow-sm rounded-pill px-3"
+                onclick="document.getElementById('stSectionTable').scrollIntoView({behavior: 'smooth'})">View
+                Details</button>
+        </div>
+
+        <!-- 5. Detailed Section Analysis Table & VoC -->
+        <div class="row g-4">
+            <div class="col-xl-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold text-dark mb-4">Detailed Section Analysis</h5>
+                        <div class="table-responsive">
+                            <table class="table align-middle table-hover" id="stSectionTable">
+                                <thead class="text-secondary small text-uppercase"
+                                    style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                    <tr>
+                                        <th style="width: 35%;">Section Name</th>
+                                        <th style="width: 25%;">Trend (5 Waves)</th>
+                                        <th style="width: 15%; text-align: right;">Cur. Score</th>
+                                        <th style="width: 15%; text-align: center;">Gap</th>
+                                        <th style="width: 10%; text-align: center;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="border-top-0"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="card mt-4">
-                <div class="card-header-clean">Qualitative Feedback</div>
-                <div class="card-body">
-                    <ul id="stFeedback" class="list-group list-group-flush"></ul>
+            <div class="col-xl-4">
+                <div class="card h-100 border-0 shadow-sm" style="background-color: #F9FAFB;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-dark mb-4">Qualitative Feedback</h6>
+                        <div id="stFeedback" class="d-flex flex-column gap-3"
+                            style="max-height: 600px; overflow-y: auto;"></div>
+                    </div>
                 </div>
             </div>
         </div>
+
     </div>
+</div>
