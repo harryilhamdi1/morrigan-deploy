@@ -46,6 +46,51 @@ async function loadMasterData(filePath) {
         }
 }
 
+// --- WEIGHTED SCORING HELPER ---
+let SECTION_WEIGHTS = {};
+
+async function loadSectionWeights() {
+        try {
+                const weightPath = path.join(__dirname, 'CSV', 'Section Weight.csv');
+                const content = await fs.readFile(weightPath, 'utf8');
+                const records = parse(content, { columns: true, delimiter: ';', skip_empty_lines: true, trim: true, bom: true });
+
+                records.forEach(r => {
+                        // Clean key: "(Section) A. Tampilan..." -> "A. Tampilan..."
+                        let cleanKey = r['Section'] ? r['Section'].replace('(Section) ', '').trim() : '';
+                        if (cleanKey && r['Weight']) {
+                                SECTION_WEIGHTS[cleanKey] = parseFloat(r['Weight']);
+                        }
+                });
+                console.log(`Loaded Weights for ${Object.keys(SECTION_WEIGHTS).length} sections.`);
+        } catch (err) {
+                console.error("Error loading Section Weights:", err.message);
+        }
+}
+
+function calculateWeightedScore(sectionsMap) {
+        let earnedPoints = 0;
+        let maxPointsPossible = 0;
+
+        Object.entries(sectionsMap).forEach(([secName, grade]) => {
+                // Validation: Ignore if grade is null/undefined or Section has no weight
+                if (grade === null || grade === undefined || isNaN(grade)) return;
+
+                // Match section name carefully
+                const weight = SECTION_WEIGHTS[secName];
+                if (!weight) return;
+
+                // Formula: score 90 (weight 10) -> (90/100)*10 = 9 points
+                earnedPoints += (grade / 100) * weight;
+                maxPointsPossible += weight;
+        });
+
+        if (maxPointsPossible === 0) return 0; // Avoid division by zero
+
+        // Final Score = (Earned / MaxPossible) * 100
+        return (earnedPoints / maxPointsPossible) * 100;
+}
+
 async function processWave(filePath, waveName, year, masterMap) {
         const content = await fs.readFile(filePath, 'utf8');
         const records = parse(content, { columns: true, delimiter: ';', skip_empty_lines: true, relax_column_count: true, trim: true, bom: true });
@@ -129,11 +174,13 @@ async function processWave(filePath, waveName, year, masterMap) {
                         }
                 });
 
-                if (finalScore !== null) storeData.totalScore = finalScore;
-                else {
-                        const vals = Object.values(storeData.sections);
-                        storeData.totalScore = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-                }
+                // Use Weighted Scoring Logic (New Requirement)
+                storeData.totalScore = calculateWeightedScore(storeData.sections);
+
+                // Validation Log (Optional): Check if calculated differs significantly from CSV Final Score
+                /* if (finalScore !== null && Math.abs(finalScore - storeData.totalScore) > 1.0) {
+                     // console.warn(`[Diff] ${storeData.siteCode}: CSV=${finalScore} vs Calc=${storeData.totalScore.toFixed(2)}`);
+                } */
                 storeResults.push(storeData);
         });
 
@@ -145,6 +192,7 @@ async function processWave(filePath, waveName, year, masterMap) {
 }
 
 async function processAll() {
+        await loadSectionWeights();
         const masterMap = await loadMasterData(path.join(__dirname, 'CSV', 'Master Site Morrigan.csv'));
         const waves = [
                 { file: 'Wave 1 2024.csv', name: 'Wave 1', year: 2024 },
