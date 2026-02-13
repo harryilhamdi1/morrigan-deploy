@@ -511,65 +511,65 @@ function renderComparison(codeA, codeB) {
     const diffTotal = totalA - totalB;
 
     // Generate HTML Structure
-    container.innerHTML = \
-        <div class='card border-0 shadow-lg gradient-battle text-white overflow-hidden'>
-            <div class='card-header bg-transparent border-0 pt-4 pb-2 text-center'>
-                 <h2 class='fw-bold text-uppercase mb-0' style='letter-spacing:2px'>?? Battle Mode Analysis</h2>
-                 <p class='opacity-75'>Head-to-Head Comparison</p>
+    container.innerHTML = `
+        <div class="card border-0 shadow-lg gradient-battle text-white overflow-hidden">
+            <div class="card-header bg-transparent border-0 pt-4 pb-2 text-center">
+                 <h2 class="fw-bold text-uppercase mb-0" style="letter-spacing:2px">⚔️ Battle Mode Analysis</h2>
+                 <p class="opacity-75">Head-to-Head Comparison</p>
             </div>
-            <div class='card-body p-4'>
-                 <div class='row align-items-center g-5'>
+            <div class="card-body p-4">
+                 <div class="row align-items-center g-5">
                       <!-- VS HEADER -->
-                      <div class='col-12 text-center mb-2'>
-                           <div class='d-flex justify-content-center align-items-center gap-5'>
-                                <div class='text-end'>
-                                     <h3 class='fw-bold mb-0'>\ + sA.meta.name + \</h3>
-                                     <div class='display-4 fw-bold text-warning'>\ + totalA.toFixed(2) + \</div>
+                      <div class="col-12 text-center mb-2">
+                           <div class="d-flex justify-content-center align-items-center gap-5">
+                                <div class="text-end">
+                                     <h3 class="fw-bold mb-0">${sA.meta.name}</h3>
+                                     <div class="display-4 fw-bold text-warning">${totalA.toFixed(2)}</div>
                                 </div>
-                                <div class='display-6 fw-bold opacity-50'>VS</div>
-                                <div class='text-start'>
-                                     <h3 class='fw-bold mb-0'>\ + sB.meta.name + \</h3>
-                                     <div class='display-4 fw-bold text-white'>\ + totalB.toFixed(2) + \</div>
+                                <div class="display-6 fw-bold opacity-50">VS</div>
+                                <div class="text-start">
+                                     <h3 class="fw-bold mb-0">${sB.meta.name}</h3>
+                                     <div class="display-4 fw-bold text-white">${totalB.toFixed(2)}</div>
                                 </div>
                            </div>
-                           <div class='mt-2 badge \ + (diffTotal >= 0 ? 'bg-success' : 'bg-danger') + \ fs-6 px-3 py-2'>
-                                Gap: \ + (diffTotal > 0 ? '+' : '') + diffTotal.toFixed(2) + \
+                           <div class="mt-2 badge ${diffTotal >= 0 ? 'bg-success' : 'bg-danger'} fs-6 px-3 py-2">
+                                Gap: ${diffTotal > 0 ? '+' : ''}${diffTotal.toFixed(2)}
                            </div>
                       </div>
 
                       <!-- RADAR CHART -->
-                      <div class='col-lg-5'>
-                           <div class='bg-white rounded-3 p-2 shadow-sm' style='height:400px'>
-                                <div id='battleRadar_\ + codeA + \' style='width:100%;height:100%'></div>
+                      <div class="col-lg-5">
+                           <div class="bg-white rounded-3 p-2 shadow-sm" style="height:400px">
+                                <div id="battleRadar_${codeA}" style="width:100%;height:100%"></div>
                            </div>
                       </div>
 
                       <!-- GAP TABLE -->
-                      <div class='col-lg-7'>
-                           <div class='bg-white rounded-3 shadow-sm overflow-hidden text-dark h-100'>
-                                <div class='table-responsive h-100'>
-                                    <table class='table table-hover mb-0 align-middle'>
-                                        <thead class='bg-light small text-uppercase text-muted'>
+                      <div class="col-lg-7">
+                           <div class="bg-white rounded-3 shadow-sm overflow-hidden text-dark h-100">
+                                <div class="table-responsive h-100">
+                                    <table class="table table-hover mb-0 align-middle">
+                                        <thead class="bg-light small text-uppercase text-muted">
                                             <tr>
-                                                <th class='ps-4'>Section</th>
-                                                <th class='text-center'>\ + sA.meta.code + \</th>
-                                                <th class='text-center'>\ + sB.meta.code + \</th>
-                                                <th class='text-center'>Gap</th>
-                                                <th class='text-center pe-3'>Winner</th>
+                                                <th class="ps-4">Section</th>
+                                                <th class="text-center">${sA.meta.code}</th>
+                                                <th class="text-center">${sB.meta.code}</th>
+                                                <th class="text-center">Gap</th>
+                                                <th class="text-center pe-3">Winner</th>
                                             </tr>
                                         </thead>
-                                        <tbody id='battleTableBody_\ + codeA + \'></tbody>
+                                        <tbody id="battleTableBody_${codeA}"></tbody>
                                     </table>
                                 </div>
                            </div>
                       </div>
                  </div>
             </div>
+            <style>
+                .gradient-battle { background: linear-gradient(135deg, #1e3a8a 0%, #4338ca 50%, #7e22ce 100%); }
+            </style>
         </div>
-        <style>
-            .gradient-battle { background: linear-gradient(135deg, #1e3a8a 0%, #4338ca 50%, #7e22ce 100%); }
-        </style>
-    \;
+    `;
 
     // Render Table Rows
     const tbody = document.getElementById('battleTableBody_' + codeA);
@@ -581,17 +581,17 @@ function renderComparison(codeA, codeB) {
         const isTie = Math.abs(diff) < 0.01;
         
         const row = document.createElement('tr');
-        row.innerHTML = \
-            <td class='ps-4 fw-bold text-muted small text-uppercase'>\ + sec + \</td>
-            <td class='text-center fw-bold \ + (valA > valB ? 'text-primary' : '') + \'>\ + valA.toFixed(1) + \</td>
-            <td class='text-center fw-bold \ + (valB > valA ? 'text-primary' : '') + \'>\ + valB.toFixed(1) + \</td>
-            <td class='text-center fw-bold \ + (diff > 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-muted')) + \'>
-                \ + (diff > 0 ? '+' : '') + diff.toFixed(1) + \
+        row.innerHTML = `
+            <td class="ps-4 fw-bold text-muted small text-uppercase">${sec}</td>
+            <td class="text-center fw-bold ${valA > valB ? 'text-primary' : ''}">${valA.toFixed(1)}</td>
+            <td class="text-center fw-bold ${valB > valA ? 'text-primary' : ''}">${valB.toFixed(1)}</td>
+            <td class="text-center fw-bold ${diff > 0 ? 'text-success' : (diff < 0 ? 'text-danger' : 'text-muted')}">
+                ${diff > 0 ? '+' : ''}${diff.toFixed(1)}
             </td>
-            <td class='text-center pe-3'>
-                \ + (isTie ? '<span class=\\'badge bg-secondary\\'>DRAW</span>' : (isWin ? '<span class=\\'badge bg-warning text-dark\\'>?? WIN</span>' : '')) + \
+            <td class="text-center pe-3">
+                ${isTie ? '<span class="badge bg-secondary">DRAW</span>' : (isWin ? '<span class="badge bg-warning text-dark">🏆 WIN</span>' : '')}
             </td>
-        \;
+        `;
         tbody.appendChild(row);
     });
 
@@ -616,4 +616,3 @@ function renderComparison(codeA, codeB) {
         plot_bgcolor: 'rgba(0,0,0,0)'
     }, { responsive: true, displayModeBar: false });
 }
-
