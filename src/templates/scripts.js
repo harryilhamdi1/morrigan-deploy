@@ -397,44 +397,125 @@ function renderBranchKPIs(top, fast, gap, hExc, hWarn, hCrit) {
 }
 
 function renderBranchMomentumChart(brData) {
-    // Sort by Momentum for clear bar chart
-    var sorted = [...brData].sort((a, b) => a.mom - b.mom);
+    // Consultant-grade Lollipop Chart: Clean, single-axis ranking visualization
+    // Sort by Score descending (best at top)
+    var sorted = [...brData].sort((a, b) => a.s - b.s);
     var yNames = sorted.map(d => d.n);
-    var xMom = sorted.map(d => d.mom);
-    var xScore = sorted.map(d => d.s);
+    var xScores = sorted.map(d => d.s);
+    var momValues = sorted.map(d => d.mom);
 
-    var markerColors = xScore.map(s => s >= 95 ? '#10B981' : (s >= 84 ? '#F59E0B' : '#EF4444'));
-    var momColors = xMom.map(m => m >= 0 ? '#34D399' : '#F87171');
+    // Color logic: Green (>=95 Excellent), Amber (>=84 Warning), Red (<84 Critical)
+    var dotColors = xScores.map(s => s >= 95 ? '#059669' : (s >= 84 ? '#D97706' : '#DC2626'));
 
-    // Dynamic Height: Ensure items aren't squashed (min 600px, or 50px per item)
-    var dynamicHeight = Math.max(600, yNames.length * 50);
+    // Dynamic Height: 45px per branch, min 500
+    var dynamicHeight = Math.max(500, yNames.length * 45);
 
-    Plotly.newPlot("branchMomentumChart", [
-        {
-            y: yNames, x: xMom, type: 'bar', orientation: 'h', name: 'Growth',
-            marker: { color: momColors, opacity: 0.8, line: { width: 0 } },
-            // Darker text for better contrast vs pastel bars
-            text: xMom.map(m => (m > 0 ? "+" : "") + m.toFixed(2)), textposition: "auto",
-            textfont: { color: "#1F2937", family: "Inter", weight: "bold", size: 12 },
-            xaxis: 'x1', hoverinfo: 'y+x'
+    // --- Trace 1: Thin horizontal "stem" lines from a baseline ---
+    // We'll use a bar trace with very low opacity as the "stem"
+    var baselineScore = 70; // Visual baseline for the lollipop stems
+    var stemTrace = {
+        y: yNames,
+        x: xScores.map(s => s - baselineScore),
+        base: Array(yNames.length).fill(baselineScore),
+        type: 'bar',
+        orientation: 'h',
+        marker: { color: dotColors.map(c => c + '30'), line: { width: 0 } }, // Very faint colored stems
+        width: 0.15, // Thin stems
+        hoverinfo: 'skip',
+        showlegend: false
+    };
+
+    // --- Trace 2: Score Dots (the "lollipop heads") ---
+    var dotTrace = {
+        y: yNames,
+        x: xScores,
+        type: 'scatter',
+        mode: 'markers',
+        marker: {
+            color: dotColors,
+            size: 14,
+            line: { color: 'white', width: 2 },
+            symbol: 'circle'
         },
+        hovertemplate: '<b>%{y}</b><br>Score: %{x:.2f}<extra></extra>',
+        showlegend: false
+    };
+
+    // --- Annotations: Score labels + Momentum badges ---
+    var annotations = [];
+    sorted.forEach((d, i) => {
+        // Score label (to the right of the dot)
+        annotations.push({
+            x: d.s + 1.2,
+            y: d.n,
+            text: '<b>' + d.s.toFixed(1) + '</b>',
+            showarrow: false,
+            font: { size: 12, family: 'Inter', color: '#111827', weight: '700' },
+            xanchor: 'left'
+        });
+
+        // Momentum badge (further right, colored)
+        var momColor = d.mom >= 0 ? '#059669' : '#DC2626';
+        var momIcon = d.mom >= 0 ? '▲' : '▼';
+        var momText = momIcon + ' ' + Math.abs(d.mom).toFixed(1);
+        annotations.push({
+            x: d.s + 5.5,
+            y: d.n,
+            text: momText,
+            showarrow: false,
+            font: { size: 10, family: 'Inter', color: momColor, weight: '600' },
+            xanchor: 'left'
+        });
+    });
+
+    // --- Threshold reference line at 84 ---
+    var shapes = [
         {
-            y: yNames, x: xScore, type: 'scatter', mode: 'markers+text', name: 'Score',
-            marker: { color: markerColors, size: 18, line: { color: 'white', width: 2 }, symbol: 'circle' },
-            text: xScore.map(s => s.toFixed(1)), textposition: 'right',
-            textfont: { size: 13, family: "Inter", weight: "bold", color: "#111827" },
-            xaxis: 'x2', hoverinfo: 'y+x'
+            type: 'line',
+            x0: 84, x1: 84,
+            y0: -0.5, y1: yNames.length - 0.5,
+            line: { color: '#EF4444', width: 2, dash: 'dash' },
+            layer: 'below'
         }
-    ], {
-        grid: { rows: 1, columns: 2, pattern: 'independent' },
-        xaxis: { title: '<b>MOMENTUM (Pts)</b>', domain: [0, 0.45], zeroline: true, showgrid: true, tickfont: { size: 12, color: "#4B5563" } },
-        xaxis2: { title: '<b>CURRENT SCORE</b>', domain: [0.55, 1], range: [60, 105], showgrid: true, gridcolor: '#E5E7EB', tickfont: { size: 12, color: "#4B5563" } },
-        yaxis: { automargin: true, tickfont: { size: 13, family: 'Inter', weight: '600', color: "#111827" } },
-        yaxis2: { showticklabels: false, matches: 'y' },
-        margin: { l: 180, r: 60, t: 40, b: 60 },
+    ];
+
+    // Threshold label
+    annotations.push({
+        x: 84,
+        y: yNames.length - 0.5,
+        text: '<b>THRESHOLD 84</b>',
+        showarrow: false,
+        font: { size: 9, color: '#EF4444', family: 'Inter' },
+        yanchor: 'bottom',
+        xanchor: 'center'
+    });
+
+    Plotly.newPlot("branchMomentumChart", [stemTrace, dotTrace], {
+        xaxis: {
+            title: { text: 'PERFORMANCE SCORE', font: { size: 11, color: '#6B7280', family: 'Inter', weight: '700' } },
+            range: [baselineScore, 105],
+            showgrid: true,
+            gridcolor: '#F3F4F6',
+            gridwidth: 1,
+            zeroline: false,
+            tickfont: { size: 11, color: '#9CA3AF', family: 'Inter' },
+            dtick: 5
+        },
+        yaxis: {
+            automargin: true,
+            tickfont: { size: 12, family: 'Inter', weight: '600', color: '#1F2937' },
+            showgrid: false
+        },
+        shapes: shapes,
+        annotations: annotations,
+        margin: { l: 180, r: 100, t: 20, b: 50 },
         showlegend: false,
-        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-        height: dynamicHeight, font: { family: 'Inter' }
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        height: dynamicHeight,
+        font: { family: 'Inter' },
+        hovermode: 'closest',
+        bargap: 0.4
     }, config);
 }
 
