@@ -406,43 +406,58 @@ function renderBranchMomentumChart(brData) {
     var markerColors = xScore.map(s => s >= 95 ? '#10B981' : (s >= 84 ? '#F59E0B' : '#EF4444'));
     var momColors = xMom.map(m => m >= 0 ? '#34D399' : '#F87171');
 
+    // Dynamic Height: Ensure items aren't squashed (min 600px, or 50px per item)
+    var dynamicHeight = Math.max(600, yNames.length * 50);
+
     Plotly.newPlot("branchMomentumChart", [
         {
             y: yNames, x: xMom, type: 'bar', orientation: 'h', name: 'Growth',
-            marker: { color: momColors, opacity: 0.9, line: { width: 0 } },
-            text: xMom.map(m => (m > 0 ? "+" : "") + m.toFixed(2)), textposition: "inside",
-            insidetextfont: { color: "white", family: "Inter", weight: "bold", size: 10 },
+            marker: { color: momColors, opacity: 0.8, line: { width: 0 } },
+            // Darker text for better contrast vs pastel bars
+            text: xMom.map(m => (m > 0 ? "+" : "") + m.toFixed(2)), textposition: "auto",
+            textfont: { color: "#1F2937", family: "Inter", weight: "bold", size: 12 },
             xaxis: 'x1', hoverinfo: 'y+x'
         },
         {
             y: yNames, x: xScore, type: 'scatter', mode: 'markers+text', name: 'Score',
-            marker: { color: markerColors, size: 14, line: { color: 'white', width: 2 }, symbol: 'circle' },
+            marker: { color: markerColors, size: 18, line: { color: 'white', width: 2 }, symbol: 'circle' },
             text: xScore.map(s => s.toFixed(1)), textposition: 'right',
-            textfont: { size: 11, family: "Inter", weight: "bold", color: "#374151" },
+            textfont: { size: 13, family: "Inter", weight: "bold", color: "#111827" },
             xaxis: 'x2', hoverinfo: 'y+x'
         }
     ], {
         grid: { rows: 1, columns: 2, pattern: 'independent' },
-        xaxis: { title: '<b>MOMENTUM (Pts)</b>', domain: [0, 0.45], zeroline: true, showgrid: true, tickfont: { size: 10, color: "#9CA3AF" } },
-        xaxis2: { title: '<b>CURRENT SCORE</b>', domain: [0.55, 1], range: [60, 105], showgrid: true, gridcolor: '#F3F4F6', tickfont: { size: 10, color: "#9CA3AF" } },
-        yaxis: { automargin: true, tickfont: { size: 11, family: 'Inter', weight: '600', color: "#111827" } },
+        xaxis: { title: '<b>MOMENTUM (Pts)</b>', domain: [0, 0.45], zeroline: true, showgrid: true, tickfont: { size: 12, color: "#4B5563" } },
+        xaxis2: { title: '<b>CURRENT SCORE</b>', domain: [0.55, 1], range: [60, 105], showgrid: true, gridcolor: '#E5E7EB', tickfont: { size: 12, color: "#4B5563" } },
+        yaxis: { automargin: true, tickfont: { size: 13, family: 'Inter', weight: '600', color: "#111827" } },
         yaxis2: { showticklabels: false, matches: 'y' },
-        margin: { l: 150, r: 20, t: 20, b: 40 },
+        margin: { l: 180, r: 60, t: 40, b: 60 },
         showlegend: false,
         paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-        height: 550, font: { family: 'Inter' }
+        height: dynamicHeight, font: { family: 'Inter' }
     }, config);
 }
 
 function renderBranchMatrixChart(brData) {
     var x = brData.map(d => d.s);
     var y = brData.map(d => d.mom);
-    var text = brData.map(d => d.n);
-    var size = brData.map(d => Math.max(12, Math.sqrt(d.count) * 10));
+    // Smart Labels: Only show text for Outliers (Top/Bottom 3 Score or Momentum) to avoid clutter
+    var sortedByScore = [...brData].sort((a, b) => b.s - a.s);
+    var sortedByMom = [...brData].sort((a, b) => b.mom - a.mom);
+    var outliers = new Set([
+        ...sortedByScore.slice(0, 3).map(d => d.n),   // Top 3 Scores
+        ...sortedByScore.slice(-3).map(d => d.n),     // Bottom 3 Scores
+        ...sortedByMom.slice(0, 3).map(d => d.n),     // Top 3 Mom
+        ...sortedByMom.slice(-3).map(d => d.n)        // Bottom 3 Mom
+    ]);
+
+    var text = brData.map(d => outliers.has(d.n) ? d.n : ""); // Hide others
+    var hoverText = brData.map(d => d.n); // Keep hover text for all
+
+    var size = brData.map(d => Math.max(10, Math.min(25, Math.sqrt(d.count) * 6))); // Cap max size
     var colors = x.map(s => s >= 84 ? '#002060' : '#DC2626');
 
     // Shapes: Q1 (Stars), Q2 (Rising), Q3 (Watch), Q4 (Critical)
-    // assuming axis ranges: Score [60, 100], Mom [-15, 15]
     var shapes = [
         { type: 'rect', x0: 84, y0: 0, x1: 105, y1: 20, fillcolor: '#ECFDF5', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Stars
         { type: 'rect', x0: 50, y0: 0, x1: 84, y1: 20, fillcolor: '#EFF6FF', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Rising
@@ -453,11 +468,12 @@ function renderBranchMatrixChart(brData) {
     var divId = "branchMatrixChart";
     var chart = document.getElementById(divId);
 
+    // Increase chart height slightly to give room
     Plotly.newPlot(divId, [{
-        x: x, y: y, text: text, mode: 'markers+text',
+        x: x, y: y, text: text, hovertext: hoverText, mode: 'markers+text',
         marker: { size: size, color: colors, opacity: 0.8, line: { color: 'white', width: 1 }, sizemode: 'diameter' },
-        textposition: 'top center', textfont: { size: 10, family: 'Inter', weight: 'bold', color: '#374151' },
-        hovertemplate: '<b>%{text}</b><br>Score: %{x:.2f}<br>Momentum: %{y:.2f}<extra></extra>'
+        textposition: 'top center', textfont: { size: 10, family: 'Inter', weight: 'bold', color: '#1F2937' },
+        hovertemplate: '<b>%{hovertext}</b><br>Score: %{x:.2f}<br>Momentum: %{y:.2f}<extra></extra>'
     }], {
         xaxis: { title: 'Current Score →', range: [60, 100], showgrid: true, gridcolor: 'white', zeroline: false },
         yaxis: { title: 'Momentum ↑', range: [-15, 15], showgrid: true, gridcolor: 'white', zeroline: true, zerolinecolor: '#9CA3AF' },
@@ -467,23 +483,26 @@ function renderBranchMatrixChart(brData) {
             { type: 'line', x0: 50, x1: 105, y0: 0, y1: 0, line: { color: '#9CA3AF', width: 1 } }
         ],
         annotations: [
-            { x: 97, y: 13, text: '⭐ STARS', showarrow: false, font: { color: '#059669', size: 14, weight: '900' } },
-            { x: 65, y: 13, text: '⚡ RISING', showarrow: false, font: { color: '#2563EB', size: 14, weight: '900' } },
-            { x: 97, y: -13, text: '👀 WATCH', showarrow: false, font: { color: '#D97706', size: 14, weight: '900' } },
-            { x: 65, y: -13, text: '🛑 CRITICAL', showarrow: false, font: { color: '#DC2626', size: 14, weight: '900' } }
+            { x: 97, y: 18, text: '⭐ STARS', showarrow: false, font: { color: '#059669', size: 14, weight: '900' } },
+            { x: 65, y: 18, text: '⚡ RISING', showarrow: false, font: { color: '#2563EB', size: 14, weight: '900' } },
+            { x: 97, y: -18, text: '👀 WATCH', showarrow: false, font: { color: '#D97706', size: 14, weight: '900' } },
+            { x: 65, y: -18, text: '🛑 CRITICAL', showarrow: false, font: { color: '#DC2626', size: 14, weight: '900' } }
         ],
-        margin: { t: 20, b: 40, l: 50, r: 20 },
+        margin: { t: 30, b: 50, l: 60, r: 20 },
         paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { family: 'Inter' }, hovermode: 'closest'
+        font: { family: 'Inter' }, hovermode: 'closest',
+        height: 600
     }, config);
 
     // Interaction
     chart.on('plotly_click', function (data) {
-        var name = data.points[0].text;
-        var inp = document.getElementById("branchSearch");
-        inp.value = name;
-        filterBranchCards();
-        document.getElementById("branchContainer").scrollIntoView({ behavior: 'smooth' });
+        var name = data.points[0].hovertext || data.points[0].text;
+        if (name) {
+            var inp = document.getElementById("branchSearch");
+            inp.value = name;
+            filterBranchCards();
+            document.getElementById("branchContainer").scrollIntoView({ behavior: 'smooth' });
+        }
     });
 }
 
