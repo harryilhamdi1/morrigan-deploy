@@ -16,12 +16,23 @@
         <!-- Injected via JS -->
     </div>
 
+    <!-- 1.5 Branch Priorities -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header-clean bg-danger text-white">⚠️ Branch Top Priorities (Lowest Scoring Items)</div>
+        <div class="card-body">
+            <div id="branchPrioritiesList" class="row g-3"></div>
+        </div>
+    </div>
+
     <!-- 2. Strategic Visuals (Charts) -->
     <div class="row g-4 mb-4">
         <div class="col-xl-6">
             <div class="card border-0 shadow-sm h-100 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <h5 class="fw-bold text-dark mb-0">Branch Performance Ranking</h5>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
+                        onclick="openChartModal('branchMomentumChart', 'Branch Performance Ranking')"
+                        title="Expand Chart"><i class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
                 </div>
                 <p class="text-muted small mb-3">Sorted by score · Momentum indicator (▲▼) shows wave-over-wave trend
                 </p>
@@ -32,6 +43,9 @@
             <div class="card border-0 shadow-sm p-4 mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <h5 class="fw-bold text-dark mb-0">Strategic Growth Matrix</h5>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
+                        onclick="openChartModal('branchMatrixChart', 'Strategic Growth Matrix')" title="Expand Chart"><i
+                            class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
                 </div>
                 <p class="text-muted small mb-3">Performance (X) vs Momentum (Y) — Bubble size = Outlet count</p>
                 <div id="branchMatrixChart" style="height: 400px;"></div>
@@ -40,6 +54,9 @@
             <div class="card border-0 shadow-sm p-4">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <h5 class="fw-bold text-dark mb-0">Scale Efficiency Analysis</h5>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
+                        onclick="openChartModal('branchScaleChart', 'Scale Efficiency Analysis')"
+                        title="Expand Chart"><i class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
                 </div>
                 <p class="text-muted small mb-3">Does size matter? (Bar: Avg Score | Line: Momentum | Badge: Risk)</p>
                 <div id="branchScaleChart" style="height: 300px;"></div>

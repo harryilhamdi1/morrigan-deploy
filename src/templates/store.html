@@ -93,11 +93,15 @@
                         <button class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="showStoreList()">←
                             Back to List</button>
                         <button class="btn btn-light btn-sm rounded-pill px-3 text-primary-custom fw-bold"
-                            onclick="alert('Battle Mode Coming Soon!')">⚔️ Select Opponent</button>
+                            onclick="toggleBattleMode(true)">⚔️ Select Opponent</button>
                     </div>
-                    <h2 class="fw-bold mb-1" id="stName">Store Name</h2>
-                    <div class="opacity-75 small text-uppercase fw-bold" id="stMeta" style="letter-spacing:1px;">REGION
-                        • BRANCH</div>
+                    <div class="d-flex align-items-center gap-3 mb-1">
+                        <span id="stRankBadge" class="badge bg-warning text-dark rounded-pill shadow-sm"
+                            style="font-size: 0.9rem;">Rank #--</span>
+                        <h2 class="fw-bold mb-0" id="stName">Store Name</h2>
+                    </div>
+                    <div class="opacity-75 small text-uppercase fw-bold" id="stMeta"
+                        style="letter-spacing:1px; margin-left: 0.2rem;">REGION • BRANCH</div>
                 </div>
                 <div class="text-end">
                     <div class="d-flex gap-2 justify-content-end mb-2">
@@ -108,17 +112,23 @@
                     </div>
                     <div class="display-3 fw-bold" id="stScore">--</div>
                     <div class="small opacity-75">CURRENT FINAL SCORE</div>
+                    <div id="stMomentum" class="mt-2 text-white fw-bold"></div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. Top Row: Trend Chart & Radar Chart -->
-        <div class="row g-4 mb-4">
+        <!-- 3. Top Row: Trend Chart & Radar Chart (Standard Mode) -->
+        <div id="stStandardMode" class="row g-4 mb-4 fade-in">
             <!-- Left: Overall Trend -->
             <div class="col-xl-7">
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold text-dark mb-4">Overall Performance Trend</h6>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h6 class="fw-bold text-dark mb-0">Overall Performance Trend</h6>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
+                                onclick="openChartModal('stTrendChart', 'Overall Performance Trend')"
+                                title="Expand Chart"><i class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
+                        </div>
                         <div id="stTrendChart" style="height: 300px;"></div>
                     </div>
                 </div>
@@ -130,6 +140,9 @@
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h6 class="fw-bold text-dark mb-0">Gap Analysis (Spider Stats)</h6>
                             <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 me-2 shadow-sm"
+                                    onclick="openChartModal('stRadarChart', 'Gap Analysis')" title="Expand Chart"><i
+                                        class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
                                 <button type="button" class="btn btn-outline-secondary active"
                                     onclick="toggleRadar('region')">vs Region</button>
                                 <button type="button" class="btn btn-outline-secondary"
@@ -137,6 +150,117 @@
                             </div>
                         </div>
                         <div id="stRadarChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3b. BATTLE MODE: Comparison Interface (Initially Hidden) -->
+        <div id="stBattleMode" class="mb-4 fade-in" style="display:none;">
+            <div class="card border-0 shadow-sm overflow-hidden mb-4">
+                <div class="card-header bg-dark text-white p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="fw-bold mb-0 text-warning"><i class="bi bi-controller me-2"></i>Battle Arena</h3>
+                        <button class="btn btn-sm btn-outline-light rounded-pill" onclick="toggleBattleMode(false)">Exit
+                            Battle Mode</button>
+                    </div>
+                </div>
+                <div class="card-body p-4 bg-light">
+                    <!-- Opponent Selector -->
+                    <div class="row align-items-end g-3 mb-4">
+                        <div class="col-md-5">
+                            <label class="small text-uppercase fw-bold text-muted mb-1">Your Champion</label>
+                            <div class="p-3 bg-white rounded shadow-sm border border-primary border-2">
+                                <h4 class="fw-bold mb-0 text-primary-custom" id="battleP1Name">Store Name</h4>
+                                <div class="small text-muted" id="battleP1Score">Score: 0.00</div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <h1 class="display-6 fw-bold text-danger">VS</h1>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="small text-uppercase fw-bold text-muted mb-1">Select Opponent</label>
+                            <select id="battleOpponentSelect" class="form-select form-select-lg border-0 shadow-sm"
+                                onchange="renderBattleAnalysis()">
+                                <option value="">Choose a worthy rival...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Visual Comparison -->
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="fw-bold text-center mb-3">Head-to-Head (Radar)</h6>
+                                    <div id="battleRadarChart" style="height: 350px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="fw-bold text-center mb-3 text-danger">The Tale of the Tape (Gap Analysis)
+                                    </h6>
+                                    <ul class="nav nav-tabs nav-fill mb-3" id="battleTabs" role="tablist">
+                                        <li class="nav-item"><button class="nav-link active text-success fw-bold"
+                                                data-bs-toggle="tab" data-bs-target="#tabWins" type="button">Where We
+                                                Won 🏆</button></li>
+                                        <li class="nav-item"><button class="nav-link text-danger fw-bold"
+                                                data-bs-toggle="tab" data-bs-target="#tabLosses" type="button">Where We
+                                                Lost ⚠️</button></li>
+                                    </ul>
+                                    <div class="tab-content" id="battleTabContent"
+                                        style="height: 280px; overflow-y: auto;">
+                                        <div class="tab-pane fade show active" id="tabWins">
+                                            <div class="text-center text-muted mt-5">Select an opponent to compare</div>
+                                        </div>
+                                        <div class="tab-pane fade" id="tabLosses">
+                                            <div class="text-center text-muted mt-5">Select an opponent to compare</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3c. PERFORMANCE INSIGHTS (New Section) -->
+        <div id="stInsights" class="row g-4 mb-4 fade-in">
+            <!-- Deviation Chart -->
+            <div class="col-lg-7">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h6 class="fw-bold text-dark mb-0"><i
+                                class="bi bi-bar-chart-align-global me-2 text-primary"></i>Performance Deviation vs
+                            Region</h6>
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
+                            onclick="openChartModal('stDeviationChart', 'Performance Deviation')"
+                            title="Expand Chart"><i class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="stDeviationChart" style="height: 300px;"></div>
+                        <p class="small text-muted text-center mt-2 mb-0">Positive bars indicate sections where this
+                            store outperforms the regional average.</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Top Priorities -->
+            <div class="col-lg-5">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-list-check me-2 text-warning"></i>Key
+                            Improvement Areas</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="stImprovementList" class="row g-2 p-3">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light border-0 py-3 text-center">
+                        <small class="text-muted">Focus on these lowest-scoring sections to improve rank.</small>
                     </div>
                 </div>
             </div>
@@ -191,6 +315,33 @@
                 </div>
             </div>
         </div>
-
     </div>
+
+    <!-- 6. Failure Details Modal -->
+    <div class="modal fade" id="failureModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                <div class="modal-header border-bottom-0 bg-danger text-white px-4 py-3"
+                    style="border-radius: 16px 16px 0 0;">
+                    <div>
+                        <h5 class="modal-title fw-bold" id="failureModalTitle">Section Name</h5>
+                        <p class="mb-0 small opacity-75">Specific items that need improvement</p>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="failureModalBody" class="list-group list-group-flush">
+                        <!-- Failed items injected here -->
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 bg-light-subtle justify-content-center py-3">
+                    <button type="button" class="btn btn-light text-muted btn-sm rounded-pill px-4"
+                        data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
 </div>

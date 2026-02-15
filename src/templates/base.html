@@ -368,6 +368,25 @@
     <script>
         { { SCRIPTS } }
     </script>
+    <!-- Fullscreen Chart Modal -->
+    <div class="modal fade" id="chartModal" tabindex="-1" aria-hidden="true" style="z-index: 2000;">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content border-0">
+                <div class="modal-header border-bottom-0 bg-light-subtle px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark" id="chartModalTitle">Chart Analysis</h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted small"><i class="bi bi-arrows-move me-1"></i>Interactive Mode: Scroll to
+                            zoom, Drag to pan</span>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-4 bg-white d-flex align-items-center justify-content-center"
+                    style="background-image: radial-gradient(#E5E7EB 1px, transparent 1px); background-size: 20px 20px;">
+                    <div id="chartModalContainer" style="width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

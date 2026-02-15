@@ -47,10 +47,32 @@ async function processWave(filePath, waveName, year, masterMap) {
         if (storeData.region === 'CLOSED' || storeData.branch === 'CLOSED') return;
 
         // Feedback Collection
-        const feedbackCandidates = Object.keys(record).filter(k => k.includes('759291') || k.toLowerCase().includes('informasikan hal-hal'));
+        const headers = Object.keys(record);
+        const lastCol = headers[headers.length - 1];
+
+        // Identify Potential Columns (Explicit IDs + Last Column as requested)
+        const feedbackCandidates = headers.filter(k => k.includes('759291') || k.toLowerCase().includes('informasikan hal-hal'));
+
+        // Ensure last column is included (User Request for Wave 3 2025)
+        if (lastCol && !feedbackCandidates.includes(lastCol)) {
+            feedbackCandidates.push(lastCol);
+        }
+
+        const uniqueFeedback = new Set();
         feedbackCandidates.forEach(key => {
-            if (record[key] && record[key].length > 3) {
-                storeData.qualitative.push(record[key]);
+            let val = record[key];
+            // Clean up "-mi" suffix from headers if needed, but here we process values
+            if (val && typeof val === 'string' && val.length > 5) {
+                val = val.trim();
+                if (!uniqueFeedback.has(val)) {
+                    // Structure matches scripts.js expectation: { text, sentiment, category }
+                    storeData.qualitative.push({
+                        text: val,
+                        sentiment: 'neutral', // Default since we don't have AI sentiment yet
+                        category: 'General'
+                    });
+                    uniqueFeedback.add(val);
+                }
             }
         });
 
@@ -85,19 +107,28 @@ async function processWave(filePath, waveName, year, masterMap) {
             }
         });
 
-        // Item Drill-down (Failed Items)
-        const headers = Object.keys(record);
+        storeData.details = {}; // Initialize Details Object
+
+        // Item Drill-down (Failed Items & Granular Details)
         const getCol = (code) => headers.find(h => h.includes(`(${code})`) && !h.endsWith('- Text'));
 
         Object.entries(SECTION_ITEMS).forEach(([letter, config]) => {
+            storeData.details[letter] = {}; // Init section
             config.codes.forEach(code => {
                 if (config.exclude.includes(code)) return;
                 const col = getCol(code);
                 if (!col) return;
                 const val = record[col];
                 const score = parseItemScore(val);
+
+                // Capture Item Name (Cleaned) - Remove (Code) prefix and trim
+                const itemName = col.replace(/^\(\d+\)\s*/, '').trim().substring(0, 100);
+
+                // Store Granular Detail (r: result, t: text) - Optimized keys
+                storeData.details[letter][code] = { r: score, t: itemName };
+
+                // Maintain Legacy Logic for Failed Items List
                 if (score === 0) {
-                    const itemName = col.replace(/^\(\d+\)\s*/, '').substring(0, 80);
                     storeData.failedItems.push({ section: letter, code: code, item: itemName });
                 }
             });

@@ -14,7 +14,34 @@ This project generates premium HTML executive summaries and detailed reports for
 - **Radar Chart:** Visual overlay of strength/weakness areas.
 - **Gap Analysis:** Definition of winning/losing categories.
 
-## 🏗️ Project Structure (Refactored)
+### 🏥 Branch Health Monitor
+-   **Priority Focus Areas**: Interactive list of worst-performing sections with one-click access to affected stores.
+-   **Critical Alerts**: Prominent badges highlighting the number of stores falling below the threshold (< 84).
+-   **Deep Dive Modal**: Detailed breakdown of lowest-performing stores, including their top 3 worst sections for immediate context.
+
+## 🐛 Troubleshooting & Logic Fixes (Feb 2026)
+
+During the refactoring process to a modular architecture, the following critical issues were identified and resolved:
+
+1. **Missing Action Plans in Report**:
+   - **Symptom**: `actionPlanConfig` was missing from the generated JSON payload, causing client-side errors.
+   - **Root Cause**: Invalid import in `src/build.js`. The `src/config/action_plans.js` module exports the object directly, but `build.js` attempted to destructure it as `{ ACTION_PLANS_MAP }`.
+   - **Fix**: Updated import to `const ACTION_PLANS_MAP = require(...)`.
+
+2. **Template Placeholder Corruption**:
+   - **Symptom**: Placeholders like `{{ REPORT_DATA_JSON }}` and `{ { SCRIPTS } }` appeared in the final HTML instead of being replaced by data/scripts.
+   - **Root Cause**: Encoding issues introduced extra spaces within the curly braces in `src/templates/base.html`, preventing the build script's regex from matching them.
+   - **Fix**: Normalized all placeholders in the template to standard format (e.g., `{{SCRIPTS}}`) and updated the build script to use robust regex with callback functions.
+
+3. **Data Injection Safety**:
+   - **Symptom**: Syntax errors in browser console due to corrupted JSON.
+   - **Root Cause**: The JS `replace()` function treats `$` characters in the replacement string as special tokens (e.g., `$&`). Since user data contains `$`, this corrupted the JSON injection.
+   - **Fix**: Updated `src/build.js` to use `str.replace(regex, () => content)`, ensuring the content is treated as a raw literal string.
+
+4. **Inconsistent Data Structures causing NaN**:
+   - **Symptom**: Modal displayed `NaN` for section scores, and section-specific alerts found no stores.
+   - **Root Cause**: Data aggregation stored branch-level sections as objects `{ sum, count }` but store-level sections as flat numbers. The frontend logic applied `.sum/.count` universally.
+   - **Fix**: Implemented a helper `getStoreSecScore` to detect the data type and handle both structures correctly. Also added robust case-insensitive matching for section names.
 
 The project has been refactored into a modular architecture for better maintainability and scalability.
 

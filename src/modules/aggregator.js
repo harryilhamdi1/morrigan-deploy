@@ -29,21 +29,44 @@ function buildHierarchy(allStoreData, waves) {
             sections: entry.sections,
             qualitative: entry.qualitative,
             totalScore: entry.totalScore,
-            failedItems: entry.failedItems || []
+            failedItems: entry.failedItems || [],
+            details: entry.details || {}
         };
 
         // Aggregation Helper
         const addToHierarchy = (levelObj, record) => {
-            if (!levelObj[waveKey]) levelObj[waveKey] = { sum: 0, count: 0, sections: {} };
+            if (!levelObj[waveKey]) levelObj[waveKey] = { sum: 0, count: 0, sections: {}, details: {} };
             levelObj[waveKey].sum += record.totalScore;
             levelObj[waveKey].count++;
 
+            // Sections Aggregation
             Object.entries(record.sections).forEach(([secName, val]) => {
                 if (!levelObj[waveKey].sections[secName]) levelObj[waveKey].sections[secName] = { sum: 0, count: 0, critical: 0 };
                 levelObj[waveKey].sections[secName].sum += val;
                 levelObj[waveKey].sections[secName].count++;
                 if (val < THRESHOLD_SCORE) levelObj[waveKey].sections[secName].critical++;
             });
+
+            // Item-Level Aggregation (for Benchmarks)
+            if (record.details) {
+                Object.entries(record.details).forEach(([secKey, items]) => {
+                    if (!levelObj[waveKey].details[secKey]) levelObj[waveKey].details[secKey] = {};
+
+                    Object.entries(items).forEach(([itemCode, itemVal]) => {
+                        if (!levelObj[waveKey].details[secKey][itemCode]) {
+                            levelObj[waveKey].details[secKey][itemCode] = { sum: 0, count: 0, t: itemVal.t };
+                        }
+
+                        // Only count valid numeric scores for benchmark
+                        // itemVal.r might be 1, 0, or null. STRICT CHECK needed.
+                        // Based on scorer.js: 1, 0, or null
+                        if (typeof itemVal.r === 'number') {
+                            levelObj[waveKey].details[secKey][itemCode].sum += itemVal.r;
+                            levelObj[waveKey].details[secKey][itemCode].count++;
+                        }
+                    });
+                });
+            }
         };
 
         addToHierarchy(hierarchy.all, entry);

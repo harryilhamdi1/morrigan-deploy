@@ -9,11 +9,11 @@ function initSummary() {
     var diff = s - pS;
     document.getElementById("kpi-score").textContent = s.toFixed(2);
     document.getElementById("kpi-score-trend").innerHTML = (diff >= 0 ? "▲ +" : "▼ ") + Math.abs(diff).toFixed(2) + " vs last wave";
-    document.getElementById("kpi-score-trend").className = "kpi-trend " + (diff >= 0 ? "text-success" : "text-danger");
+    document.getElementById("kpi-score-trend").className="kpi-trend " + (diff >= 0 ? "text-success" : "text-danger");
     document.getElementById("kpi-stores").textContent = dat.count;
 
     // Best Region
-    var bestR = "", bestS = -1;
+    var bestR="", bestS = -1;
     Object.keys(reportData.regions).forEach(r => {
         var d = reportData.regions[r][cur];
         if (d && d.sum / d.count > bestS) { bestS = d.sum / d.count; bestR = r; }
@@ -25,7 +25,7 @@ function initSummary() {
     Object.values(reportData.stores).forEach(st => {
         if (st.results[cur]) {
             Object.values(st.results[cur].sections).forEach(v => {
-                if (v < reportData.threshold) totActions++;
+                if (v <reportData.threshold) totActions++;
             });
         }
     });
@@ -34,7 +34,7 @@ function initSummary() {
     // 3. Chart with Deltas
     var scores = w.map(k => reportData.summary[k].sum / reportData.summary[k].count);
     var ann = [];
-    for (var i = 1; i < w.length; i++) {
+    for (var i = 1; i <w.length; i++) {
         var p = scores[i - 1], c = scores[i];
         if (!isNaN(p) && !isNaN(c)) {
             var d = c - p;
@@ -74,7 +74,7 @@ function initSummary() {
 
     // 4. Section Analysis (Clickable - Sexy Tiles)
     var grid = document.getElementById("sectionAnalysisGrid");
-    grid.innerHTML = "";
+    grid.innerHTML="";
     var iconMap = {
         "A.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
         "B.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
@@ -97,8 +97,8 @@ function initSummary() {
             var col = document.createElement("div");
             col.className = isTopLow ? "col-xl-4 col-md-6" : "col-xl-2 col-md-4 col-sm-6";
             col.innerHTML = `<div class="card h-100 p-4 shadow-sm section-tile ${isC ? 'bg-soft-danger' : 'bg-white'}" 
-                     style="cursor:pointer; ${isTopLow ? 'border: 2px solid #EF4444;' : ''}" 
-                     onclick="showTab('stores'); document.getElementById('storeSearch').value=''; renderStoreList();">
+            style="cursor:pointer; ${isTopLow ? 'border: 2px solid #EF4444;' : ''}"
+            onclick="openSectionDetail('${k}')">
                 ${isTopLow ? '<div class="position-absolute top-0 end-0 m-3"><span class="badge bg-danger">PRIORITY IMPROVEMENT</span></div>' : ''}
                 <div class="section-icon-wrapper"><div style="width:24px; height:24px;">${icon}</div></div>
                 <div class="${isTopLow ? 'display-5' : 'section-score'} fw-bold ${isC ? 'text-danger' : 'text-primary-custom'}">${sc.toFixed(1)}</div>
@@ -106,7 +106,7 @@ function initSummary() {
                 <div class="d-flex align-items-center justify-content-between mt-auto">
                     <span class="badge rounded-pill ${cr > 0 ? 'bg-danger' : 'bg-success'}">${cr > 0 ? cr + " Critical" : "All Clean"}</span>
                     <svg style="width:16px; height:16px; opacity:0.3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
-                </div></div>`;
+                </div></div> `;
             grid.appendChild(col);
         });
 
@@ -117,11 +117,11 @@ function initSummary() {
         .sort((a, b) => b.s - a.s);
 
     var renderT = (l, id, top) => {
-        var h = "";
+        var h="";
         l.forEach((x, i) => {
             var r = top ? i + 1 : sList.length - i;
             var cls = top ? (i < 3 ? "rank-top-" + (i + 1) : "") : "";
-            h += `<tr><td style="padding-left:20px"><span class="rank-badge ${cls}">${r}</span></td><td>${x.n}</td><td class="text-end fw-bold" style="padding-right:20px">${x.s.toFixed(2)}</td></tr>`;
+            h += `<tr ><td style="padding-left:20px"><span class="rank-badge ${cls}">${r}</span></td><td>${x.n}</td><td class="text-end fw-bold" style="padding-right:20px">${x.s.toFixed(2)}</td></tr> `;
         });
         document.getElementById(id).innerHTML = h;
     };
@@ -137,15 +137,45 @@ function initSummary() {
     }).sort((a, b) => b.s - a.s);
 
     var renderH = (l, id) => {
-        var h = "";
+        var h="";
         l.slice(0, 5).forEach((x, i) => {
             var cls = i < 3 ? "rank-top-" + (i + 1) : "";
-            h += `<tr><td style="padding-left:20px"><span class="rank-badge ${cls}">${i + 1}</span></td><td>${x.n}</td><td class="text-end fw-bold" style="padding-right:20px">${x.s.toFixed(2)}</td></tr>`;
+            h += `<tr ><td style="padding-left:20px"><span class="rank-badge ${cls}">${i + 1}</span></td><td>${x.n}</td><td class="text-end fw-bold" style="padding-right:20px">${x.s.toFixed(2)}</td></tr> `;
         });
         document.getElementById(id).innerHTML = h;
     };
     renderH(regList, "regionRankList");
     renderH(brList, "branchRankList");
+
+    // 7. National Top Priorities (Lowest Scoring Items)
+    const natContainer = document.getElementById("natPrioritiesList");
+    if (natContainer && dat.details) {
+        let allNatItems = [];
+        Object.entries(dat.details).forEach(([sec, items]) => {
+            Object.values(items).forEach(item => {
+                if (item.count > 0) {
+                    allNatItems.push({ t: item.t, score: (item.sum / item.count) });
+                }
+            });
+        });
+
+        // Sort Ascending (Lowest First) -> Take 5
+        const topPriorities = allNatItems.sort((a, b) => a.score - b.score).slice(0, 5);
+
+        natContainer.innerHTML = topPriorities.map((item, idx) => `
+                <div class="col-md-6 col-lg-4" >
+                    <div class="h-100 p-3 bg-white rounded shadow-sm border-start border-4 border-danger d-flex align-items-center">
+                        <div class="me-3 fw-bold text-danger fs-4">#${idx + 1}</div>
+                        <div class="flex-grow-1">
+                            <div class="small fw-bold text-dark" style="line-height:1.2;">${item.t}</div>
+                        </div>
+                        <div class="ms-2 text-end">
+                            <span class="badge bg-danger rounded-pill">${(item.score * 100).toFixed(0)}%</span>
+                        </div>
+                    </div>
+            </div>
+                `).join('');
+    }
 }
 
 function initRegions() {
@@ -176,17 +206,17 @@ function initRegions() {
     });
 
     var legendHTML = `
-           <div class="d-flex justify-content-center gap-4 small text-muted text-uppercase fw-bold" style="letter-spacing:1px; margin: 15px 0;">
+                <div class="d-flex justify-content-center gap-4 small text-muted text-uppercase fw-bold" style="letter-spacing:1px; margin: 15px 0;" >
                <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FECACA;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Critical (<84)</div>
                <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FDE68A;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Warning (84-90)</div>
                <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#BFDBFE;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Good (90-95)</div>
                <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#A5B4FC;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Excellent (>95)</div>
-           </div>`;
+           </div> `;
 
     var container = document.getElementById("regionSectionHeatmap").parentElement;
     container.querySelectorAll(".hm-legend-custom").forEach(e => e.remove());
     var topLeg = document.createElement("div");
-    topLeg.className = "hm-legend-custom";
+    topLeg.className="hm-legend-custom";
     topLeg.innerHTML = legendHTML;
     container.insertBefore(topLeg, document.getElementById("regionSectionHeatmap"));
 
@@ -215,43 +245,43 @@ function initRegions() {
         if (!document.getElementById("heatmapModal")) {
             var m = document.createElement("div");
             m.innerHTML = `
-           <div class="modal fade" id="heatmapModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;overflow:hidden;">
-               <div class="modal-header border-0 bg-white pb-0">
-                    <div><h5 class="modal-title fw-bold text-primary-custom" id="hmModalTitle">Analysis</h5><div class="text-muted small text-uppercase fw-bold" id="hmModalSubtitle" style="letter-spacing:1px;">Detail</div></div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-               </div>
-               <div class="modal-body p-4 bg-white"><div class="row g-4">
-                   <div class="col-md-5">
-                       <div class="p-4 bg-light rounded-3 h-100 text-center d-flex flex-column justify-content-center">
-                            <div class="text-uppercase text-muted small fw-bold mb-1">Score</div>
-                            <div class="display-3 fw-bold mb-2" id="hmScore" style="letter-spacing:-2px;">--</div>
-                            <div id="hmBadge"></div>
-                            <div class="mt-4 pt-3 border-top"><div class="small text-muted mb-1">vs National</div><div class="h5 fw-bold" id="hmVsNat">--</div></div>
-                       </div>
-                   </div>
-                   <div class="col-md-7">
-                        <div class="h-100">
-                            <div class="d-flex align-items-center mb-3"><span class="me-2">📉</span><span class="fw-bold text-danger">Bottom Performing Stores</span></div>
-                            <div class="table-responsive"><table class="table table-sm table-borderless mb-0" style="font-size:0.9rem;"><thead class="text-muted small text-uppercase"><tr><th>Store</th><th class="text-end">Score</th></tr></thead><tbody id="hmCulprits"></tbody></table></div>
+                <div class="modal fade" id="heatmapModal" tabindex="-1" > <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;overflow:hidden;">
+                    <div class="modal-header border-0 bg-white pb-0">
+                        <div><h5 class="modal-title fw-bold text-primary-custom" id="hmModalTitle">Analysis</h5><div class="text-muted small text-uppercase fw-bold" id="hmModalSubtitle" style="letter-spacing:1px;">Detail</div></div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4 bg-white"><div class="row g-4">
+                        <div class="col-md-5">
+                            <div class="p-4 bg-light rounded-3 h-100 text-center d-flex flex-column justify-content-center">
+                                <div class="text-uppercase text-muted small fw-bold mb-1">Score</div>
+                                <div class="display-3 fw-bold mb-2" id="hmScore" style="letter-spacing:-2px;">--</div>
+                                <div id="hmBadge"></div>
+                                <div class="mt-4 pt-3 border-top"><div class="small text-muted mb-1">vs National</div><div class="h5 fw-bold" id="hmVsNat">--</div></div>
+                            </div>
                         </div>
-                   </div>
-                   <div class="col-12"><div class="p-3 bg-light rounded-3 border-start border-4 border-primary"><div class="d-flex"><div class="me-3 fs-4">💡</div><div><h6 class="fw-bold mb-1">Recommended Action</h6><p class="mb-0 text-muted small" id="hmAction">--</p></div></div></div></div>
-                   <div class="col-12"><div class="pt-3 border-top"><div class="small text-muted text-uppercase fw-bold mb-2">Historical Trend</div><div id="hmTrendChart" style="height:120px;"></div></div></div>
-               </div></div>
-           </div></div></div>`;
+                        <div class="col-md-7">
+                            <div class="h-100">
+                                <div class="d-flex align-items-center mb-3"><span class="me-2">📉</span><span class="fw-bold text-danger">Bottom Performing Stores</span></div>
+                                <div class="table-responsive"><table class="table table-sm table-borderless mb-0" style="font-size:0.9rem;"><thead class="text-muted small text-uppercase"><tr><th>Store</th><th class="text-end">Score</th></tr></thead><tbody id="hmCulprits"></tbody></table></div>
+                            </div>
+                        </div>
+                        <div class="col-12"><div class="p-3 bg-light rounded-3 border-start border-4 border-primary"><div class="d-flex"><div class="me-3 fs-4">💡</div><div><h6 class="fw-bold mb-1">Recommended Action</h6><p class="mb-0 text-muted small" id="hmAction">--</p></div></div></div></div>
+                        <div class="col-12"><div class="pt-3 border-top"><div class="small text-muted text-uppercase fw-bold mb-2">Historical Trend</div><div id="hmTrendChart" style="height:120px;"></div></div></div>
+                    </div></div>
+                </div></div></div> `;
             document.body.insertAdjacentHTML('beforeend', m.innerHTML);
         }
 
         document.getElementById("hmModalTitle").textContent = r;
         document.getElementById("hmModalSubtitle").textContent = fullSec;
         var scEl = document.getElementById("hmScore"); scEl.textContent = score.toFixed(2);
-        scEl.className = "display-3 fw-bold mb-2 " + (score < 84 ? "text-danger" : "text-primary-custom");
-        document.getElementById("hmBadge").innerHTML = score < 84 ? `<span class="badge bg-danger px-3 py-2 rounded-pill">CRITICAL</span>` : (score < 90 ? `<span class="badge bg-warning text-dark px-3 py-2 rounded-pill">WARNING</span>` : `<span class="badge bg-success px-3 py-2 rounded-pill">GOOD</span>`);
-        document.getElementById("hmVsNat").innerHTML = (diff >= 0 ? `<span class="text-success">▲ +` : `<span class="text-danger">▼ `) + diff.toFixed(2) + "</span>";
+        scEl.className="display-3 fw-bold mb-2 " + (score < 84 ? "text-danger" : "text-primary-custom");
+        document.getElementById("hmBadge").innerHTML = score < 84 ? `<span class="badge bg-danger px-3 py-2 rounded-pill" > CRITICAL</span> ` : (score < 90 ? ` <span class="badge bg-warning text-dark px-3 py-2 rounded-pill" > WARNING</span> ` : ` <span class="badge bg-success px-3 py-2 rounded-pill" > GOOD</span> `);
+        document.getElementById("hmVsNat").innerHTML = (diff >= 0 ? `<span class="text-success" >▲ +` : ` <span class="text-danger" >▼ `) + diff.toFixed(2) + "</span>";
         document.getElementById("hmAction").textContent = reportData.actionPlanConfig[fullSec] || "Review operational standards and compliance.";
 
         var culprits = Object.values(reportData.stores).filter(s => s.meta.region === r && s.results[curWave]).map(s => ({ n: s.meta.name, s: s.results[curWave].sections[fullSec] || 0 })).sort((a, b) => a.s - b.s).slice(0, 5);
-        document.getElementById("hmCulprits").innerHTML = culprits.map(c => `<tr><td>${c.n}</td><td class="text-end fw-bold ${c.s < 84 ? "text-danger" : ""}">${c.s.toFixed(2)}</td></tr>`).join("");
+        document.getElementById("hmCulprits").innerHTML = culprits.map(c => `<tr ><td>${c.n}</td><td class="text-end fw-bold ${c.s < 84 ? "text-danger" : ""}" > ${c.s.toFixed(2)}</td></tr> `).join("");
 
         var yTrend = waves.map(w => { var rd = reportData.regions[r][w]; return rd && rd.sections[fullSec] ? rd.sections[fullSec].sum / rd.sections[fullSec].count : null; });
         Plotly.newPlot("hmTrendChart", [{ x: waves, y: yTrend, type: "scatter", mode: "lines+markers", line: { color: "#002060", width: 2, shape: "spline" }, marker: { color: "#002060", size: 6 } }], { margin: { t: 10, l: 30, r: 10, b: 20 }, height: 120, xaxis: { showgrid: false, tickfont: { size: 10 } }, yaxis: { showgrid: true, gridcolor: "#eee", tickfont: { size: 10 } } }, config);
@@ -275,7 +305,7 @@ function initRegions() {
 
     // 3. Leaderboard
     var cont = document.getElementById("regionDetailCards");
-    cont.innerHTML = "";
+    cont.innerHTML="";
     var sortedRegs = regKeys.map(r => {
         var d = reportData.regions[r][curWave]; return { n: r, s: d ? d.sum / d.count : 0, d: d };
     }).sort((a, b) => b.s - a.s);
@@ -289,22 +319,22 @@ function initRegions() {
         var diff = score - prevS;
 
         var secs = Object.entries(d.sections).map(([k, v]) => ({ k: k, v: v.sum / v.count })).sort((a, b) => a.v - b.v).slice(0, 3);
-        var weakHTML = secs.map(x => `<div class="d-flex justify-content-between align-items-center mb-1 text-danger small"><span class="text-truncate" style="max-width:180px">${x.k}</span><strong>${x.v.toFixed(1)}</strong></div>`).join("");
-        var rankBadge = idx < 3 ? `<span class="rank-badge rank-top-${idx + 1} shadow-sm" style="width:32px;height:32px;font-size:1rem;">${idx + 1}</span>` : `<span class="badge bg-light text-dark border">#${idx + 1}</span>`;
+        var weakHTML = secs.map(x => `<div class="d-flex justify-content-between align-items-center mb-1 text-danger small" ><span class="text-truncate" style="max-width:180px">${x.k}</span><strong>${x.v.toFixed(1)}</strong></div> `).join("");
+        var rankBadge = idx < 3 ? `<span class="rank-badge rank-top-${idx + 1} shadow-sm" style="width:32px;height:32px;font-size:1rem;" > ${idx + 1}</span> ` : ` <span class="badge bg-light text-dark border" > #${idx + 1}</span> `;
 
         var col = document.createElement("div");
-        col.className = "col-lg-4 col-md-6";
+        col.className="col-lg-4 col-md-6";
         col.innerHTML = `
-           <div class="card h-100 shadow-hover border-0" style="transition: transform 0.2s;">
-               <div class="card-body p-4 position-relative">
-                   <div class="position-absolute top-0 end-0 m-3">${rankBadge}</div>
-                   <h5 class="fw-bold text-primary-custom mb-1">${item.n}</h5>
-                   <div class="text-muted small mb-3">${d.count} Outlet Aktif</div>
-                   <div class="d-flex align-items-center mb-4">
-                        <h2 class="display-5 fw-bold mb-0 me-3 ${score < 84 ? "text-danger" : "text-primary-custom"}">${score.toFixed(2)}</h2>
-                        <div class="${diff >= 0 ? "text-success" : "text-danger"} fw-bold small">
-                            ${diff >= 0 ? "▲" : "▼"} ${Math.abs(diff).toFixed(2)}
-                        </div>
+                <div class="card h-100 shadow-hover border-0" style="transition: transform 0.2s;" >
+                    <div class="card-body p-4 position-relative">
+                        <div class="position-absolute top-0 end-0 m-3">${rankBadge}</div>
+                        <h5 class="fw-bold text-primary-custom mb-1">${item.n}</h5>
+                        <div class="text-muted small mb-3">${d.count} Outlet Aktif</div>
+                        <div class="d-flex align-items-center mb-4">
+                            <h2 class="display-5 fw-bold mb-0 me-3 ${score < 84 ? " text-danger" : "text-primary-custom"}">${score.toFixed(2)}</h2>
+                        <div class="${diff >= 0 ? " text-success" : "text-danger"} fw-bold small">
+                        ${diff >= 0 ? "▲" : "▼"} ${Math.abs(diff).toFixed(2)}
+                    </div>
                    </div>
                    <div class="p-3 bg-light rounded-3 mb-3 border-start border-3 border-danger">
                        <div class="text-uppercase fw-bold text-muted small mb-2" style="font-size:0.7rem; letter-spacing:1px;">Focus Areas (Lowest 3)</div>
@@ -312,9 +342,44 @@ function initRegions() {
                    </div>
                    <button class="btn btn-outline-primary w-100 btn-sm" onclick="showTab('stores'); document.getElementById('storeSearch').value='${item.n}'; renderStoreList();">Deep Dive</button>
                </div>
-           </div>`;
+           </div> `;
         cont.appendChild(col);
     });
+
+    // 4. Regional Priorities (Focus on Lowest Ranked Region)
+    const lowestRegion = sortedRegs[sortedRegs.length - 1]; // sortedRegs is desc
+    const regPriContainer = document.getElementById("regPrioritiesList");
+
+    if (regPriContainer && lowestRegion && lowestRegion.d && lowestRegion.d.details) {
+        // Update Title to include Region Name
+        const header = regPriContainer.closest('.card').querySelector('.card-header-clean');
+        if (header) header.textContent = `⚠️ Priority Focus for ${lowestRegion.n}(Lowest Performing Region)`;
+
+        let allRegItems = [];
+        Object.entries(lowestRegion.d.details).forEach(([sec, items]) => {
+            Object.values(items).forEach(item => {
+                if (item.count > 0) {
+                    allRegItems.push({ t: item.t, score: (item.sum / item.count) });
+                }
+            });
+        });
+
+        const topRegPriorities = allRegItems.sort((a, b) => a.score - b.score).slice(0, 5);
+
+        regPriContainer.innerHTML = topRegPriorities.map((item, idx) => `
+                <div class= "col-md-6 col-lg-4" >
+                <div class="h-100 p-3 bg-white rounded shadow-sm border-start border-4 border-danger d-flex align-items-center">
+                    <div class="me-3 fw-bold text-danger fs-4 text-nowrap">#${idx + 1}</div>
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-dark" style="line-height:1.2; max-height: 4.8em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${item.t}</div>
+                    </div>
+                    <div class="ms-2 text-end">
+                        <span class="badge bg-danger rounded-pill">${(item.score * 100).toFixed(0)}%</span>
+                    </div>
+                </div>
+            </div>
+                `).join('');
+    }
 }
 
 // --- Branch Strategy Module ---
@@ -353,18 +418,53 @@ function initBranches() {
     renderBranchMatrixChart(brData);
     renderBranchInsights(topPerf, fastImp, hCrit, brData);
     renderBranchCards(brData, waves);
+
+    // 4. Branch Priorities (Focus on Lowest Ranked Branch)
+    const lowestBranch = [...brData].sort((a, b) => a.s - b.s)[0];
+    const brPriContainer = document.getElementById("branchPrioritiesList");
+
+    if (brPriContainer && lowestBranch && lowestBranch.d && lowestBranch.d.details) {
+        // Update Title
+        const header = brPriContainer.closest('.card').querySelector('.card-header-clean');
+        if (header) header.textContent = `⚠️ Priority Focus for ${lowestBranch.n}(Lowest Performing Branch)`;
+
+        let allBrItems = [];
+        Object.entries(lowestBranch.d.details).forEach(([sec, items]) => {
+            Object.values(items).forEach(item => {
+                if (item.count > 0) {
+                    allBrItems.push({ t: item.t, score: (item.sum / item.count) });
+                }
+            });
+        });
+
+        const topBrPriorities = allBrItems.sort((a, b) => a.score - b.score).slice(0, 5);
+
+        brPriContainer.innerHTML = topBrPriorities.map((item, idx) => `
+                <div class= "col-md-6 col-lg-4" >
+                <div class="h-100 p-3 bg-white rounded shadow-sm border-start border-4 border-danger d-flex align-items-center">
+                    <div class="me-3 fw-bold text-danger fs-4 text-nowrap">#${idx + 1}</div>
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-dark" style="line-height:1.2; max-height: 4.8em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${item.t}</div>
+                    </div>
+                    <div class="ms-2 text-end">
+                        <span class="badge bg-danger rounded-pill">${(item.score * 100).toFixed(0)}%</span>
+                    </div>
+                </div>
+            </div>
+                `).join('');
+    }
 }
 
 function renderBranchKPIs(top, fast, gap, hExc, hWarn, hCrit) {
     var html = `
-    <div class="col-xl-3 col-md-6">
-        <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">🏆</span><span class="small fw-bold text-primary text-uppercase">Top Performer</span></div>
-                <h5 class="fw-bold text-dark mb-1 text-truncate">${top.n}</h5>
-                <div class="small text-muted">${top.s.toFixed(2)} pts</div>
-            </div>
-        </div>
+                <div class="col-xl-3 col-md-6" >
+                    <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">🏆</span><span class="small fw-bold text-primary text-uppercase">Top Performer</span></div>
+                            <h5 class="fw-bold text-dark mb-1 text-truncate">${top.n}</h5>
+                            <div class="small text-muted">${top.s.toFixed(2)} pts</div>
+                        </div>
+                    </div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);">
@@ -570,14 +670,11 @@ function renderBranchMomentumChart(brData) {
 function renderBranchMatrixChart(brData) {
     var x = brData.map(d => d.s);
     var y = brData.map(d => d.mom);
-    // Smart Labels: Show text for Top/Bottom 3 Score AND Momentum to cover key interest points
+    // Smart Labels: Only show extreme outliers to avoid label pile-ups
     var sortedByScore = [...brData].sort((a, b) => b.s - a.s);
-    var sortedByMom = [...brData].sort((a, b) => b.mom - a.mom);
     var outliers = new Set([
-        ...sortedByScore.slice(0, 3).map(d => d.n),
-        ...sortedByScore.slice(-3).map(d => d.n),
-        ...sortedByMom.slice(0, 3).map(d => d.n),
-        ...sortedByMom.slice(-3).map(d => d.n)
+        ...sortedByScore.slice(0, 2).map(d => d.n),  // Top 2 by score
+        ...sortedByScore.slice(-2).map(d => d.n)      // Bottom 2 by score
     ]);
 
     var text = brData.map(d => outliers.has(d.n) ? d.n : "");
@@ -595,7 +692,7 @@ function renderBranchMatrixChart(brData) {
         { type: 'rect', x0: 50, y0: -20, x1: 84, y1: 0, fillcolor: '#FEF2F2', opacity: 0.4, line: { width: 0 }, layer: 'below' }  // Critical
     ];
 
-    var divId = "branchMatrixChart";
+    var divId="branchMatrixChart";
     var chart = document.getElementById(divId);
 
     Plotly.newPlot(divId, [{
@@ -606,7 +703,7 @@ function renderBranchMatrixChart(brData) {
         hovertemplate: '<b>%{hovertext}</b><br>Score: %{x:.2f}<br>Momentum: %{y:.2f}<br>Outlets: %{marker.size}<extra></extra>'
     }], {
         xaxis: { title: 'Current Score →', range: [75, 100], showgrid: true, gridcolor: 'white', zeroline: false }, // Zoomed in range?
-        yaxis: { title: 'Momentum ↑', range: [-15, 15], showgrid: true, gridcolor: 'white', zeroline: true, zerolinecolor: '#9CA3AF' },
+        yaxis: { title: 'Momentum ↑', range: [-20, 22], showgrid: true, gridcolor: 'white', zeroline: true, zerolinecolor: '#9CA3AF' },
         shapes: [
             ...shapes,
             { type: 'line', x0: 84, x1: 84, y0: -20, y1: 20, line: { color: '#EF4444', width: 2, dash: 'dash' } },
@@ -618,7 +715,7 @@ function renderBranchMatrixChart(brData) {
             { x: 99, y: -18, text: '👀 WATCH', showarrow: false, font: { color: '#D97706', size: 14, weight: '900' }, bgcolor: 'white', opacity: 0.8 },
             { x: 76, y: -18, text: '🛑 CRITICAL', showarrow: false, font: { color: '#DC2626', size: 14, weight: '900' }, bgcolor: 'white', opacity: 0.8 }
         ],
-        margin: { t: 30, b: 40, l: 50, r: 20 },
+        margin: { t: 80, b: 40, l: 50, r: 20 },
         paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
         font: { family: 'Inter' }, hovermode: 'closest',
         height: 400
@@ -680,7 +777,7 @@ function renderBranchScaleChart(brData) {
     });
     var worstPerformers = labels.map(k => {
         if (groups[k].names.length === 0) return "N/A";
-        var worst = groups[k].names.reduce((prev, curr) => (prev.s < curr.s) ? prev : curr);
+        var worst = groups[k].names.reduce((prev, curr) => (prev.s <curr.s) ? prev : curr);
         return `${worst.n} (${worst.s.toFixed(1)})`;
     });
 
@@ -696,13 +793,16 @@ function renderBranchScaleChart(brData) {
     // Colors: 5-Step Blue Gradient
     var barColors = ['#BFDBFE', '#93C5FD', '#60A5FA', '#3B82F6', '#1E40AF'];
 
-    // Trace 1: Bar Chart
+    // Contrast Text Colors for Bars
+    var textColors = ['#1F2937', '#1F2937', '#1F2937', '#FFFFFF', '#FFFFFF']; // Dark for light bars
+
+    // Trace 1: Bar Chart — NO text labels to avoid overlap with line
     var trace1 = {
         x: labels, y: avgScores, type: 'bar', name: 'Avg Score',
-        marker: { color: barColors, line: { width: 0 }, opacity: 0.85 },
+        marker: { color: barColors, line: { width: 0 }, opacity: 0.9 },
         error_y: errorY,
-        text: avgScores.map(v => v > 0 ? v.toFixed(1) : ""), textposition: 'auto',
-        textfont: { color: 'white', weight: 'bold' }, // White text inside bars
+        text: avgScores.map(v => v > 0 ? v.toFixed(1) : ""),
+        textposition: 'none', // Hide bar text — values shown via annotations below
         hovertemplate:
             '<b>%{x} Outlets</b><br>' +
             'Avg Score: %{y:.2f}<br>' +
@@ -726,46 +826,48 @@ function renderBranchScaleChart(brData) {
         x: labels, y: avgMoms, type: 'scatter', mode: 'lines+markers+text', name: 'Momentum',
         yaxis: 'y2',
         line: { color: '#F97316', width: 3, shape: 'spline' },
-        marker: { size: 8, color: 'white', line: { color: '#F97316', width: 2 } },
-        text: avgMoms.map(v => (v > 0 ? "+" : "") + v.toFixed(1)), textposition: 'top center',
-        textfont: { color: '#EA580C', weight: 'bold', size: 10 },
+        marker: { size: 9, color: 'white', line: { color: '#F97316', width: 2 } },
+        text: avgMoms.map(v => (v > 0 ? "+" : "") + v.toFixed(1) + "<br>"), textposition: 'top center',
+        textfont: { color: '#C2410C', weight: 'bold', size: 12 }, // Darker orange, larger text
         hovertemplate: 'Avg Momentum: %{y:.2f}<extra></extra>'
     };
 
+    // Score annotations placed below the x-axis for each bar
+    var scoreAnnotations = labels.map((l, i) => ({
+        x: l, y: avgScores[i], xref: 'x', yref: 'y',
+        text: '<b>' + avgScores[i].toFixed(1) + '</b>',
+        showarrow: false,
+        font: { color: textColors[i], size: 13, family: 'Inter' },
+        yshift: -15 // Push inside the bar, below the top edge
+    }));
+
     Plotly.newPlot('branchScaleChart', [trace1, trace2], {
-        margin: { t: 40, b: 30, l: 40, r: 40 },
+        margin: { t: 30, b: 30, l: 40, r: 40 },
         yaxis: { range: [65, 100], title: { text: 'Avg Score', font: { size: 10, color: '#6B7280' } } },
         yaxis2: {
             title: { text: 'Avg Momentum', font: { size: 10, color: '#EA580C' } },
             overlaying: 'y', side: 'right', showgrid: false, zeroline: false,
-            range: [-10, 15]
+            range: [-10, 20]
         },
         xaxis: { title: 'Number of Outlets', titlefont: { size: 10, color: '#9CA3AF' }, tickfont: { size: 11, weight: 'bold' } },
         showlegend: false,
         paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
         height: 350, font: { family: 'Inter' },
-        annotations: [
-            {
-                x: labels[avgMoms.indexOf(Math.max(...avgMoms))],
-                y: Math.max(...avgMoms), xref: 'x', yref: 'y2',
-                text: '🚀 Peak Growth', showarrow: true, arrowhead: 2, ax: 0, ay: -25,
-                font: { color: '#EA580C', weight: 'bold', size: 9 }, bgcolor: 'white', opacity: 0.9
-            }
-        ]
+        annotations: scoreAnnotations
     }, config);
 }
 function renderBranchInsights(top, fast, hCrit, brData) {
     var insights = [];
-    insights.push(`<div>📌 <strong>${top.n}</strong> leads with <strong>${top.s.toFixed(2)}</strong>.`);
+    insights.push(`<div >📌 <strong>${top.n}</strong> leads with <strong>${top.s.toFixed(2)}</strong>.`);
     if (hCrit > 0) {
         var names = brData.filter(b => b.s < 84).map(b => b.n).join(", ");
-        insights.push(`<div>🚨 <strong>${hCrit} Critical Branches</strong> (<84): <span class="text-danger">${names}</span>.</div>`);
+        insights.push(`<div >🚨 <strong>${hCrit} Critical Branches</strong> (< 84): <span class="text-danger">${names}</span>.</div> `);
     }
-    insights.push(`<div>📈 <strong>${fast.n}</strong> has the strongest momentum (<span class="text-success">+${fast.mom.toFixed(2)}</span>).</div>`);
+    insights.push(`<div >📈 <strong>${fast.n}</strong> has the strongest momentum(<span class="text-success">+${fast.mom.toFixed(2)}</span>).</div> `);
 
     var stars = brData.filter(b => b.s >= 84 && b.mom > 0).length;
     var rising = brData.filter(b => b.s < 84 && b.mom > 0).length;
-    insights.push(`<div>💡 <strong>Strategic Mix</strong>: ${stars} Stars (High/Growing), ${rising} Rising (Low/Growing).</div>`);
+    insights.push(`<div >💡 <strong>Strategic Mix</strong>: ${stars} Stars(High / Growing), ${rising} Rising(Low / Growing).</div> `);
 
     document.getElementById("branchInsights").innerHTML = insights.join("");
 }
@@ -790,7 +892,7 @@ function showCulpritModal(branchName, sectionName = null) {
     var targetWave = (typeof sortedWaves !== 'undefined') ? sortedWaves[sortedWaves.length - 1] : "Wave 1";
     currentCulpritSection = sectionName ? sectionName.trim() : null;
 
-    document.getElementById("culpritBranchName").innerText = branchName + (currentCulpritSection ? ` - ${currentCulpritSection}` : "");
+    document.getElementById("culpritBranchName").innerText = branchName + (currentCulpritSection ? ` - ${currentCulpritSection} ` : "");
 
     // Helper: get section score from store-level data
     // Store sections are flat numbers { sectionName: score }
@@ -846,7 +948,7 @@ function showCulpritModal(branchName, sectionName = null) {
 
 function renderCulpritList() {
     var container = document.getElementById("culpritList");
-    container.innerHTML = "";
+    container.innerHTML="";
 
     var start = (currentCulpritPage - 1) * CULPRIT_PAGE_SIZE;
     var end = start + CULPRIT_PAGE_SIZE;
@@ -867,9 +969,9 @@ function renderCulpritList() {
             .slice(0, 3); // Top 3
 
         var worstHTML = worstSecs.map(ws =>
-            `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-1 px-1 me-1 mb-1" style="font-size: 0.75rem;">
-                ${ws.k}: ${ws.s.toFixed(1)}
-             </span>`
+            `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-1 px-1 me-1 mb-1" style="font-size: 0.75rem;" >
+        ${ws.k}: ${ws.s.toFixed(1)}
+             </span> `
         ).join("");
 
         // Determine what score to show prominently
@@ -877,14 +979,14 @@ function renderCulpritList() {
 
         // Make clickable link
         var item = document.createElement("a");
-        item.href = "?store=" + s.c;
-        item.target = "_blank";
-        item.className = "list-group-item list-group-item-action p-3 border-light hover-bg-light text-decoration-none";
+        item.href="?store=" + s.c;
+        item.target="_blank";
+        item.className="list-group-item list-group-item-action p-3 border-light hover-bg-light text-decoration-none";
 
         var badgeColor = displayScore < 70 ? 'bg-danger' : (displayScore < 84 ? 'bg-warning text-dark' : 'bg-success');
 
         item.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-1">
+        <div class="d-flex justify-content-between align-items-center mb-1" >
                 <span class="fw-bold text-dark">${s.n}</span>
                 <span class="badge ${badgeColor} rounded-pill fs-6">${displayScore.toFixed(1)}</span>
             </div>
@@ -903,20 +1005,20 @@ function renderCulpritList() {
             }
                 <span class="text-primary fw-medium" style="font-size: 0.85rem;">View Full Analysis <i class="bi bi-arrow-right ms-1"></i></span>
             </div>
-        `;
+    `;
         container.appendChild(item);
     });
 
     // Pagination Controls
     var totalPages = Math.ceil(currentCulpritData.length / CULPRIT_PAGE_SIZE);
-    document.getElementById("culpritPageIndicator").innerText = `Page ${currentCulpritPage} of ${totalPages || 1}`;
+    document.getElementById("culpritPageIndicator").innerText = `Page ${currentCulpritPage} of ${totalPages || 1} `;
     document.getElementById("btnCulpritPrev").disabled = currentCulpritPage === 1;
     document.getElementById("btnCulpritNext").disabled = (end >= currentCulpritData.length) || (totalPages <= 1);
 }
 
 function renderBranchCards(data, waves) {
     var cont = document.getElementById("branchContainer");
-    cont.innerHTML = "";
+    cont.innerHTML="";
 
     // Sort by Score Descending
     var viewData = [...data].sort((a, b) => b.s - a.s);
@@ -928,7 +1030,7 @@ function renderBranchCards(data, waves) {
                 '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-2 rounded-pill fw-bold">CRITICAL</span>');
 
         var yTrend = waves.map(w => { var bd = reportData.branches[d.n][w]; return bd ? bd.sum / bd.count : null; });
-        var sparkHTML = generateSparkline(yTrend);
+        var sparkHTML = generateSparkline(yTrend, waves);
 
         // Data for Lists
         var branchStores = Object.values(reportData.stores).filter(s => s.meta.branch === d.n && s.results[waves[waves.length - 1]]);
@@ -940,20 +1042,20 @@ function renderBranchCards(data, waves) {
             .slice(0, 3);
 
         var lowestHTML = lowestStores.map(s => `
-            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle">
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle" >
                 <span class="fw-medium text-dark small text-wrap lh-sm" style="max-width: 70%;">${s.n}</span>
                 <span class="fw-bold ${s.s < 84 ? 'text-danger' : 'text-dark'} small bg-light-subtle px-2 py-1 rounded">${s.s.toFixed(1)}</span>
-            </div>`).join("");
+            </div> `).join("");
 
         // Critical Stores Button (Moved to Middle Column)
-        var criticalBtnHTML = "";
+        var criticalBtnHTML="";
         if (criticalCount > 0) {
             criticalBtnHTML = `
-            <div class="mt-3 text-center">
-                <button onclick="showCulpritModal('${d.n}')" class="btn btn-sm btn-danger shadow-sm w-100 py-2 fw-medium" style="border-radius: 8px;">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i> View ${criticalCount} Critical Stores
-                </button>
-            </div>`;
+        <div class="mt-3 text-center" >
+            <button onclick="showCulpritModal('${d.n}')" class="btn btn-sm btn-danger shadow-sm w-100 py-2 fw-medium" style="border-radius: 8px;">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> View ${criticalCount} Critical Stores
+            </button>
+            </div> `;
         }
 
         var prioritySecs = Object.entries(d.d.sections)
@@ -972,31 +1074,31 @@ function renderBranchCards(data, waves) {
             }).length;
 
             return `
-            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle hover-bg-light" 
-                 style="cursor: pointer; transition: background 0.2s;"
-                 onclick="showCulpritModal('${d.n}', '${s.k}')"
-                 title="Click to view problematic stores in ${s.k}">
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle hover-bg-light"
+    style="cursor: pointer; transition: background 0.2s;"
+    onclick="showCulpritModal('${d.n}', '${s.k}')"
+    title="Click to view problematic stores in ${s.k}" >
                 
                 <div class="d-flex align-items-center gap-2" style="max-width: 75%;">
                     <!-- Visual Indicator: Small icon -->
                     <i class="bi bi-box-arrow-in-up-right text-muted" style="font-size: 0.75rem;"></i>
                     
                     <div class="text-wrap lh-sm">
-                        <span class="fw-medium text-dark small text-decoration-underline-hover">${s.k}</span>
-                        ${probCount > 0 ? `<span class="text-danger ms-1 fw-bold" style="font-size: 0.7rem;">(${probCount})</span>` : ''}
+                        <div class="fw-medium text-dark small text-decoration-underline-hover">${s.k}</div>
+                        ${probCount > 0 ? `<div class="mt-1"><span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.6rem; padding: 2px 6px;">${probCount} STORES BELOW 84</span></div>` : ''}
                     </div>
                 </div>
                 <span class="fw-bold ${s.s < 84 ? 'text-danger' : 'text-dark'} small bg-light-subtle px-2 py-1 rounded">${s.s.toFixed(1)}</span>
-            </div>`;
+            </div> `;
         }).join("");
 
         var col = document.createElement("div");
-        col.className = "col-12 branch-card-item";
+        col.className="col-12 branch-card-item";
         col.dataset.name = d.n.toLowerCase();
 
         col.innerHTML = `
-        <div class="card border-0 shadow hover-shadow-lg mb-4 overflow-hidden" style="border-radius: 16px; transition: all 0.3s ease;">
-            <!-- Header -->
+        <div class="card border-0 shadow hover-shadow-lg mb-4 overflow-hidden" style="border-radius: 16px; transition: all 0.3s ease;" >
+            < !--Header -->
             <div class="card-header border-0 bg-gradient-to-r from-light to-white p-4" style="background: linear-gradient(90deg, #F9FAFB 0%, #FFFFFF 100%);">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-3">
@@ -1049,7 +1151,7 @@ function renderBranchCards(data, waves) {
                     </div>
                 </div>
             </div>
-        </div>`;
+        </div> `;
         cont.appendChild(col);
     });
 }
@@ -1076,7 +1178,7 @@ function initStoreTable() {
 function updateBranchFilter() {
     var reg = document.getElementById("storeListRegion").value;
     var brSel = document.getElementById("storeListBranch");
-    brSel.innerHTML = "<option value=''>All Branches</option>";
+    brSel.innerHTML="<option value=''>All Branches</option>";
     brSel.disabled = !reg;
 
     if (reg) {
@@ -1091,8 +1193,8 @@ function updateBranchFilter() {
 }
 
 function resetStoreFilters() {
-    document.getElementById("storeListSearch").value = "";
-    document.getElementById("storeListRegion").value = "";
+    document.getElementById("storeListSearch").value="";
+    document.getElementById("storeListRegion").value="";
     updateBranchFilter();
     renderStoreTable();
 }
@@ -1130,7 +1232,7 @@ function renderStoreTable() {
     var pageData = list.slice(start, end);
 
     var tbody = document.getElementById("storeMasterBody");
-    tbody.innerHTML = "";
+    tbody.innerHTML="";
 
     pageData.forEach((s, idx) => {
         var rank = start + idx + 1;
@@ -1138,12 +1240,12 @@ function renderStoreTable() {
         var score = d ? d.totalScore : 0;
 
         // Luxury Badge Logic
-        var scoreBadge = "";
-        if (score < 84) scoreBadge = `<span class="badge bg-danger rounded-pill px-3">${score.toFixed(2)}</span>`;
-        else if (score >= 95) scoreBadge = `<span class="badge bg-success rounded-pill px-3">${score.toFixed(2)}</span>`;
-        else scoreBadge = `<span class="fw-bold text-dark">${score.toFixed(2)}</span>`;
+        var scoreBadge="";
+        if (score < 84) scoreBadge = `<span class="badge bg-danger rounded-pill px-3" > ${score.toFixed(2)}</span> `;
+        else if (score >= 95) scoreBadge = `<span class="badge bg-success rounded-pill px-3" > ${score.toFixed(2)}</span> `;
+        else scoreBadge = `<span class="fw-bold text-dark" > ${score.toFixed(2)}</span> `;
 
-        var row = `<tr>
+        var row = `<tr >
             <td class="ps-4 fw-bold text-secondary">#${rank}</td>
             <td><span class="badge bg-light text-dark border">${s.meta.code}</span></td>
             <td><div class="fw-bold text-dark">${s.meta.name}</div></td>
@@ -1153,11 +1255,11 @@ function renderStoreTable() {
             <td class="text-center">
                 <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="viewStore('${s.meta.code}')">See Details</button>
             </td>
-        </tr>`;
+        </tr> `;
         tbody.innerHTML += row;
     });
 
-    document.getElementById("storeListCount").textContent = `Showing ${start + 1}-${Math.min(end, list.length)} of ${list.length} stores`;
+    document.getElementById("storeListCount").textContent = `Showing ${start + 1} -${Math.min(end, list.length)} of ${list.length} stores`;
 }
 
 function changePage(dir) {
@@ -1174,10 +1276,13 @@ function viewStore(id) {
     if (typeof showTab === 'function') showTab('stores');
 
     // Switch Views
-    document.getElementById("storeListContainer").style.display = "none";
-    document.getElementById("storeContent").style.display = "block";
+    document.getElementById("storeListContainer").style.display="none";
+    document.getElementById("storeContent").style.display="block";
 
-    // Populate dropdown for compatibility (hidden but functional)
+    // Set Global State
+    window.currentStoreId = id;
+
+    // Populate dropdown for compatibility (hidden but functional) - OPTIONAL
     var sel = document.getElementById("storeSelect");
     if (sel) sel.value = id;
 
@@ -1186,8 +1291,8 @@ function viewStore(id) {
 }
 
 function showStoreList() {
-    document.getElementById("storeContent").style.display = "none";
-    document.getElementById("storeListContainer").style.display = "block";
+    document.getElementById("storeContent").style.display="none";
+    document.getElementById("storeListContainer").style.display="block";
 }
 
 
@@ -1205,28 +1310,54 @@ function toggleRadar(mode) {
     loadStoreDetail(); // Re-render logic (or just update chart, but re-render is safe)
 }
 
-function generateSparkline(data) {
+function generateSparkline(data, waves) {
     if (!data || data.length < 2) return "";
-    var w = 100, h = 30;
-    var max = 100, min = 60; // Fixed scale for consistency
-    var step = w / (data.length - 1);
-    var path = "M 0 " + (h - ((data[0] - min) / (max - min) * h));
+    var w = 120, h = 40;
 
-    for (var i = 1; i < data.length; i++) {
-        var val = data[i];
-        if (val === null) continue;
+    // Dynamic Scale
+    var valid = data.filter(d => d !== null);
+    if (valid.length === 0) return "";
+    var dMin = Math.min(...valid), dMax = Math.max(...valid);
+    var range = dMax - dMin;
+    var min = Math.max(0, dMin - (range * 0.2 || 5));
+    var max = Math.min(100, dMax + (range * 0.2 || 5));
+    if (min === max) { min -= 5; max += 5; }
+
+    var step = w / (data.length - 1);
+    var points = [];
+
+    data.forEach((val, i) => {
+        if (val === null) return;
         var x = i * step;
         var y = h - ((val - min) / (max - min) * h);
-        path += " L " + x + " " + y;
-    }
+        points.push({ x: x, y: y, val: val, wave: waves ? waves[i] : (i + 1) });
+    });
 
-    var last = data[data.length - 1], first = data[0];
-    var color = last >= first ? "#059669" : "#DC2626"; // Green if up, Red if down
+    if (points.length < 2) return "";
 
-    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none" stroke="${color}" stroke-width="2" style="overflow:visible">
-        <path d="${path}" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="${w}" cy="${h - ((last - min) / (max - min) * h)}" r="2" fill="${color}"/>
-    </svg>`;
+    var linePath = points.map((p, i) => (i === 0 ? "M" : "L") + " " + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
+
+    // Closed path for fill area
+    var fillPath = linePath + ` L ${points[points.length - 1].x.toFixed(1)} ${h} L ${points[0].x.toFixed(1)} ${h} Z`;
+
+    var last = points[points.length - 1], first = points[0];
+    var isUp = last.val >= first.val;
+    var color = isUp ? "#10B981" : "#EF4444";
+    var fillColor = isUp ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)";
+
+    var markers = points.map(p =>
+        `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#fff" stroke="${color}" stroke - width="1.5" class="spark-dot" >
+        <title>${p.wave}: ${p.val.toFixed(2)}</title>
+        </circle> `
+    ).join("");
+
+    return `<svg width="${w}" height="${h}" viewBox="-20 -10 ${w + 40} ${h + 20}" fill="none" style="overflow:visible; vertical-align:middle;" >
+        <path d="${fillPath}" fill="${fillColor}" stroke="none"/>
+        <path d="${linePath}" stroke="${color}" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+        ${markers}
+        <text x="-5" y="${first.y}" fill="#6B7280" text-anchor="end" font-family="Inter, sans-serif" font-size="10" font-weight="600" dy="3">${first.val.toFixed(0)}</text>
+        <text x="${w + 5}" y="${last.y}" fill="${color}" text-anchor="start" font-family="Inter, sans-serif" font-size="11" font-weight="700" dy="3">${last.val.toFixed(0)}</text>
+    </svg> `;
 }
 
 function loadStoreDetail(idOverride) {
@@ -1239,27 +1370,93 @@ function loadStoreDetail(idOverride) {
     var s = reportData.stores[c], cur = s.results[sortedWaves[sortedWaves.length - 1]];
     var currentWaveKey = sortedWaves[sortedWaves.length - 1];
 
-    // 1. Basic Info
+    // 1. Basic Info & Rank Calculation
     document.getElementById("stName").textContent = s.meta.name;
     document.getElementById("stMeta").textContent = s.meta.region + " | " + s.meta.branch;
+
     var stScore = cur.totalScore;
     document.getElementById("stScore").textContent = stScore.toFixed(2);
-    document.getElementById("stScore").className = "display-3 fw-bold " + (stScore < 84 ? "text-danger" : "text-white");
+    document.getElementById("stScore").className="display-3 fw-bold " + (stScore < 84 ? "text-danger" : "text-white");
+
+    // Calculate Rank
+    var allStores = Object.values(reportData.stores);
+    allStores.sort((a, b) => {
+        var sa = a.results[currentWaveKey] ? a.results[currentWaveKey].totalScore : 0;
+        var sb = b.results[currentWaveKey] ? b.results[currentWaveKey].totalScore : 0;
+        return sb - sa;
+    });
+    var rank = allStores.findIndex(x => x.meta.code === c) + 1;
+    document.getElementById("stRankBadge").textContent="Rank #" + rank;
+
+    // Calculate Momentum (YoY / Wave-over-Wave)
+    var prevWaveKey = sortedWaves[sortedWaves.length - 2];
+    var momHTML="";
+    if (prevWaveKey && s.results[prevWaveKey]) {
+        var prevScore = s.results[prevWaveKey].totalScore;
+        var diff = stScore - prevScore;
+        var icon = diff >= 0 ? "▲" : "▼";
+        var colorClass = diff >= 0 ? "text-success" : "text-danger"; // Note: text-success on dark bg might need adjustment, but using inline style for safety
+        var colorStyle = diff >= 0 ? "#4ADE80" : "#F87171"; // Light Green / Light Red for visibility on Dark Blue
+        momHTML = `<span style="color:${colorStyle}" > ${icon} ${Math.abs(diff).toFixed(2)}</span> <span class="opacity-75 small fw-normal text-white">vs last wave</span>`;
+    } else {
+        momHTML = `<span class="opacity-50 small" > No previous data</span> `;
+    }
+    document.getElementById("stMomentum").innerHTML = momHTML;
 
     // 2. Trend Line (Main Chart) - Luxury Style
+    // 2. Trend Line (Main Chart) - Luxury Style
     var y = sortedWaves.map(w => s.results[w] ? s.results[w].totalScore : null);
-    Plotly.newPlot("stTrendChart", [{
-        x: sortedWaves, y: y, type: "scatter", mode: "lines+markers",
-        line: { color: "#1E3A8A", width: 4, shape: 'spline', smoothing: 1.3 },
-        marker: { size: 10, color: "#1E3A8A", line: { color: "white", width: 2 } },
-        fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)' // Soft blue gradient fill
-    }], {
-        margin: { t: 20, l: 30, r: 20, b: 30 },
+
+    // Calculate Averages
+    var yNat = sortedWaves.map(w => {
+        var d = reportData.summary[w];
+        return d ? d.sum / d.count : null;
+    });
+
+    var yReg = sortedWaves.map(w => {
+        var d = reportData.regions[s.meta.region][w];
+        return d ? d.sum / d.count : null;
+    });
+
+    // Target Line (Constant 84)
+    var yTarget = sortedWaves.map(() => 84);
+
+    Plotly.newPlot("stTrendChart", [
+        // 1. Main Store Trace (Area)
+        {
+            x: sortedWaves, y: y, name: s.meta.name, type: "scatter", mode: "lines+markers",
+            line: { color: "#1E3A8A", width: 4, shape: 'spline', smoothing: 1.3 },
+            marker: { size: 10, color: "#1E3A8A", line: { color: "white", width: 2 } },
+            fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)'
+        },
+        // 2. National Avg (Dotted)
+        {
+            x: sortedWaves, y: yNat, name: "National Avg", type: "scatter", mode: "lines",
+            line: { color: "#9CA3AF", width: 2, dash: 'dot', shape: 'spline' },
+            marker: { size: 0 }, hovertemplate: 'Nat Avg: %{y:.2f}<extra></extra>'
+        },
+        // 3. Regional Avg (Dashed)
+        {
+            x: sortedWaves, y: yReg, name: "Region Avg", type: "scatter", mode: "lines",
+            line: { color: "#8B5CF6", width: 2, dash: 'dash', shape: 'spline' },
+            marker: { size: 0 }, hovertemplate: 'Reg Avg: %{y:.2f}<extra></extra>'
+        },
+        // 4. Target (Red Dash)
+        {
+            x: sortedWaves, y: yTarget, name: "Target (84)", type: "scatter", mode: "lines",
+            line: { color: "#EF4444", width: 1.5, dash: 'longdashdot' },
+            marker: { size: 0 }, hovertemplate: 'Target: 84<extra></extra>'
+        }
+    ], {
+        margin: { t: 20, l: 30, r: 20, b: 0 }, // Increased bottom for legend
         yaxis: { gridcolor: "#F3F4F6", range: [60, 105], zeroline: false },
         xaxis: { showgrid: false, zeroline: false },
         paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-        hoverlabel: { bgcolor: "#1E3A8A", font: { color: "white", family: "Inter" } }
+        hoverlabel: { bgcolor: "#1E3A8A", font: { color: "white", family: "Inter" } },
+        showlegend: true,
+        legend: { orientation: "h", y: -0.2, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' }
     }, config);
+
 
     // 3. Radar Chart with Toggle Logic - Luxury Style
     var secKeys = Object.keys(cur.sections).sort();
@@ -1271,17 +1468,17 @@ function loadStoreDetail(idOverride) {
     var brData = reportData.branches[s.meta.branch][currentWaveKey];
 
     var compVals = [];
-    var compName = "";
-    var compColor = "";
+    var compName="";
+    var compColor="";
 
     if (radarMode === 'region') {
         compVals = secKeys.map(k => regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0);
-        compName = "Region Avg";
-        compColor = "#9CA3AF";
+        compName="Region Avg";
+        compColor="#9CA3AF";
     } else {
         compVals = secKeys.map(k => brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
-        compName = "Branch Avg";
-        compColor = "#F59E0B";
+        compName="Branch Avg";
+        compColor="#F59E0B";
     }
     var rComp = [...compVals, compVals[0]];
 
@@ -1309,7 +1506,10 @@ function loadStoreDetail(idOverride) {
 
     // 4. Section Table with Sparklines
     var tb = document.querySelector("#stSectionTable tbody");
-    tb.innerHTML = "";
+    tb.innerHTML="";
+
+    // Data for Insights
+    const insightData = [];
 
     Object.entries(cur.sections).forEach(([k, v]) => {
         var isBad = v < 84;
@@ -1319,35 +1519,456 @@ function loadStoreDetail(idOverride) {
             (regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0) :
             (brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
         var gap = v - avg;
-        var gapHTML = `<span class="small fw-bold ${gap >= 0 ? 'text-success' : 'text-danger'}">${gap >= 0 ? '+' : ''}${gap.toFixed(1)}</span>`;
+        var gapHTML = `<span class="small fw-bold ${gap >= 0 ? 'text-success' : 'text-danger'}" > ${gap >= 0 ? '+' : ''}${gap.toFixed(1)}</span> `;
+
+        // Store for Insights
+        // Store for Insights
+        const failedItems = [];
+        const fixedItems = [];
+
+        // Extract section code (e.g., "A" from "A. Tampilan...")
+        const sectionCode = k.split('.')[0].trim();
+
+        // 5-Wave History Logic
+        // Get last 5 waves (including current)
+        const relevantWaves = sortedWaves.slice(-5);
+
+        // Get Previous Wave Data for comparison (for Fixed Items logic)
+        const prevWaveDetails = (prevWaveKey && s.results[prevWaveKey] && s.results[prevWaveKey].details)
+            ? s.results[prevWaveKey].details[sectionCode] : null;
+
+        if (cur.details && cur.details[sectionCode]) {
+            Object.entries(cur.details[sectionCode]).forEach(([code, item]) => {
+
+                // Helper to get history for this item code across last 5 waves
+                const getHistory = () => {
+                    return relevantWaves.map(w => {
+                        if (!s.results[w] || !s.results[w].details || !s.results[w].details[sectionCode] || !s.results[w].details[sectionCode][code]) return null;
+                        const hItem = s.results[w].details[sectionCode][code];
+                        // Return 1 (Pass), 0 (Fail), or null (N/A)
+                        if (hItem.r === 1 || hItem.r === "1" || hItem.r === true) return 1;
+                        if (hItem.r === 0 || hItem.r === "0" || hItem.r === false) return 0;
+                        return null;
+                    });
+                };
+
+                const history = getHistory();
+
+                // Get Regional Benchmark
+                let regAvg = null;
+                // regData is defined in outer scope of loadStoreDetail
+                if (regData && regData.details && regData.details[sectionCode] && regData.details[sectionCode][code]) {
+                    const rItem = regData.details[sectionCode][code];
+                    if (rItem.count > 0) regAvg = rItem.sum / rItem.count;
+                }
+
+                // Check if Failed
+                if (item.r === 0 || item.r === "0" || item.r === false) {
+                    failedItems.push({ text: item.t, history: history, regAvg: regAvg });
+                }
+                // Check if Fixed (Passed now, Failed before)
+                else if (prevWaveDetails && prevWaveDetails[code]) {
+                    const prevItem = prevWaveDetails[code];
+                    if (prevItem.r === 0 || prevItem.r === "0" || prevItem.r === false) {
+                        fixedItems.push({ text: item.t, history: history });
+                    }
+                }
+            });
+        }
+        insightData.push({ sec: k, score: v, gap: gap, avg: avg, failed: failedItems, fixed: fixedItems });
+
 
         // Generate Sparkline Data
         var sparkData = sortedWaves.map(w => s.results[w] && s.results[w].sections[k] !== undefined ? s.results[w].sections[k] : null);
-        var sparkHTML = generateSparkline(sparkData);
+        var sparkHTML = generateSparkline(sparkData, sortedWaves);
 
-        tb.innerHTML += `<tr>
+        tb.innerHTML += `<tr >
             <td class="fw-bold text-dark" style="font-size:0.9rem;">${k}</td>
             <td>${sparkHTML}</td>
-            <td class="text-end fw-bold ${isBad ? "text-danger" : "text-dark"}">${v.toFixed(2)}</td>
+            <td class="text-end fw-bold ${isBad ? "text-danger" : "text - dark"}" > ${v.toFixed(2)}</td>
             <td class="text-center">${gapHTML}</td>
             <td class="text-center">${isBad ? "<span class='badge bg-soft-danger text-danger'>⚠️ CRITICAL</span>" : "<span class='badge bg-soft-success text-success'>OK</span>"}</td>
-        </tr>`;
+        </tr> `;
     });
 
-    // 5. Qualitative Feedback
-    var fbList = document.getElementById("stFeedback"); fbList.innerHTML = "";
+    // 5. Render Performance Insights (New)
+    renderPerformanceInsights(insightData);
+
+    // 6. Qualitative Feedback
+    var fbList = document.getElementById("stFeedback"); fbList.innerHTML="";
     if (cur.qualitative && cur.qualitative.length > 0) {
         cur.qualitative.forEach(q => {
             var badge = q.sentiment === 'positive' ? '<span class="badge bg-success">POS</span>' : (q.sentiment === 'negative' ? '<span class="badge bg-danger">NEG</span>' : '<span class="badge bg-secondary">NEU</span>');
-            fbList.innerHTML += `<div class="p-3 bg-white rounded shadow-sm border-start border-4 ${q.sentiment === 'negative' ? 'border-danger' : 'border-success'}">
+            fbList.innerHTML += `<div class="p-3 bg-white rounded shadow-sm border-start border-4 ${q.sentiment === 'negative' ? 'border-danger' : 'border-success'}" >
                 <div class="d-flex justify-content-between mb-1"><span class="fw-bold small text-uppercase text-muted">${q.category}</span>${badge}</div>
                 <p class="mb-0 small text-dark">"${q.text}"</p>
-            </div>`;
+            </div> `;
         });
     } else {
-        fbList.innerHTML = "<div class='text-center text-muted py-4 small'>No feedback recorded</div>";
+        fbList.innerHTML="<div class='text-center text-muted py-4 small'>No feedback recorded</div>";
     }
 }
+
+// --- BATTLE MODE LOGIC ---
+
+function toggleBattleMode(isActive) {
+    const stdMode = document.getElementById("stStandardMode");
+    const battleMode = document.getElementById("stBattleMode");
+
+    if (isActive) {
+        if (!window.currentStoreId) {
+            alert("No store selected!");
+            return;
+        }
+
+        stdMode.style.display="none";
+        battleMode.style.display="block";
+
+        // Initialize Opponent Selector if empty
+        const oppSelect = document.getElementById("battleOpponentSelect");
+        if (oppSelect.options.length <= 1) {
+            initOpponentSelector();
+        }
+
+        // Set Player 1 Info
+        const s = reportData.stores[window.currentStoreId];
+        const curWave = sortedWaves[sortedWaves.length - 1];
+        const res = s.results[curWave];
+
+        document.getElementById("battleP1Name").textContent = s.meta.name;
+        document.getElementById("battleP1Score").textContent="Score: " + (res ? res.totalScore.toFixed(2) : "N/A");
+
+    } else {
+        stdMode.style.display="flex"; // Restore flex layout
+        battleMode.style.display="none";
+    }
+}
+
+function initOpponentSelector() {
+    const oppSelect = document.getElementById("battleOpponentSelect");
+    const currentId = window.currentStoreId;
+    const curWave = sortedWaves[sortedWaves.length - 1];
+
+    // Group by Region
+    const regions = {};
+    Object.values(reportData.stores).forEach(s => {
+        if (s.meta.code === currentId) return; // Exclude self
+        if (!regions[s.meta.region]) regions[s.meta.region] = [];
+        regions[s.meta.region].push(s);
+    });
+
+    // Populate Dropdown
+    Object.keys(regions).sort().forEach(r => {
+        const group = document.createElement("optgroup");
+        group.label = r;
+        regions[r].sort((a, b) => a.meta.name.localeCompare(b.meta.name));
+
+        regions[r].forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s.meta.code;
+            opt.textContent = s.meta.name;
+            group.appendChild(opt);
+        });
+        oppSelect.appendChild(group);
+    });
+}
+
+function renderBattleAnalysis() {
+    const p1Id = window.currentStoreId;
+    const p2Id = document.getElementById("battleOpponentSelect").value;
+
+    if (!p2Id) return;
+
+    const curWave = sortedWaves[sortedWaves.length - 1];
+    const s1 = reportData.stores[p1Id];
+    const s2 = reportData.stores[p2Id];
+
+    const res1 = s1.results[curWave];
+    const res2 = s2.results[curWave];
+
+    if (!res1 || !res2) return;
+
+    // 1. Radar Comparison
+    const secKeys = Object.keys(res1.sections).sort();
+    const v1 = secKeys.map(k => res1.sections[k]);
+    const v2 = secKeys.map(k => res2.sections[k] || 0); // Handle missing sections safely
+
+    const radarKeys = [...secKeys, secKeys[0]].map(k => k.split(' ')[0]); // Shortened labels
+    const r1 = [...v1, v1[0]];
+    const r2 = [...v2, v2[0]];
+
+    Plotly.newPlot("battleRadarChart", [
+        {
+            type: 'scatterpolar', r: r1, theta: radarKeys,
+            fill: 'toself', name: s1.meta.name,
+            line: { color: '#2563EB' }, marker: { size: 4 }
+        },
+        {
+            type: 'scatterpolar', r: r2, theta: radarKeys,
+            fill: 'toself', name: s2.meta.name,
+            line: { color: '#DC2626' }, marker: { size: 4 }, opacity: 0.7
+        }
+    ], {
+        polar: {
+            radialaxis: { visible: true, range: [0, 100] },
+        },
+        showlegend: true, legend: { orientation: "h", y: -0.2 },
+        margin: { t: 30, l: 40, r: 40, b: 20 },
+        height: 350
+    }, config);
+
+    // 2. Gap Analysis (Tale of the Tape)
+    const wins = [];
+    const losses = [];
+
+    // Iterate all sections and items using details object
+    if (res1.details && res2.details) {
+        Object.keys(res1.details).forEach(sec => {
+            const secItems1 = res1.details[sec];
+            const secItems2 = res2.details[sec] || {};
+
+            Object.keys(secItems1).forEach(code => {
+                const item1 = secItems1[code];
+                const item2 = secItems2[code];
+
+                if (!item2) return;
+
+                // Win: We Passed (1), They Failed (0)
+                if (item1.r === 1 && item2.r === 0) {
+                    wins.push({ sec: sec, text: item1.t });
+                }
+                // Loss: We Failed (0), They Passed (1)
+                else if (item1.r === 0 && item2.r === 1) {
+                    losses.push({ sec: sec, text: item1.t });
+                }
+            });
+        });
+    }
+
+    // Render Functions (Grouped by Section)
+    const renderList = (list, containerId, emptyMsg) => {
+        const cont = document.getElementById(containerId);
+        if (list.length === 0) {
+            cont.innerHTML = `<div class="text-center text-muted mt-5" > ${emptyMsg}</div> `;
+            return;
+        }
+
+        // Group items by Section
+        const grouped = {};
+        list.forEach(item => {
+            if (!grouped[item.sec]) grouped[item.sec] = [];
+            grouped[item.sec].push(item.text);
+        });
+
+        let html = '<div class="px-2">';
+        Object.keys(grouped).sort().forEach(sec => {
+            html += `<div class="mb-3" >
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge bg-dark rounded-pill me-2">${sec}</span>
+                    <h6 class="mb-0 fw-bold border-bottom flex-grow-1 pb-1 text-secondary" style="font-size:0.85rem">Section ${sec}</h6>
+                </div>
+                <ul class="list-unstyled mb-0 ps-2">`;
+
+            grouped[sec].forEach(text => {
+                html += `<li class="mb-2 d-flex align-items-start text-dark small" style="line-height:1.4;">
+                    <i class="bi bi-caret-right-fill me-2 opacity-50 mt-1" style="font-size:0.7rem;"></i>
+                    <span>${text}</span>
+                </li>`;
+            });
+            html += `</ul></div> `;
+        });
+        html += '</div>';
+        cont.innerHTML = html;
+    };
+
+    renderList(wins, "tabWins", "No distinct wins found. You matched or trailed everywhere.");
+    renderList(losses, "tabLosses", "No losses found! You matched or beat them everywhere.");
+}
+
+function renderPerformanceInsights(data) {
+    if (!data || data.length === 0) return;
+
+    // 1. Deviation Chart (Horizontal Bar)
+    // Sort by Section Name for consistent order (reversed for TOP-down view in horz bar)
+    const sortedData = [...data].sort((a, b) => b.sec.localeCompare(a.sec));
+
+    // Shorten Labels (First 3 words)
+    const labels = sortedData.map(d => {
+        const parts = d.sec.split(' ');
+        return parts.length > 3 ? parts.slice(0, 3).join(' ') + '...' : d.sec;
+    });
+
+    const values = sortedData.map(d => d.gap);
+    const colors = values.map(v => v >= 0 ? '#10B981' : '#EF4444'); // Green / Red
+
+    Plotly.newPlot("stDeviationChart", [{
+        type: 'bar',
+        x: values,
+        y: labels,
+        orientation: 'h',
+        marker: { color: colors, opacity: 0.8 },
+        text: values.map(v => (v > 0 ? '+' : '') + v.toFixed(1)),
+        textposition: 'auto',
+        hoverinfo: 'x+y'
+    }], {
+        margin: { t: 20, l: 150, r: 20, b: 30 },
+        xaxis: { title: "Diff vs Regional Avg", zeroline: true, zerolinecolor: '#374151' },
+        yaxis: { automargin: true },
+        height: 300,
+        font: { family: "Inter, sans-serif", size: 11 }
+    }, config);
+
+    // 2. Top Priorities (Lowest Scoring Sections) - TILES UI
+    // Sort by Score Ascending (Worst first)
+    const worstSections = [...data].sort((a, b) => a.score - b.score);
+    const impList = document.getElementById("stImprovementList");
+    impList.innerHTML="";
+
+    worstSections.forEach((item, index) => {
+        const isTop3 = index < 3;
+        // Top 3 get full width, others get half width
+        const colClass = isTop3 ? "col-12" : "col-6";
+        // Top 3 get Danger Border, others get clean look
+        const cardStyle = isTop3 ? "border-start border-4 border-danger" : "border-0";
+        const bgClass = isTop3 ? "bg-white" : "bg-light";
+
+        // Data for Modal
+        const failedJson = JSON.stringify(item.failed || []).replace(/"/g, '&quot;');
+        const fixedJson = JSON.stringify(item.fixed || []).replace(/"/g, '&quot;');
+
+        impList.innerHTML += `
+        <div class="${colClass}" >
+            <div class="card h-100 shadow-sm ${bgClass} ${cardStyle}"
+                style="cursor: pointer; transition: all 0.2s ease-in-out;"
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0)'"
+                onclick='showFailureDetails("${item.sec}", ${failedJson}, ${fixedJson})'>
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div style="max-width: 75%;">
+                        <h6 class="fw-bold text-dark mb-1 ${!isTop3 ? 'small' : ''}" style="line-height:1.2;">${item.sec}</h6>
+                        <div class="small text-muted" style="font-size: 0.75rem;">vs Reg: <span class="${item.gap >= 0 ? 'text-success' : 'text-danger'} fw-bold">${item.gap > 0 ? '+' : ''}${item.gap.toFixed(1)}</span></div>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge ${item.score < 84 ? 'bg-danger' : 'bg-success'} rounded-pill" style="font-size: ${isTop3 ? '0.9rem' : '0.75rem'}">${item.score.toFixed(1)}</span>
+                    </div>
+                </div>
+            </div>
+        </div> `;
+    });
+}
+
+function showFailureDetails(section, failedItems, fixedItems) {
+    document.getElementById("failureModalTitle").textContent = section;
+    const body = document.getElementById("failureModalBody");
+    body.innerHTML="";
+
+    // Helper to render history dots
+    const renderHistoryDots = (history) => {
+        if (!history || history.length === 0) return '';
+        let dotsHtml = '<div class="d-flex align-items-center mt-2">';
+        dotsHtml += '<span class="text-muted small me-2" style="font-size: 0.7rem;">History (Old &rarr; New):</span>';
+
+        history.forEach(status => {
+            let colorClass = 'bg-secondary';
+            let iconClass = 'bi-dash';
+
+            if (status === 1) { colorClass = 'bg-success'; iconClass = 'bi-check-lg'; }
+            if (status === 0) { colorClass = 'bg-danger'; iconClass = 'bi-x-lg'; }
+
+            dotsHtml += `<div class="rounded-circle ${colorClass} text-white d-flex justify-content-center align-items-center me-1"
+    style="width: 20px; height: 20px; font-size: 10px;" title="${status === 1 ? 'Passed' : (status === 0 ? 'Failed' : 'N/A')}" >
+        <i class="bi ${iconClass}"></i>
+                         </div> `;
+        });
+        dotsHtml += '</div>';
+        return dotsHtml;
+    };
+
+    // 1. Failed Items
+    if (!failedItems || failedItems.length === 0) {
+        if (!fixedItems || fixedItems.length === 0) {
+            body.innerHTML = '<div class="p-4 text-center text-muted">No specific failed items found.<br><small>Score deduction might be due to partial points or N/A answers.</small></div>';
+        }
+    } else {
+        body.innerHTML += `<div class="px-2 text-danger fw-bold border-bottom pb-2 mb-2" > <i class="bi bi-exclamation-octagon-fill me-2"></i>Improvement Needed</div> `;
+
+        failedItems.forEach(item => {
+            const history = item.history || [];
+            // Check if recurring (last 2 failures) for simple badge
+            const isRecurring = history.length >= 2 && history[history.length - 1] === 0 && history[history.length - 2] === 0;
+            const text = item.text || item;
+
+            // Benchmark UI
+            let benchmarkHtml = '';
+            // Only show benchmark if regAvg is a valid number
+            if (item.regAvg !== null && item.regAvg !== undefined && !isNaN(item.regAvg)) {
+                const rPct = (item.regAvg * 100).toFixed(0);
+                const isCommon = item.regAvg < 0.6; // If region avg < 60%, it's common.
+                const badge = isCommon
+                    ? `<span class="badge bg-light text-dark border" > <i class="bi bi-info-circle me-1"></i>Common Issue(Reg: ${rPct} %)</span> `
+                    : `<span class="badge bg-light text-danger border border-danger" > <i class="bi bi-exclamation-circle me-1"></i>Specific Deficit(Reg: ${rPct} %)</span> `;
+
+                // Progress Bar: Region Average Marker
+                // Since store failed (0%), we show Region Avg as a bar comparison
+                // Visual: [ Region Avg bar ]
+
+                benchmarkHtml = `
+        <div class="mt-2 pt-2 border-top border-light" >
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted fw-bold" style="font-size:0.7rem; letter-spacing:0.5px;">VS REGIONAL AVG</small>
+                        ${badge}
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: ${rPct}%" aria-valuenow="${rPct}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-1">
+                         <small class="text-muted" style="font-size: 0.7rem;">Region Avg: <strong>${rPct}%</strong></small>
+                    </div>
+                 </div> `;
+            }
+
+            body.innerHTML += `<div class="list-group-item list-group-item-action py-3 border-start border-3 border-danger mb-2 shadow-sm rounded-end" >
+        <div class="d-flex w-100 justify-content-between align-items-start">
+            <div style="width: 100%;">
+                <div class="d-flex justify-content-between">
+                    <h6 class="mb-1 text-danger fw-bold">Issue Detected</h6>
+                    ${isRecurring ? '<span class="badge bg-warning text-dark"><i class="bi bi-arrow-repeat me-1"></i>Recurring</span>' : '<span class="badge bg-danger">Failed</span>'}
+                </div>
+                <p class="mb-2 text-dark fw-medium" style="font-size: 0.95rem;">"${text}"</p>
+                ${renderHistoryDots(history)}
+                ${benchmarkHtml}
+            </div>
+        </div>
+            </div> `;
+        });
+    }
+
+    // 2. Fixed Items (Improvements)
+    if (fixedItems && fixedItems.length > 0) {
+        body.innerHTML += `<div class="mt-4 mb-2 px-2 text-success fw-bold border-bottom pb-2" > <i class="bi bi-trophy-fill me-2"></i>Improvements(Fixed since last wave)</div> `;
+        fixedItems.forEach(item => {
+            const history = item.history || [];
+            const text = item.text || item;
+
+            body.innerHTML += `<div class="list-group-item list-group-item-action py-3 border-start border-3 border-success bg-light mb-2 shadow-sm rounded-end" >
+        <div class="d-flex w-100 justify-content-between align-items-start">
+            <div style="width: 100%;">
+                <div class="d-flex justify-content-between">
+                    <h6 class="mb-1 text-success fw-bold">Fixed / Improved</h6>
+                    <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Resolved</span>
+                </div>
+                <p class="mb-2 text-dark fw-medium" style="font-size: 0.95rem;">"${text}"</p>
+                ${renderHistoryDots(history)}
+            </div>
+        </div>
+            </div> `;
+        });
+    }
+
+    var myModal = new bootstrap.Modal(document.getElementById('failureModal'));
+    myModal.show();
+}
+
 
 window.onload = function () {
     initSummary();
@@ -1362,3 +1983,191 @@ window.onload = function () {
         setTimeout(function () { viewStore(storeId); }, 100);
     }
 };
+
+// Fullscreen Chart Logic
+function openChartModal(sourceId, title) {
+    var sourceDiv = document.getElementById(sourceId);
+    if (!sourceDiv) return;
+
+    var modalTitle = document.getElementById("chartModalTitle");
+    modalTitle.textContent = title || "Chart Analysis";
+
+    // Get source data and layout
+    var data = sourceDiv.data;
+    var layout = sourceDiv.layout;
+
+    if (!data || !layout) {
+        console.error("No Plotly data found in " + sourceId);
+        return;
+    }
+
+    // Clone and adjust layout for fullscreen
+    var newLayout = JSON.parse(JSON.stringify(layout));
+    newLayout.width = null;
+    newLayout.height = null;
+    newLayout.autosize = true;
+    newLayout.margin = { t: 50, l: 50, r: 50, b: 50 }; // More padding
+
+    // Show Modal
+    var myModal = new bootstrap.Modal(document.getElementById('chartModal'));
+    myModal.show();
+
+    // Render after modal is shown to ensure correct sizing
+    document.getElementById('chartModal').addEventListener('shown.bs.modal', function () {
+        Plotly.newPlot('chartModalContainer', data, newLayout, {
+            responsive: true,
+            displayModeBar: true, // Enable tools for deep dive
+            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+            displaylogo: false
+        });
+    }, { once: true });
+}
+
+// --- Section Detail Modal Logic ---
+function openSectionDetail(sectionName) {
+    // 1. Get Trend Data (National)
+    const trendLabels = [];
+    const trendData = [];
+
+    sortedWaves.forEach(wave => {
+        const d = reportData.summary[wave];
+        if (d && d.sections[sectionName]) {
+            trendLabels.push(wave);
+            trendData.push(d.sections[sectionName]);
+        }
+    });
+
+    // 2. Get Regional Leaderboard (Current Wave)
+    const cur = sortedWaves[sortedWaves.length - 1];
+    const regionScores = [];
+    Object.keys(reportData.regions).forEach(reg => {
+        const rData = reportData.regions[reg][cur];
+        if (rData && rData.sections[sectionName]) {
+            regionScores.push({ name: reg, score: rData.sections[sectionName] });
+        }
+    });
+    // Top 5 Regions
+    const topRegions = regionScores.sort((a, b) => b.score - a.score).slice(0, 5);
+
+    // 3. Render Modal Content
+    // Ensure modal structure exists
+    let modalEl = document.getElementById('sectionDetailModal');
+    if (!modalEl) {
+        modalEl = document.createElement('div');
+        modalEl.id = 'sectionDetailModal';
+        modalEl.className = 'modal fade';
+        modalEl.setAttribute('tabindex', '-1');
+        modalEl.innerHTML = `
+        <div class="modal-dialog modal-xl modal-dialog-centered" >
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="sectionDetailTitle">Section Analysis</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body bg-light" id="sectionDetailBody"></div>
+            </div>
+            </div> `;
+        document.body.appendChild(modalEl);
+    }
+
+    document.getElementById('sectionDetailTitle').textContent = `Analysis: ${sectionName} `;
+    const body = document.getElementById('sectionDetailBody');
+    body.innerHTML = `
+        <div class="row g-4" >
+            < !--Trend Chart-- >
+            <div class="col-lg-8">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 fw-bold">
+                        <i class="bi bi-graph-up me-2 text-primary"></i>National Trend (5 Waves)
+                    </div>
+                    <div class="card-body">
+                        <canvas id="sectionTrendChart" style="height: 300px; width: 100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!--Regional Leaderboard-- >
+        <div class="col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header bg-white border-0 fw-bold">
+                    <i class="bi bi-geo-alt-fill me-2 text-success"></i>Top Performing Regions
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light small text-muted">
+                                <tr>
+                                    <th class="ps-3">#</th>
+                                    <th>Region</th>
+                                    <th class="text-end pe-3">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${topRegions.map((r, i) => `
+                                        <tr>
+                                            <td class="ps-3"><span class="badge bg-light text-dark border">${i + 1}</span></td>
+                                            <td class="small fw-bold">${r.name}</td>
+                                            <td class="text-end pe-3 fw-bold ${r.score >= 84 ? 'text-success' : 'text-danger'}">${r.score.toFixed(1)}</td>
+                                        </tr>
+                                    `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+        `;
+
+    // 4. Show Modal
+    const myModal = new bootstrap.Modal(modalEl);
+    myModal.show();
+
+    // 5. Draw Chart (Wait for modal transition)
+    modalEl.addEventListener('shown.bs.modal', function () {
+        const ctx = document.getElementById('sectionTrendChart');
+        if (ctx) {
+            // Destroy old chart if exists (not strictly needed since we rebuild DOM, but good practice if I cached it)
+            // simplified: DOM is fresh.
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendLabels,
+                    datasets: [{
+                        label: 'National Score',
+                        data: trendData,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#0d6efd',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 50,
+                            max: 100,
+                            grid: { borderDash: [5, 5] }
+                        },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 10,
+                            cornerRadius: 4
+                        }
+                    }
+                }
+            });
+        }
+    }, { once: true });
+}
