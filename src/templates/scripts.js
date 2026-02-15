@@ -2033,9 +2033,10 @@ function openSectionDetail(sectionName) {
 
         sortedWaves.forEach(wave => {
             const d = reportData.summary[wave];
-            if (d && d.sections[sectionName]) {
+            if (d && d.sections && d.sections[sectionName]) {
+                const sect = d.sections[sectionName];
                 trendLabels.push(wave);
-                trendData.push(d.sections[sectionName]);
+                trendData.push(sect.count > 0 ? sect.sum / sect.count : 0);
             }
         });
 
@@ -2043,9 +2044,13 @@ function openSectionDetail(sectionName) {
         const cur = sortedWaves[sortedWaves.length - 1];
         const regionScores = [];
         Object.keys(reportData.regions).forEach(reg => {
-            const rData = reportData.regions[reg][cur];
-            if (rData && rData.sections[sectionName]) {
-                regionScores.push({ name: reg, score: rData.sections[sectionName] });
+            const rWave = reportData.regions[reg][cur];
+            if (rWave && rWave.sections && rWave.sections[sectionName]) {
+                const sect = rWave.sections[sectionName];
+                regionScores.push({
+                    name: reg,
+                    score: sect.count > 0 ? sect.sum / sect.count : 0
+                });
             }
         });
         // Top 5 Regions
@@ -2075,49 +2080,57 @@ function openSectionDetail(sectionName) {
         document.getElementById('sectionDetailTitle').textContent = `Analysis: ${sectionName} `;
         const body = document.getElementById('sectionDetailBody');
         body.innerHTML = `
-        <div class="row g-4" >
+        <div class="row g-4 d-flex" style="min-height: 450px;">
             <!--Trend Chart-->
-            <div class="col-lg-8">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-header bg-white border-0 fw-bold">
-                        <i class="bi bi-graph-up me-2 text-primary"></i>National Trend (5 Waves)
+            <div class="col-lg-8 flex-column d-flex">
+                <div class="card border-0 shadow-sm flex-grow-1" style="border-radius: 12px; overflow: hidden;">
+                    <div class="card-header bg-white py-3 border-0 d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3">
+                            <i class="bi bi-graph-up text-primary"></i>
+                        </div>
+                        <h6 class="mb-0 fw-bold">National Trend (5 Waves)</h6>
                     </div>
-                    <div class="card-body">
-                        <canvas id="sectionTrendChart" style="height: 300px; width: 100%;"></canvas>
+                    <div class="card-body p-4 pt-2">
+                        <div style="height: 350px; position: relative;">
+                            <canvas id="sectionTrendChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
             
             <!--Regional Leaderboard-->
-        <div class="col-lg-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-white border-0 fw-bold">
-                    <i class="bi bi-geo-alt-fill me-2 text-success"></i>Top Performing Regions
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light small text-muted">
-                                <tr>
-                                    <th class="ps-3">#</th>
-                                    <th>Region</th>
-                                    <th class="text-end pe-3">Score</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${topRegions.map((r, i) => `
+            <div class="col-lg-4 d-flex flex-column">
+                <div class="card border-0 shadow-sm flex-grow-1" style="border-radius: 12px; overflow: hidden;">
+                    <div class="card-header bg-white py-3 border-0 d-flex align-items-center">
+                        <div class="bg-success bg-opacity-10 p-2 rounded-3 me-3">
+                            <i class="bi bi-trophy text-success"></i>
+                        </div>
+                        <h6 class="mb-0 fw-bold">Top Performing Regions</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light small text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">
+                                    <tr>
+                                        <th class="ps-4">Rank</th>
+                                        <th>Region Name</th>
+                                        <th class="text-end pe-4">Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${topRegions.map((r, i) => `
                                         <tr>
-                                            <td class="ps-3"><span class="badge bg-light text-dark border">${i + 1}</span></td>
-                                            <td class="small fw-bold">${r.name}</td>
-                                            <td class="text-end pe-3 fw-bold ${r.score >= 84 ? 'text-success' : 'text-danger'}">${(typeof r.score === 'number' && !isNaN(r.score)) ? r.score.toFixed(1) : '0.0'}</td>
+                                            <td class="ps-4"><span class="badge ${i == 0 ? 'bg-warning text-dark' : 'bg-light text-dark border'} rounded-circle" style="width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; font-size: 0.7rem;">${i + 1}</span></td>
+                                            <td class="small fw-bold text-dark">${r.name}</td>
+                                            <td class="text-end pe-4 fw-bold ${r.score >= 84 ? 'text-success' : 'text-danger'}">${r.score.toFixed(1)}</td>
                                         </tr>
                                     `).join('')}
-                            </tbody>
-                        </table>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
         </div>
         `;
 
@@ -2151,21 +2164,31 @@ function openSectionDetail(sectionName) {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        animation: { duration: 1000, easing: 'easeOutQuart' },
                         scales: {
                             y: {
                                 beginAtZero: false,
-                                min: 50,
+                                min: trendData.length > 0 ? Math.max(0, Math.min(...trendData) - 5) : 50,
                                 max: 100,
-                                grid: { borderDash: [5, 5] }
+                                grid: { color: 'rgba(0,0,0,0.05)', borderDash: [5, 5] },
+                                ticks: { font: { size: 10 }, color: '#94a3b8' }
                             },
-                            x: { grid: { display: false } }
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { size: 10, weight: 'bold' }, color: '#475569' }
+                            }
                         },
                         plugins: {
                             legend: { display: false },
                             tooltip: {
-                                backgroundColor: 'rgba(0,0,0,0.8)',
-                                padding: 10,
-                                cornerRadius: 4
+                                backgroundColor: '#1e293b',
+                                titleFont: { size: 13, weight: 'bold' },
+                                bodyFont: { size: 12 },
+                                padding: 12,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function (context) { return 'Score: ' + context.parsed.y.toFixed(1); }
+                                }
                             }
                         }
                     }
