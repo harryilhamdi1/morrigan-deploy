@@ -770,9 +770,8 @@ function renderBranchInsights(top, fast, hCrit, brData) {
     document.getElementById("branchInsights").innerHTML = insights.join("");
 }
 
-var currentCulpritData = [];
-var currentCulpritPage = 1;
-var CULPRIT_PAGE_SIZE = 5;
+// Variables for Culprit Pagination
+// (Declarations moved below to avoid duplicates)
 
 // Expose functions globally
 window.changeCulpritPage = function (delta) {
@@ -780,21 +779,64 @@ window.changeCulpritPage = function (delta) {
     renderCulpritList();
 };
 
-function showCulpritModal(branchName) {
+// Global variables to store current modal context
+var currentCulpritData = [];
+var currentCulpritPage = 1;
+const CULPRIT_PAGE_SIZE = 5;
+var currentCulpritSection = null; // Track if we are viewing a specific section
+
+function showCulpritModal(branchName, sectionName = null) {
     // Use global sortedWaves to get the latest wave
     var targetWave = (typeof sortedWaves !== 'undefined') ? sortedWaves[sortedWaves.length - 1] : "Wave 1";
+    currentCulpritSection = sectionName ? sectionName.trim() : null;
 
-    // Get Stores < 84 in this branch
+    document.getElementById("culpritBranchName").innerText = branchName + (currentCulpritSection ? ` - ${currentCulpritSection}` : "");
+
+    // Helper: get section score from store-level data
+    // Store sections are flat numbers { sectionName: score }
+    // Branch/Region sections are { sectionName: { sum, count } }
+    function getStoreSecScore(sections, secName) {
+        // Try exact match first
+        if (sections[secName] !== undefined) {
+            var v = sections[secName];
+            return (typeof v === 'object' && v.sum !== undefined) ? (v.sum / v.count) : v;
+        }
+        // Try trimmed match
+        var key = Object.keys(sections).find(k => k.trim() === secName.trim());
+        if (key !== undefined) {
+            var v = sections[key];
+            return (typeof v === 'object' && v.sum !== undefined) ? (v.sum / v.count) : v;
+        }
+        return null;
+    }
+
+    // Get Stores < 84
     currentCulpritData = Object.values(reportData.stores)
-        .filter(s => s.meta.branch === branchName && s.results[targetWave] && s.results[targetWave].totalScore < 84)
-        .map(s => ({
-            n: s.meta.name,
-            s: s.results[targetWave].totalScore,
-            sect: s.results[targetWave].sections
-        }))
-        .sort((a, b) => a.s - b.s); // Lowest first
+        .filter(s => {
+            if (s.meta.branch !== branchName || !s.results[targetWave]) return false;
 
-    document.getElementById("culpritBranchName").innerText = branchName;
+            if (currentCulpritSection) {
+                var score = getStoreSecScore(s.results[targetWave].sections, currentCulpritSection);
+                return score !== null && score < 84;
+            } else {
+                return s.results[targetWave].totalScore < 84;
+            }
+        })
+        .map(s => {
+            var d = s.results[targetWave];
+            return {
+                n: s.meta.name,
+                c: s.meta.code,
+                s: d.totalScore,
+                secScore: currentCulpritSection ? getStoreSecScore(d.sections, currentCulpritSection) : null,
+                sect: d.sections
+            };
+        })
+        .sort((a, b) => {
+            if (currentCulpritSection) return a.secScore - b.secScore;
+            return a.s - b.s;
+        });
+
     currentCulpritPage = 1;
     renderCulpritList();
 
@@ -811,35 +853,65 @@ function renderCulpritList() {
     var pageData = currentCulpritData.slice(start, end);
 
     if (pageData.length === 0) {
-        container.innerHTML = '<div class="text-center p-4 text-muted">No critical stores found.</div>';
+        container.innerHTML = '<div class="text-center p-4 text-muted">No stores found below threshold.</div>';
         return;
     }
 
     pageData.forEach(s => {
-        // Find worst section
-        var worstSec = Object.entries(s.sect)
-            .map(([k, v]) => ({ k: k, s: v.sum / v.count }))
-            .sort((a, b) => a.s - b.s)[0];
+        // Find worst 3 sections for context
+        // Store sections can be flat numbers OR {sum, count} objects
+        var worstSecs = Object.entries(s.sect)
+            .map(([k, v]) => ({ k: k, s: (typeof v === 'object' && v.sum !== undefined) ? (v.sum / v.count) : v }))
+            .filter(ws => !isNaN(ws.s))
+            .sort((a, b) => a.s - b.s) // Lowest first
+            .slice(0, 3); // Top 3
 
-        var item = document.createElement("div");
-        item.className = "list-group-item p-3 border-light hover-bg-light";
+        var worstHTML = worstSecs.map(ws =>
+            `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-1 px-1 me-1 mb-1" style="font-size: 0.75rem;">
+                ${ws.k}: ${ws.s.toFixed(1)}
+             </span>`
+        ).join("");
+
+        // Determine what score to show prominently
+        var displayScore = currentCulpritSection ? s.secScore : s.s;
+
+        // Make clickable link
+        var item = document.createElement("a");
+        item.href = "?store=" + s.c;
+        item.target = "_blank";
+        item.className = "list-group-item list-group-item-action p-3 border-light hover-bg-light text-decoration-none";
+
+        var badgeColor = displayScore < 70 ? 'bg-danger' : (displayScore < 84 ? 'bg-warning text-dark' : 'bg-success');
+
         item.innerHTML = `
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="fw-bold text-dark">${s.n}</span>
-                <span class="badge bg-danger rounded-pill">${s.s.toFixed(1)}</span>
+                <span class="badge ${badgeColor} rounded-pill fs-6">${displayScore.toFixed(1)}</span>
             </div>
-            <div class="small text-muted d-flex align-items-center gap-2">
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-1 px-1">⚠ ${worstSec.k} ${(worstSec.s).toFixed(1)}</span>
-                <span>requires immediate action.</span>
+            
+            <div class="mt-2 mb-2">
+                <div class="text-muted small fw-medium mb-1">Lowest Performing Areas:</div>
+                <div class="d-flex flex-wrap">
+                    ${worstHTML}
+                </div>
+            </div>
+
+            <div class="small text-muted d-flex align-items-center justify-content-between mt-2 pt-2 border-top border-light-subtle">
+                ${currentCulpritSection
+                ? `<span>Total Store Score: <strong>${s.s.toFixed(1)}</strong></span>`
+                : `<span class="text-danger fw-medium"><i class="bi bi-exclamation-circle me-1"></i> Requires Attention</span>`
+            }
+                <span class="text-primary fw-medium" style="font-size: 0.85rem;">View Full Analysis <i class="bi bi-arrow-right ms-1"></i></span>
             </div>
         `;
         container.appendChild(item);
     });
 
     // Pagination Controls
-    document.getElementById("culpritPageIndicator").innerText = `Page ${currentCulpritPage} of ${Math.ceil(currentCulpritData.length / CULPRIT_PAGE_SIZE)}`;
+    var totalPages = Math.ceil(currentCulpritData.length / CULPRIT_PAGE_SIZE);
+    document.getElementById("culpritPageIndicator").innerText = `Page ${currentCulpritPage} of ${totalPages || 1}`;
     document.getElementById("btnCulpritPrev").disabled = currentCulpritPage === 1;
-    document.getElementById("btnCulpritNext").disabled = end >= currentCulpritData.length;
+    document.getElementById("btnCulpritNext").disabled = (end >= currentCulpritData.length) || (totalPages <= 1);
 }
 
 function renderBranchCards(data, waves) {
@@ -873,16 +945,50 @@ function renderBranchCards(data, waves) {
                 <span class="fw-bold ${s.s < 84 ? 'text-danger' : 'text-dark'} small bg-light-subtle px-2 py-1 rounded">${s.s.toFixed(1)}</span>
             </div>`).join("");
 
+        // Critical Stores Button (Moved to Middle Column)
+        var criticalBtnHTML = "";
+        if (criticalCount > 0) {
+            criticalBtnHTML = `
+            <div class="mt-3 text-center">
+                <button onclick="showCulpritModal('${d.n}')" class="btn btn-sm btn-danger shadow-sm w-100 py-2 fw-medium" style="border-radius: 8px;">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> View ${criticalCount} Critical Stores
+                </button>
+            </div>`;
+        }
+
         var prioritySecs = Object.entries(d.d.sections)
             .map(([k, v]) => ({ k: k, s: v.sum / v.count }))
             .sort((a, b) => a.s - b.s)
             .slice(0, 3);
 
-        var priorityHTML = prioritySecs.map(s => `
-            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle">
-                <span class="fw-medium text-dark small text-wrap lh-sm" style="max-width: 70%;">${s.k}</span>
+        var priorityHTML = prioritySecs.map(s => {
+            // Count problematic stores for this section
+            var probCount = branchStores.filter(store => {
+                var res = store.results[waves[waves.length - 1]];
+                if (!res || res.sections[s.k] === undefined) return false;
+                var sv = res.sections[s.k];
+                var score = (typeof sv === 'object' && sv.sum !== undefined) ? (sv.sum / sv.count) : sv;
+                return !isNaN(score) && score < 84;
+            }).length;
+
+            return `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle hover-bg-light" 
+                 style="cursor: pointer; transition: background 0.2s;"
+                 onclick="showCulpritModal('${d.n}', '${s.k}')"
+                 title="Click to view problematic stores in ${s.k}">
+                
+                <div class="d-flex align-items-center gap-2" style="max-width: 75%;">
+                    <!-- Visual Indicator: Small icon -->
+                    <i class="bi bi-box-arrow-in-up-right text-muted" style="font-size: 0.75rem;"></i>
+                    
+                    <div class="text-wrap lh-sm">
+                        <span class="fw-medium text-dark small text-decoration-underline-hover">${s.k}</span>
+                        ${probCount > 0 ? `<span class="text-danger ms-1 fw-bold" style="font-size: 0.7rem;">(${probCount})</span>` : ''}
+                    </div>
+                </div>
                 <span class="fw-bold ${s.s < 84 ? 'text-danger' : 'text-dark'} small bg-light-subtle px-2 py-1 rounded">${s.s.toFixed(1)}</span>
-            </div>`).join("");
+            </div>`;
+        }).join("");
 
         var col = document.createElement("div");
         col.className = "col-12 branch-card-item";
@@ -921,29 +1027,25 @@ function renderBranchCards(data, waves) {
                         <p class="small text-muted mt-3 mb-0 lh-sm">Wave-over-wave trend.</p>
                     </div>
 
-                    <!-- Col 2: Lowest Performers -->
-                    <div class="col-lg-5 p-4 bg-light bg-opacity-10 border-end border-light-subtle">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
-                             <h6 class="text-uppercase fw-bold text-danger small mb-0">📉 Lowest Performing Stores</h6>
+                    <!-- Col 2: Lowest Performing Stores (Middle) -->
+                    <div class="col-lg-5 border-end border-light-subtle p-4 bg-light bg-opacity-10">
+                        <h6 class="text-uppercase fw-bold text-muted small mb-3">
+                            <i class="bi bi-graph-down-arrow me-1"></i> Lowest Performing Stores
+                        </h6>
+                        <div class="d-flex flex-column gap-1">
+                            ${lowestHTML}
                         </div>
-                        <div class="mb-0">${lowestHTML}</div>
+                        ${criticalBtnHTML}
                     </div>
 
-                    <!-- Col 3: Priority Areas & ACTIONS -->
+                    <!-- Col 3: Priority Focus Areas -->
                     <div class="col-lg-4 p-4">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
-                             <h6 class="text-uppercase fw-bold text-warning small mb-0" style="color: #B45309 !important;">⚠ Priority Focus Areas</h6>
+                        <h6 class="text-uppercase fw-bold text-warning small mb-3">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Priority Focus Areas
+                        </h6>
+                        <div class="d-flex flex-column gap-1">
+                            ${priorityHTML}
                         </div>
-                        <div class="mb-3">${priorityHTML}</div>
-                        
-                        <!-- Requested: Clickable Button in Focus Area -->
-                        ${criticalCount > 0 ? `
-                        <div class="mt-3 pt-3 border-top border-light-subtle">
-                            <button class="btn btn-danger w-100 shadow-sm d-flex justify-content-between align-items-center px-3 py-2 rounded-pill" onclick="window.showCulpritModal('${d.n}')">
-                                <span class="fw-bold small">🚨 View ${criticalCount} Critical Stores</span>
-                                <i class="bi bi-arrow-right"></i>
-                            </button>
-                        </div>` : ''}
                     </div>
                 </div>
             </div>
@@ -1068,6 +1170,9 @@ function changePage(dir) {
 }
 
 function viewStore(id) {
+    // Ensure tab is active (critical for deep links)
+    if (typeof showTab === 'function') showTab('stores');
+
     // Switch Views
     document.getElementById("storeListContainer").style.display = "none";
     document.getElementById("storeContent").style.display = "block";
@@ -1244,4 +1349,16 @@ function loadStoreDetail(idOverride) {
     }
 }
 
-window.onload = function () { initSummary(); initRegions(); initBranches(); initStoreTable(); };
+window.onload = function () {
+    initSummary();
+    initRegions();
+    initBranches();
+    initStoreTable();
+
+    // Deep Link Logic
+    var urlParams = new URLSearchParams(window.location.search);
+    var storeId = urlParams.get('store');
+    if (storeId) {
+        setTimeout(function () { viewStore(storeId); }, 100);
+    }
+};

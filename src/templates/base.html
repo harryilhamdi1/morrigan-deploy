@@ -337,19 +337,36 @@
     <script>
         // GLOBAL SHARED FUNCTIONS
         function showTab(n) {
-            document.querySelectorAll(".main-content > div").forEach(d => d.style.display = "none");
-            document.getElementById("tab-" + n).style.display = "block";
-            document.querySelectorAll(".sidebar a").forEach(a => a.classList.remove("active"));
-            event.currentTarget.classList.add("active");
+            // Hide all tabs
+            var tabs = document.querySelectorAll(".main-content > div");
+            for (var i = 0; i < tabs.length; i++) tabs[i].style.display = "none";
+
+            // Show target tab
+            var target = document.getElementById("tab-" + n);
+            if (target) target.style.display = "block";
+
+            // Update Sidebar (Safe)
+            var links = document.querySelectorAll(".sidebar a");
+            for (var i = 0; i < links.length; i++) links[i].classList.remove("active");
+
+            if (typeof event !== 'undefined' && event && event.currentTarget) {
+                event.currentTarget.classList.add("active");
+            } else {
+                // Fallback: Try to highlight based on link having onclick with the tab name
+                // This preserves UI state for deep links
+                var activeLink = document.querySelector(".sidebar a[onclick*='" + n + "']");
+                if (activeLink) activeLink.classList.add("active");
+            }
+
             window.dispatchEvent(new Event("resize"));
         }
-        var reportData = {{REPORT_DATA_JSON}};
+        var reportData = {{ REPORT_DATA_JSON }};
         var sortedWaves = Object.keys(reportData.summary).sort();
         var config = { responsive: true, displayModeBar: false };
     </script>
     <!-- INDIVIDUAL SCRIPTS INJECTED HERE -->
     <script>
-        {{SCRIPTS}}
+        { { SCRIPTS } }
     </script>
 </body>
 

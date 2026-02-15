@@ -10,7 +10,7 @@ const { buildHierarchy } = require('./modules/aggregator');
 // Paths
 const BASE_DIR = path.resolve(__dirname, '..');
 const TEMPLATE_DIR = path.join(__dirname, 'templates');
-const OUTPUT_FILE = path.join(BASE_DIR, 'ESS Retail Analysis.html');
+const OUTPUT_FILE = path.join(__dirname, '../ESS Retail Analysis.html');
 
 async function loadTemplate(filename) {
     return await fs.readFile(path.join(TEMPLATE_DIR, filename), 'utf8');
@@ -85,11 +85,11 @@ async function main() {
 
     // 6. Injection
     finalHTML = finalHTML
-        .replace(/\{\{\s*CONTENT\s*\}\}/, () => combinedContent)
-        .replace(/\{\{\s*REPORT_DATA_JSON\s*\}\}/, () => jsonStr)
-        .replace(/\{\{\s*SCRIPTS\s*\}\}/, () => tplScripts)
-        .replace(/\{\{\s*GENERATED_DATE\s*\}\}/, () => new Date().toLocaleDateString('en-GB'))
-        .replace(/\{\{\s*THRESHOLD\s*\}\}/, () => THRESHOLD_SCORE);
+        .replace(/\{\s*\{\s*CONTENT\s*\}\s*\}/, () => combinedContent)
+        .replace(/\{\s*\{\s*REPORT_DATA_JSON\s*\}\s*\}/, () => jsonStr)
+        .replace(/\{\s*\{\s*SCRIPTS\s*\}\s*\}/, () => tplScripts)
+        .replace(/\{\s*\{\s*GENERATED_DATE\s*\}\s*\}/, () => new Date().toLocaleDateString('en-GB'))
+        .replace(/\{\s*\{\s*THRESHOLD\s*\}\s*\}/, () => THRESHOLD_SCORE);
 
     console.log(`    > Final HTML size: ${finalHTML.length} characters`);
 
