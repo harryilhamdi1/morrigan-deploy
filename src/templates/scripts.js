@@ -1321,8 +1321,7 @@ function showStoreList() {
 }
 
 
-var radarMode = 'region'; // Default
-var deviationMode = 'national'; // Default for store comparison
+var deviationMode = 'national'; // Unified benchark mode
 
 function toggleDeviationMode(mode) {
     deviationMode = mode;
@@ -1334,21 +1333,10 @@ function toggleDeviationMode(mode) {
         }
     });
 
-    // Re-load detail to refresh chart with new gaps
+    // Re-load detail to refresh all charts with the new benchmark
     loadStoreDetail();
 }
 
-function toggleRadar(mode) {
-    radarMode = mode;
-    var btnReg = document.querySelector("button[onclick=\"toggleRadar('region')\"]");
-    var btnBr = document.querySelector("button[onclick=\"toggleRadar('branch')\"]");
-    if (mode === 'region') {
-        btnReg.classList.add('active'); btnBr.classList.remove('active');
-    } else {
-        btnBr.classList.add('active'); btnReg.classList.remove('active');
-    }
-    loadStoreDetail(); // Re-render logic (or just update chart, but re-render is safe)
-}
 
 function generateSparkline(data, waves) {
     if (!data || data.length < 2) return "";
@@ -1496,12 +1484,13 @@ function loadStoreDetail(idOverride) {
     }, config);
 
 
-    // 3. Radar Chart with Toggle Logic - Luxury Style
+    // 3. Radar Chart with Unified Toggle Logic - Luxury Style
     var secKeys = Object.keys(cur.sections).sort();
     var stVals = secKeys.map(k => cur.sections[k]);
     var radarKeys = [...secKeys, secKeys[0]];
     var rSt = [...stVals, stVals[0]];
 
+    var natData = reportData.summary[currentWaveKey];
     var regData = reportData.regions[s.meta.region][currentWaveKey];
     var brData = reportData.branches[s.meta.branch][currentWaveKey];
 
@@ -1509,22 +1498,26 @@ function loadStoreDetail(idOverride) {
     var compName = "";
     var compColor = "";
 
-    if (radarMode === 'region') {
+    if (deviationMode === 'national') {
+        compVals = secKeys.map(k => natData && natData.sections[k] ? natData.sections[k].sum / natData.sections[k].count : 0);
+        compName = "National Avg";
+        compColor = "#3B82F6"; // Blue
+    } else if (deviationMode === 'region') {
         compVals = secKeys.map(k => regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0);
         compName = "Region Avg";
-        compColor = "#9CA3AF";
-    } else {
+        compColor = "#9CA3AF"; // Gray
+    } else if (deviationMode === 'branch') {
         compVals = secKeys.map(k => brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
         compName = "Branch Avg";
-        compColor = "#F59E0B";
+        compColor = "#F59E0B"; // Orange
     }
     var rComp = [...compVals, compVals[0]];
 
     Plotly.newPlot("stRadarChart", [
         {
             type: 'scatterpolar', r: rSt, theta: radarKeys.map(k => k.split(' ')[0]),
-            fill: 'toself', fillcolor: 'rgba(37, 99, 235, 0.2)', // Transparent blue fill
-            name: 'Store', line: { color: '#2563EB', width: 3 }, marker: { size: 1 }
+            fill: 'toself', fillcolor: 'rgba(30, 58, 138, 0.2)', // Darker blue fill
+            name: 'Store', line: { color: '#1E3A8A', width: 3 }, marker: { size: 1 }
         },
         {
             type: 'scatterpolar', r: rComp, theta: radarKeys.map(k => k.split(' ')[0]),
@@ -1552,10 +1545,12 @@ function loadStoreDetail(idOverride) {
     Object.entries(cur.sections).forEach(([k, v]) => {
         var isBad = v < 84;
 
-        // Calculate Gap for Table (Radar mode)
-        var tableAvg = radarMode === 'region' ?
-            (regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0) :
-            (brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
+        // Calculate Gap for Table
+        var tableAvg = 0;
+        if (deviationMode === 'national') tableAvg = (natData && natData.sections[k]) ? natData.sections[k].sum / natData.sections[k].count : 0;
+        else if (deviationMode === 'region') tableAvg = (regData && regData.sections[k]) ? regData.sections[k].sum / regData.sections[k].count : 0;
+        else tableAvg = (brData && brData.sections[k]) ? brData.sections[k].sum / brData.sections[k].count : 0;
+
         var tableGap = v - tableAvg;
         var gapHTML = `<span class="small fw-bold ${tableGap >= 0 ? 'text-success' : 'text-danger'}" > ${tableGap >= 0 ? '+' : ''}${tableGap.toFixed(1)}</span> `;
 
