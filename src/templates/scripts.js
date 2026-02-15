@@ -1898,7 +1898,7 @@ function renderPerformanceInsights(data) {
                 <div class="card-body p-3 d-flex justify-content-between align-items-center">
                     <div style="max-width: 75%;">
                         <h6 class="fw-bold text-dark mb-1 ${!isTop3 ? 'small' : ''}" style="line-height:1.2;">${item.sec}</h6>
-                        <div class="small text-muted" style="font-size: 0.75rem;">vs Reg: <span class="${item.gap >= 0 ? 'text-success' : 'text-danger'} fw-bold">${item.gap > 0 ? '+' : ''}${item.gap.toFixed(1)}</span></div>
+                        <div class="small text-muted" style="font-size: 0.75rem;">vs ${deviationMode.charAt(0).toUpperCase() + deviationMode.slice(1)}: <span class="${item.gap >= 0 ? 'text-success' : 'text-danger'} fw-bold">${item.gap > 0 ? '+' : ''}${item.gap.toFixed(1)}</span></div>
                     </div>
                     <div class="text-end">
                         <span class="badge ${item.score < 84 ? 'bg-danger' : 'bg-success'} rounded-pill" style="font-size: ${isTop3 ? '0.9rem' : '0.75rem'}">${item.score.toFixed(1)}</span>
