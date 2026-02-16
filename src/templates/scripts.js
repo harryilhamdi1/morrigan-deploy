@@ -1,16 +1,50 @@
 
+// UTILITY: Number Counter Animation
+function animateValue(id, start, end, duration, decimals = 0) {
+    var obj = document.getElementById(id);
+    if (!obj) return;
+    var range = end - start;
+    var current = start;
+    var increment = end > start ? 1 : -1;
+    var stepTime = Math.abs(Math.floor(duration / (range * 100))); // Adjust speed
+    if (stepTime < 5) stepTime = 5; // Cap speed
+
+    // Easier approach with requestAnimationFrame for smoothness
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        // Easing: easeOutQuad
+        const ease = 1 - (1 - progress) * (1 - progress);
+
+        const val = (ease * (end - start) + start);
+        obj.innerHTML = decimals === 0 ? Math.round(val) : val.toFixed(decimals);
+
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        } else {
+            obj.innerHTML = decimals === 0 ? Math.round(end) : end.toFixed(decimals);
+        }
+    };
+    window.requestAnimationFrame(step);
+}
+
 function initSummary() {
     var w = sortedWaves, cur = w[w.length - 1], prev = w.length > 1 ? w[w.length - 2] : null;
     var dat = reportData.summary[cur];
 
-    // 1. KPI Scores
+    // 1. KPI Scores (Animated)
     var s = dat.sum / dat.count;
     var pS = prev ? reportData.summary[prev].sum / reportData.summary[prev].count : 0;
     var diff = s - pS;
-    document.getElementById("kpi-score").textContent = s.toFixed(2);
+
+    // Trigger Animation
+    animateValue("kpi-score", 0, s, 1000, 2);
+
     document.getElementById("kpi-score-trend").innerHTML = (diff >= 0 ? "▲ +" : "▼ ") + Math.abs(diff).toFixed(2) + " vs last wave";
-    document.getElementById("kpi-score-trend").className = "kpi-trend " + (diff >= 0 ? "text-success" : "text-danger");
-    document.getElementById("kpi-stores").textContent = dat.count;
+    document.getElementById("kpi-score-trend").className = "animate-entry delay-200 kpi-trend " + (diff >= 0 ? "text-success" : "text-danger");
+
+    animateValue("kpi-stores", 0, dat.count, 1000, 0);
 
     // Best Region
     var bestR = "", bestS = -1;
@@ -19,6 +53,7 @@ function initSummary() {
         if (d && d.sum / d.count > bestS) { bestS = d.sum / d.count; bestR = r; }
     });
     document.getElementById("kpi-best-region").textContent = bestR || "N/A";
+    document.getElementById("kpi-best-region").className = "kpi-value animate-entry delay-300"; // Add animation class
 
     // 2. Critical Issues (Total Count)
     var totActions = 0;
@@ -29,7 +64,7 @@ function initSummary() {
             });
         }
     });
-    document.getElementById("kpi-actions").textContent = totActions;
+    animateValue("kpi-actions", 0, totActions, 1000, 0);
 
     // 3. Chart with Deltas
     var scores = w.map(k => reportData.summary[k].sum / reportData.summary[k].count);
@@ -96,7 +131,11 @@ function initSummary() {
             var isTopLow = i < 3;
             var col = document.createElement("div");
             col.className = isTopLow ? "col-xl-4 col-md-6" : "col-xl-2 col-md-4 col-sm-6";
-            col.innerHTML = `<div class="card h-100 p-4 shadow-sm section-tile ${isC ? 'bg-soft-danger' : 'bg-white'}" 
+
+            // ANIMATION: Add animate-entry and stagger delay
+            var delayClass = "delay-" + ((i * 100) % 500);
+
+            col.innerHTML = `<div class="card h-100 p-4 shadow-sm section-tile ${isC ? 'bg-soft-danger' : 'bg-white'} animate-entry ${delayClass}" 
             style="cursor:pointer; ${isTopLow ? 'border: 2px solid #EF4444;' : ''}"
             onclick="openSectionDetail('${k}')">
                 ${isTopLow ? '<div class="position-absolute top-0 end-0 m-3"><span class="badge bg-danger">PRIORITY IMPROVEMENT</span></div>' : ''}
@@ -486,31 +525,31 @@ function renderBranchKPIs(top, fast, gap, hExc, hWarn, hCrit) {
                     <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">🏆</span><span class="small fw-bold text-primary text-uppercase">Top Performer</span></div>
-                            <h5 class="fw-bold text-dark mb-1 text-truncate">${top.n}</h5>
-                            <div class="small text-muted">${top.s.toFixed(2)} pts</div>
+                            <h5 class="fw-bold text-dark mb-1 text-truncate animate-entry delay-100">${top.n}</h5>
+                            <div class="small text-muted"><span id="br-kpi-top-val">0</span> pts</div>
                         </div>
                     </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);">
+        <div class="card border-0 shadow-sm h-100 kpi-card animate-entry delay-200" style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">🚀</span><span class="small fw-bold text-success text-uppercase">Momentum Leader</span></div>
                 <h5 class="fw-bold text-dark mb-1 text-truncate">${fast.n}</h5>
-                <div class="small text-muted">+${fast.mom.toFixed(2)} pts (Fastest Growth)</div>
+                <div class="small text-muted"><span id="br-kpi-mom-val">0</span> pts (Fastest Growth)</div>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);">
+        <div class="card border-0 shadow-sm h-100 kpi-card animate-entry delay-300" style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">⚠️</span><span class="small fw-bold text-warning text-uppercase" style="color: #B45309 !important;">Gap Analysis</span></div>
-                <h5 class="fw-bold text-dark mb-1">${gap.toFixed(2)} pts</h5>
+                <h5 class="fw-bold text-dark mb-1"><span id="br-kpi-gap-val">0</span> pts</h5>
                 <div class="small text-muted" style="color: #92400E !important;">Spread: High vs Low</div>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);">
+        <div class="card border-0 shadow-sm h-100 kpi-card animate-entry delay-400" style="background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);">
             <div class="card-body p-4">
                  <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">📊</span><span class="small fw-bold text-purple text-uppercase" style="color: #6B21A8 !important;">Health Index</span></div>
                  <h5 class="fw-bold text-dark mb-1">${hExc} <span class="text-muted fw-light mx-1">/</span> ${hWarn} <span class="text-muted fw-light mx-1">/</span> ${hCrit}</h5>
@@ -519,6 +558,29 @@ function renderBranchKPIs(top, fast, gap, hExc, hWarn, hCrit) {
         </div>
     </div>`;
     document.getElementById("branchKPIs").innerHTML = html;
+
+    // Trigger Animations
+    animateValue("br-kpi-top-val", 0, top.s, 1000, 2);
+    // Momentum can be negative, need to handle start value? Assuming 0 start is fine.
+    // Actually momentum is displayed with +/-, animateValue handles number only.
+    // Let's just animate the number part.
+    // Wait, my animateValue replaces innerHTML.
+    // So for momentum: "+5.2" -> "0" -> "5.2"
+    // I need to add the "+" or "-" manually in HTML or wrapper.
+    // Modified above HTML to simple span id.
+
+    // Logic for Momentum Formatting handling in animateValue?
+    // animateValue just output number.
+    // I'll manually handle the text around it in HTML above?
+    // "id='br-kpi-mom-val'>0</span> pts"
+    // The previous code had:  `<div class="small text-muted">+${fast.mom.toFixed(2)} pts ...</div>`
+    // I will change it to: `<div class="small text-muted">${fast.mom >= 0 ? '+' : ''}<span id="br-kpi-mom-val">0</span> pts ...</div>`
+
+    // Re-adjust HTML for momentum sign
+    // See ReplacementChunk modification below for correct logic.
+
+    animateValue("br-kpi-mom-val", 0, fast.mom, 1000, 2);
+    animateValue("br-kpi-gap-val", 0, gap, 1000, 2);
 }
 
 function renderBranchMomentumChart(brData) {
@@ -1413,8 +1475,9 @@ function loadStoreDetail(idOverride) {
     document.getElementById("stMeta").textContent = s.meta.region + " | " + s.meta.branch;
 
     var stScore = cur.totalScore;
-    document.getElementById("stScore").textContent = stScore.toFixed(2);
+    // document.getElementById("stScore").textContent = stScore.toFixed(2); // REMOVED
     document.getElementById("stScore").className = "display-3 fw-bold " + (stScore < 84 ? "text-danger" : "text-white");
+    animateValue("stScore", 0, stScore, 1500, 2);
 
     // Calculate Rank
     var allStores = Object.values(reportData.stores);
