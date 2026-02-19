@@ -12,14 +12,15 @@ function buildHierarchy(allStoreData, waves) {
     allStoreData.forEach(entry => {
         const waveKey = `${entry.year} ${entry.wave}`;
 
-        // Collect VOC Data for Latest Wave
-        if (waveKey === latestWaveKeyForCheck && entry.qualitative && entry.qualitative.length > 0) {
+        // Collect VOC Data (ALL Waves for Trend Analysis)
+        if (entry.qualitative && entry.qualitative.length > 0) {
             // Enrich qualitative data with site metadata for citation & regional analysis
             const enrichedQualitative = entry.qualitative.map(q => ({
                 ...q,
                 siteName: entry.siteName,
                 siteCode: entry.siteCode,
                 region: entry.region,
+                branch: entry.branch, // ADDED: Branch for drill-down
                 wave: entry.wave,
                 year: entry.year
             }));
@@ -102,6 +103,14 @@ function buildHierarchy(allStoreData, waves) {
         addToHierarchy(hierarchy.regions[entry.region], entry);
         if (!hierarchy.branches[entry.branch]) hierarchy.branches[entry.branch] = {};
         addToHierarchy(hierarchy.branches[entry.branch], entry);
+    });
+
+    // Sort Qualitative Data (Newest First) for UX
+    allQualitative.sort((a, b) => {
+        // Compare Year Descending
+        if (b.year != a.year) return b.year - a.year;
+        // Compare Wave Descending (Numeric awareness for "Wave 10" vs "Wave 2")
+        return b.wave.localeCompare(a.wave, undefined, { numeric: true, sensitivity: 'base' });
     });
 
     return { hierarchy, allQualitative, allFailureReasons };

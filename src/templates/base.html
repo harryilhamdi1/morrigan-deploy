@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESS Retail In Depth Analysis</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;700&display=swap"
+        rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -398,9 +400,43 @@
         }
 
         .animate-entry {
-            animation: fadeInUp 0.5s ease-out forwards;
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             opacity: 0;
-            /* Start hidden */
+        }
+
+        .shadow-2xl {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+        }
+
+        .rounded-4 {
+            border-radius: 1.25rem;
+        }
+
+        .xsmall {
+            font-size: 0.7rem;
+        }
+
+        /* LUXURY UTILITIES */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7) !important;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+
+        .text-shadow-sm {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-value-premium {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, var(--primary) 0%, #4472C4 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .delay-100 {
@@ -538,21 +574,24 @@
     <script>
         { { SCRIPTS } }
     </script>
-    <!-- Fullscreen Chart Modal -->
+    <!-- Fullscreen Chart Modal (Premium Upgrade) -->
     <div class="modal fade" id="chartModal" tabindex="-1" aria-hidden="true" style="z-index: 2000;">
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content border-0">
-                <div class="modal-header border-bottom-0 bg-light-subtle px-4 py-3">
-                    <h5 class="modal-title fw-bold text-dark" id="chartModalTitle">Chart Analysis</h5>
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="text-muted small"><i class="bi bi-arrows-move me-1"></i>Interactive Mode: Scroll to
-                            zoom, Drag to pan</span>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header border-0 py-4 px-5 align-items-center"
+                    style="background: linear-gradient(to right, #F8FAFC, #FFFFFF);">
+                    <h4 class="modal-title fw-bold text-dark" id="chartModalTitle"
+                        style="font-family: 'Outfit', sans-serif;">Chart Analysis</h4>
+                    <div class="d-flex align-items-center gap-4">
+                        <span class="text-muted small fw-medium"><i class="bi bi-info-circle me-1 text-primary"></i>
+                            Scroll to zoom, Drag to pan</span>
+                        <button type="button" class="btn-close opacity-50 hover-opacity-100 transition"
+                            data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                 </div>
-                <div class="modal-body p-4 bg-white d-flex align-items-center justify-content-center"
-                    style="background-image: radial-gradient(#E5E7EB 1px, transparent 1px); background-size: 20px 20px;">
-                    <div id="chartModalContainer" style="width: 100%; height: 100%;"></div>
+                <div class="modal-body p-5 bg-white d-flex align-items-center justify-content-center"
+                    style="background-image: radial-gradient(#F1F5F9 1.5px, transparent 1.5px); background-size: 30px 30px;">
+                    <div id="chartModalContainer" class="animate-entry" style="width: 100%; height: 100%;"></div>
                 </div>
             </div>
         </div>

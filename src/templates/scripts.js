@@ -2494,10 +2494,17 @@ function openChartModal(sourceId, title) {
 
     // Clone and adjust layout for fullscreen
     var newLayout = JSON.parse(JSON.stringify(layout));
+    newLayout.font = { family: 'Outfit, sans-serif' };
     newLayout.width = null;
     newLayout.height = null;
     newLayout.autosize = true;
-    newLayout.margin = { t: 50, l: 50, r: 50, b: 50 }; // More padding
+    newLayout.margin = { t: 80, l: 80, r: 80, b: 80 }; // More "luxury" breathing room
+    newLayout.paper_bgcolor = 'rgba(0,0,0,0)';
+    newLayout.plot_bgcolor = 'rgba(0,0,0,0)';
+
+    if (newLayout.title && typeof newLayout.title === 'object') {
+        newLayout.title.font = { size: 24, weight: 'bold', family: 'Outfit, sans-serif' };
+    }
 
     // Show Modal
     var myModal = new bootstrap.Modal(document.getElementById('chartModal'));
@@ -2832,58 +2839,25 @@ function getVocCatColor(cat) {
 }
 
 function initVoc() {
-    if (!reportData.voc || reportData.voc.length === 0) {
+    const insightEl = document.getElementById("vocSmartInsights");
+    if (insightEl && reportData.vocInsights) {
+        insightEl.innerHTML = reportData.vocInsights;
+    }
+
+    if (reportData.voc && reportData.voc.length > 0) {
+        filteredVocData = reportData.voc;
+    } else {
         filteredVocData = [];
-        return;
-    }
-    filteredVocData = reportData.voc;
-
-    // 1. Aggregate categories
-    vocCategoryData = {};
-    reportData.voc.forEach(item => {
-        const topics = item.topics || item.themes || ['Uncategorized'];
-        topics.forEach(t => { vocCategoryData[t] = (vocCategoryData[t] || 0) + 1; });
-    });
-
-    // 2. Aggregate Manager's Notes (by prefix before ":")
-    const noteMap = {};
-    const noteSamples = {};
-    reportData.voc.forEach(item => {
-        const insight = item.aiInsight || '';
-        const key = insight.includes(':') ? insight.split(':')[0].trim() : insight.trim();
-        if (!key || key === 'N/A') return;
-        noteMap[key] = (noteMap[key] || 0) + 1;
-        if (!noteSamples[key]) noteSamples[key] = item.text;
-    });
-    vocNoteData = Object.entries(noteMap)
-        .map(([note, count]) => ({ note, count, sample: noteSamples[note] || '' }))
-        .sort((a, b) => b.count - a.count);
-
-    // 3. Populate category filter dropdown
-    const filterEl = document.getElementById('vocCategoryFilter');
-    if (filterEl) {
-        const cats = Object.entries(vocCategoryData).sort((a, b) => b[1] - a[1]);
-        filterEl.innerHTML = '<option value="all">All Categories</option>' +
-            cats.map(([cat, cnt]) => `<option value="${cat}">${cat} (${cnt})</option>`).join('');
     }
 
-    // 4. Render Hero KPIs
-    renderVocKpis();
-
-    // 5. Render Category Chart
-    renderVocCategoryChart();
-
-    // 6. Render Manager's Notes Table
-    renderVocManagerNotes();
-
-    // 7. Render Feedback Grid
+    calculateVocStats();
     renderVocGrid();
-
-    // 8. Regional Priority Map
+    renderVocKpis();
     renderVocRegionalHeatmap();
-
-    // 9. Service Standards (kept from previous)
     renderVocServiceStandards();
+    renderVocCategoryChart();
+    renderVocTrendChart();
+    renderVocManagerNotes();
 }
 
 function renderVocKpis() {
@@ -2910,59 +2884,61 @@ function renderVocKpis() {
 }
 
 function renderVocCategoryChart() {
-    const canvas = document.getElementById('vocCategoryChart');
-    if (!canvas) return;
+    const container = document.getElementById('vocCategoryChart');
+    if (!container) return;
 
     const sorted = Object.entries(vocCategoryData).sort((a, b) => b[1] - a[1]);
-    const total = sorted.reduce((s, x) => s + x[1], 0);
+    const labels = sorted.map(x => x[0]);
+    const values = sorted.map(x => x[1]);
+    const total = values.reduce((a, b) => a + b, 0);
 
+    // Update Total Text
     const totalEl = document.getElementById('vocCatChartTotal');
     if (totalEl) totalEl.textContent = total.toLocaleString() + ' total';
 
-    const ctx = canvas.getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: sorted.map(x => x[0]),
-            datasets: [{
-                data: sorted.map(x => x[1]),
-                backgroundColor: sorted.map(x => getVocCatColor(x[0])),
-                borderRadius: 6,
-                barThickness: 28
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function (ctx) {
-                            const pct = ((ctx.raw / total) * 100).toFixed(1);
-                            return `${ctx.raw.toLocaleString()} feedback (${pct}%)`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { font: { size: 11, weight: '600' }, color: '#64748B' }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { font: { size: 12, weight: '700' }, color: '#1E293B' }
-                }
-            }
-        }
-    });
+    const colors = labels.map(l => getVocCatColor(l));
+    const parents = labels.map(() => "");
 
-    // Dynamically resize canvas height based on number of categories
-    canvas.parentElement.style.height = Math.max(200, sorted.length * 40) + 'px';
-    canvas.style.height = '100%';
+    const data = [{
+        type: "treemap",
+        labels: labels,
+        parents: parents,
+        values: values,
+        textinfo: "label+value+percent root",
+        textposition: "middle center",
+        marker: {
+            colors: colors,
+            line: { width: 2, color: '#ffffff' }
+        },
+        hovertemplate: "<b>%{label}</b><br>Volume: %{value}<br>Share: %{percentRoot:.1%}<extra></extra>",
+        pathbar: { visible: false },
+        textfont: {
+            family: "Inter, sans-serif",
+            size: 14,
+            color: "#FFFFFF",
+            weight: "bold"
+        }
+    }];
+
+    const layout = {
+        margin: { t: 0, l: 0, r: 0, b: 0 },
+        paper_bgcolor: "transparent",
+        font: { family: "Inter, sans-serif" },
+        autosize: true
+    };
+
+    const config = { responsive: true, displayModeBar: false };
+
+    Plotly.newPlot('vocCategoryChart', data, layout, config).then(() => {
+        container.on('plotly_click', function (data) {
+            if (data.points && data.points.length > 0) {
+                const label = data.points[0].label;
+                showVocDrilldown(label);
+            }
+        });
+    });
 }
+
 
 function renderVocManagerNotes() {
     const tbody = document.getElementById('vocManagerNotesBody');
@@ -3099,7 +3075,6 @@ function filterVocGrid(type) {
     if (type === 'all') {
         filteredVocData = reportData.voc;
     } else {
-        // Filter by category (topic) OR by Manager's Note prefix
         filteredVocData = reportData.voc.filter(item => {
             const topics = item.topics || item.themes || [];
             const noteKey = (item.aiInsight || '').includes(':') ? (item.aiInsight || '').split(':')[0].trim() : (item.aiInsight || '').trim();
@@ -3107,10 +3082,8 @@ function filterVocGrid(type) {
         });
     }
 
-    // Update dropdown to reflect current filter
     const filterEl = document.getElementById('vocCategoryFilter');
     if (filterEl) {
-        // Try to select the matching option
         for (let i = 0; i < filterEl.options.length; i++) {
             if (filterEl.options[i].value === type) {
                 filterEl.selectedIndex = i;
@@ -3119,7 +3092,14 @@ function filterVocGrid(type) {
         }
     }
 
+    calculateVocStats();
     renderVocGrid();
+    renderVocKpis();
+    renderVocRegionalHeatmap();
+    renderVocServiceStandards();
+    renderVocCategoryChart();
+    renderVocTrendChart();
+    renderVocManagerNotes();
 }
 
 function changeVocPage(delta) {
@@ -3241,3 +3221,410 @@ window.onload = function () {
     // Show summary by default
     showTab('summary');
 };
+
+
+// --- TREND ANALYSIS ---
+function renderVocTrendChart() {
+    const container = document.getElementById('vocTrendChart');
+    if (!container) return;
+
+    // Use sortedWaves as X-axis (global from base.html)
+    // We assume sortedWaves contains strings like "Wave 1 2024"
+    if (typeof sortedWaves === 'undefined' || !sortedWaves) return;
+
+    const counts = sortedWaves.map(waveKey => {
+        let count = 0;
+        filteredVocData.forEach(item => {
+            // Loose matching: check if item.wave + item.year is inside waveKey
+            // e.g. waveKey="Wave 1 2024", item.wave="Wave 1", item.year="2024"
+            if (waveKey.includes(item.year) && waveKey.includes(item.wave)) {
+                count++;
+            }
+        });
+        return count;
+    });
+
+    const data = [{
+        x: sortedWaves,
+        y: counts,
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: { shape: 'spline', color: '#002060', width: 3 },
+        marker: { size: 8, color: '#F59E0B', line: { width: 2, color: '#fff' } },
+        name: 'Volume'
+    }];
+
+    const layout = {
+        margin: { t: 20, l: 40, r: 20, b: 40 },
+        paper_bgcolor: "transparent",
+        font: { family: "Inter, sans-serif" },
+        xaxis: {
+            showgrid: false,
+            tickfont: { size: 10, color: '#64748B' }
+        },
+        yaxis: {
+            showgrid: true,
+            gridcolor: '#F1F5F9',
+            tickfont: { size: 10, color: '#64748B' }
+        },
+        showlegend: false
+    };
+
+    const config = { responsive: true, displayModeBar: false };
+    Plotly.newPlot('vocTrendChart', data, layout, config);
+}
+
+// --- DRILLDOWN MODAL LOGIC (Luxurized) ---
+let currentDrillCategory = '';
+let currentDrillRegion = '';
+
+function renderVocDrilldownStats(items, level) {
+    const row = document.getElementById('vocDrilldownStatsRow');
+    if (!row) return;
+    row.innerHTML = '';
+
+    const count = items.length;
+
+    // Issue Density (NEW)
+    const uniqueStores = new Set(items.map(i => i.siteCode || i.siteName));
+    const density = uniqueStores.size > 0 ? (count / uniqueStores.size).toFixed(1) : 0;
+
+    // Top Unit
+    let topUnit = 'N/A';
+    if (count > 0) {
+        const counts = {};
+        items.forEach(i => {
+            const key = level === 'region' ? (i.region || 'Unknown') : (level === 'branch' ? (i.branch || 'Unknown') : (i.siteName || 'Unknown'));
+            counts[key] = (counts[key] || 0) + 1;
+        });
+        topUnit = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+    const cards = [
+        { label: 'Feedback Volume', value: count, type: 'number', subtitle: 'Total verified entries' },
+        { label: 'Issue Density', value: density, type: 'number', subtitle: 'Avg feedback per store' },
+        { label: 'Leading ' + (level === 'region' ? 'Region' : (level === 'branch' ? 'Branch' : 'Store')), value: topUnit, type: 'text', subtitle: 'Highest frequency' }
+    ];
+
+    cards.forEach((c, idx) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4 animate-entry';
+        col.style.animationDelay = (idx * 150) + 'ms';
+        col.innerHTML = `
+            <div class="card border-0 glass-card p-4 h-100 shadow-sm" style="transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <label class="xsmall fw-bold text-uppercase tracking-wider text-muted mb-0" style="font-family: 'Inter', sans-serif;">${c.label}</label>
+                    <div class="rounded-pill p-1 bg-light-subtle"><i class="bi bi-graph-up xsmall text-primary"></i></div>
+                </div>
+                <div class="stat-value-premium h2 mb-1">${c.value}</div>
+                <div class="xsmall text-muted fw-medium mt-1 opacity-75 d-flex align-items-center">
+                    <span class="badge bg-light text-dark rounded-pill me-2 px-2" style="font-size: 0.6rem;">INFO</span>
+                    ${c.subtitle}
+                </div>
+            </div>
+        `;
+        row.appendChild(col);
+    });
+}
+
+function showVocDrilldown(category) {
+    currentDrillCategory = category;
+
+    const modalEl = document.getElementById('vocDrilldownModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        updateDrilldownBreadcrumb('region');
+        renderVocDrilldownRegions();
+    }
+}
+
+function updateDrilldownBreadcrumb(level) {
+    const nav = document.getElementById('vocDrilldownBreadcrumb');
+    const title = document.getElementById('vocDrilldownTitle');
+
+    if (level === 'region') {
+        nav.innerHTML = '<li class="breadcrumb-item active">' + currentDrillCategory + '</li>';
+        title.textContent = "Regional Breakdown";
+    } else if (level === 'branch') {
+        nav.innerHTML = '<li class="breadcrumb-item"><a href="#" onclick="renderVocDrilldownRegions()">' + currentDrillCategory + '</a></li><li class="breadcrumb-item active">' + currentDrillRegion + '</li>';
+        title.textContent = "Branch Breakdown";
+    }
+}
+
+function renderVocDrilldownRegions() {
+    updateDrilldownBreadcrumb('region');
+    document.getElementById('vocDrilldownChart').classList.remove('d-none');
+    document.getElementById('vocDrilldownTableContainer').classList.add('d-none');
+
+    // Filter by Category
+    const catData = reportData.voc.filter(item => {
+        return (item.topics || []).includes(currentDrillCategory);
+    });
+
+    // Group by Region
+    const counts = {};
+    catData.forEach(item => {
+        const r = item.region || 'Unknown';
+        counts[r] = (counts[r] || 0) + 1;
+    });
+
+    // Update Stats Row
+    renderVocDrilldownStats(catData, 'region');
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const x = sorted.map(k => k[0]);
+    const y = sorted.map(k => k[1]);
+
+    const data = [{
+        x: x,
+        y: y,
+        type: 'bar',
+        marker: {
+            color: '#4F46E5', // Premium Indigo
+            line: { width: 0 },
+            opacity: 0.9
+        },
+        hoverinfo: 'x+y',
+        name: 'Volume'
+    }];
+
+    const layout = {
+        font: { family: 'Outfit, sans-serif' },
+        title: {
+            text: 'Feedback Volume by Region (' + currentDrillCategory + ')',
+            font: { size: 16, weight: 'bold', color: '#1e293b' },
+            pad: { b: 20 }
+        },
+        margin: { t: 60, l: 50, r: 30, b: 100 },
+        xaxis: {
+            tickangle: -45,
+            showgrid: false,
+            tickfont: { size: 11, color: '#64748b' }
+        },
+        yaxis: {
+            gridcolor: '#f1f5f9',
+            tickfont: { size: 11, color: '#64748b' }
+        },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        showlegend: false
+    };
+
+    Plotly.newPlot('vocDrilldownChart', data, layout, { responsive: true, displayModeBar: false }).then(() => {
+        document.getElementById('vocDrilldownChart').on('plotly_click', data => {
+            if (data.points && data.points.length > 0) {
+                currentDrillRegion = data.points[0].x;
+                renderVocDrilldownBranches(currentDrillRegion);
+            }
+        });
+    });
+}
+
+function renderVocDrilldownBranches(region) {
+    updateDrilldownBreadcrumb('branch');
+    document.getElementById('vocDrilldownChart').classList.remove('d-none');
+    document.getElementById('vocDrilldownTableContainer').classList.add('d-none');
+
+    // Filter by Category AND Region
+    const branchData = reportData.voc.filter(item => {
+        return (item.topics || []).includes(currentDrillCategory) && item.region === region;
+    });
+
+    // Group by Branch
+    const counts = {};
+    branchData.forEach(item => {
+        const b = item.branch || 'Unknown';
+        counts[b] = (counts[b] || 0) + 1;
+    });
+
+    // Update Stats Row
+    renderVocDrilldownStats(branchData, 'branch');
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const x = sorted.map(k => k[0]);
+    const y = sorted.map(k => k[1]);
+
+    const data = [{
+        x: x,
+        y: y,
+        type: 'bar',
+        marker: {
+            color: '#10B981', // Premium Emerald
+            line: { width: 0 },
+            opacity: 0.9
+        },
+        hoverinfo: 'x+y',
+        name: 'Volume'
+    }];
+
+    const layout = {
+        font: { family: 'Outfit, sans-serif' },
+        title: {
+            text: 'Feedback Volume by Branch (' + region + ')',
+            font: { size: 16, weight: 'bold', color: '#1e293b' },
+            pad: { b: 20 }
+        },
+        margin: { t: 60, l: 50, r: 30, b: 100 },
+        xaxis: {
+            tickangle: -45,
+            showgrid: false,
+            tickfont: { size: 11, color: '#64748b' }
+        },
+        yaxis: {
+            gridcolor: '#f1f5f9',
+            tickfont: { size: 11, color: '#64748b' }
+        },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        showlegend: false
+    };
+
+    Plotly.newPlot('vocDrilldownChart', data, layout, { responsive: true, displayModeBar: false }).then(() => {
+        document.getElementById('vocDrilldownChart').on('plotly_click', data => {
+            if (data.points && data.points.length > 0) {
+                const branch = data.points[0].x;
+                renderVocDrilldownStoreTable(branch);
+            }
+        });
+    });
+}
+
+// NEW: Drilldown Pagination Globals
+let currentDrillPage = 1;
+const drillPageSize = 10;
+let currentDrillStoreData = []; // Array of {code, name, region, count}
+
+function changeDrillPage(delta) {
+    const maxPage = Math.ceil(currentDrillStoreData.length / drillPageSize);
+    const newPage = currentDrillPage + delta;
+    if (newPage > 0 && newPage <= maxPage) {
+        currentDrillPage = newPage;
+        renderDrillTablePage();
+    }
+}
+
+function renderVocDrilldownStoreTable(branch) {
+    // Hide Chart, Show Table
+    document.getElementById('vocDrilldownChart').classList.add('d-none');
+    document.getElementById('vocDrilldownTableContainer').classList.remove('d-none');
+    document.getElementById('vocDrilldownTableContainer').classList.add('animate-entry');
+
+    // Title
+    const title = document.getElementById('vocDrilldownTitle');
+    title.textContent = branch + ' Stores';
+    title.className = "modal-title fw-bold text-dark animate-entry";
+
+    // 1. Filter Feedback by Category + Region + Branch
+    const storeItems = reportData.voc.filter(item => {
+        return (item.topics || []).includes(currentDrillCategory) &&
+            item.region === currentDrillRegion &&
+            item.branch === branch;
+    });
+
+    // Update Stats Row
+    renderVocDrilldownStats(storeItems, 'store');
+
+    // 2. Group by Store
+    const storeStats = {};
+    storeItems.forEach(item => {
+        const code = item.siteCode;
+        if (!storeStats[code]) {
+            storeStats[code] = {
+                name: item.siteName || 'Unknown Store',
+                code: code,
+                count: 0,
+                region: item.region || 'Unknown'
+            };
+        }
+        storeStats[code].count++;
+    });
+
+    // 3. Convert to Array and Sort by Volume Desc
+    currentDrillStoreData = Object.values(storeStats).sort((a, b) => b.count - a.count);
+
+    // 4. Reset Pagination and Render
+    currentDrillPage = 1;
+    renderDrillTablePage();
+}
+
+function renderDrillTablePage() {
+    const tbody = document.querySelector('#vocDrilldownTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const start = (currentDrillPage - 1) * drillPageSize;
+    const end = start + drillPageSize;
+    const pageData = currentDrillStoreData.slice(start, end);
+
+    pageData.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'default';
+        tr.style.transition = "background-color 0.2s";
+        tr.onmouseover = () => tr.style.backgroundColor = "#F8FAFC";
+        tr.onmouseout = () => tr.style.backgroundColor = "transparent";
+
+        tr.innerHTML = `
+            <td class="ps-4 py-3 fw-bold text-primary" style="font-family: monospace; font-size: 0.95rem;">${item.code}</td>
+            <td class="py-3 text-dark fw-medium">${item.name}</td>
+            <td class="py-3"><span class="badge bg-light text-secondary border fw-normal">${item.region}</span></td>
+            <td class="py-3 pe-4 text-end fw-bold text-dark">${item.count}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Update Info Text
+    const total = currentDrillStoreData.length;
+    const showEnd = Math.min(end, total);
+    const infoEl = document.getElementById('vocDrillPagInfo');
+    if (infoEl) infoEl.textContent = `Showing ${total > 0 ? start + 1 : 0}-${showEnd} of ${total}`;
+
+    // Update Buttons
+    const maxPage = Math.ceil(total / drillPageSize);
+    const btnPrev = document.getElementById('btnDrillPrev');
+    const btnNext = document.getElementById('btnDrillNext');
+
+    if (btnPrev) {
+        btnPrev.disabled = currentDrillPage === 1;
+        btnPrev.onclick = () => changeDrillPage(-1); // Re-assign handler
+        btnPrev.className = currentDrillPage === 1 ? "btn btn-light text-muted border px-4 py-2" : "btn btn-white border px-4 py-2 fw-medium text-secondary shadow-sm";
+    }
+    if (btnNext) {
+        btnNext.disabled = currentDrillPage >= maxPage || maxPage === 0;
+        btnNext.onclick = () => changeDrillPage(1);
+        btnNext.className = (currentDrillPage >= maxPage || maxPage === 0) ? "btn btn-light text-muted border px-4 py-2" : "btn btn-white border px-4 py-2 fw-medium text-secondary shadow-sm";
+    }
+}
+
+
+function calculateVocStats() {
+    // Reset global data containers
+    vocCategoryData = {};
+    const noteCounts = {};
+
+    if (!filteredVocData) return;
+
+    filteredVocData.forEach(item => {
+        // 1. Categories
+        const topics = item.topics || item.themes || [];
+        topics.forEach(t => {
+            vocCategoryData[t] = (vocCategoryData[t] || 0) + 1;
+        });
+
+        // 2. Manager Notes (Extract key from AI Insight)
+        let noteKey = null;
+        if (item.aiInsight && item.aiInsight !== 'N/A') {
+            // Logic: If contains ':', take first part. Else take whole string.
+            noteKey = (item.aiInsight || '').includes(':') ? (item.aiInsight || '').split(':')[0].trim() : (item.aiInsight || '').trim();
+        }
+
+        if (noteKey) {
+            noteCounts[noteKey] = (noteCounts[noteKey] || 0) + 1;
+        }
+    });
+
+    // Convert notes object to sorted array for the table
+    vocNoteData = Object.entries(noteCounts)
+        .map(([note, count]) => ({ note, count }))
+        .sort((a, b) => b.count - a.count);
+}
