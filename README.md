@@ -15,9 +15,38 @@ This project generates premium HTML executive summaries and detailed reports for
 - **Gap Analysis:** Definition of winning/losing categories.
 
 ### 🏥 Branch Health Monitor
--   **Priority Focus Areas**: Interactive list of worst-performing sections with one-click access to affected stores.
+-   **Priority Focus Areas**: Interactive list of worst-performing journeys with one-click access to affected stores.
 -   **Critical Alerts**: Prominent badges highlighting the number of stores falling below the threshold (< 84).
--   **Deep Dive Modal**: Detailed breakdown of lowest-performing stores, including their top 3 worst sections for immediate context.
+-   **Deep Dive Modal**: Detailed breakdown of lowest-performing stores, including their top 3 worst journeys for immediate context.
+
+### 🗣️ VoC Feedback Explorer
+- **Strategic Briefing Modal**: Expandable action plan with Regional Hotspots, Branch Watchlist (top 7), Voice from the Ground (4 expandable quotes), and prescriptive Manager's Action Map.
+- **Drilldown Modal**: Multi-level category drilldown with breadcrumb navigation and KPI stat cards.
+- **Journey Analysis**: Offline AI-powered sentiment engine with Golden Cache for 2,000+ items.
+
+## 🎨 Premium Design System (Feb 2026)
+
+A unified design language — "Strategic Briefing" — is applied system-wide across all 5 pages and all modal windows.
+
+### Design Tokens
+| Token | Purpose |
+|---|---|
+| `.glass-header-dark` | Dark navy gradient headers (modals & journeys) |
+| `.premium-modal` | Unified modal styling (rounded, shadow, clean footer) |
+| `.kpi-premium` | KPI cards with icons, hover effects, accent stripes |
+| `.mandate-card` | Numbered action items with amber circle + progress bar |
+| `.data-panel` | Light gradient metric containers with hover accent |
+| `.progress-bar-premium` | Thin animated progress bars (amber/blue/danger/success) |
+| `.table-premium` | Enhanced table rows with hover effects |
+| `.hover-lift` | Universal card lift animation on hover |
+| `.accent-stripe-*` | Top border accents (amber, blue, danger, success) |
+| `.badge-premium` | Rounded pill badges with consistent styling |
+
+### Color Palette
+- **Primary**: Navy `#0F172A` → `#1E293B` (gradient)
+- **Accent**: Amber/Gold `#FBBF24` → `#F59E0B`
+- **Blue**: `#3B82F6` → `#2563EB`
+- **Typography**: Outfit (headers), system-ui (body)
 
 ## 🐛 Troubleshooting & Logic Fixes (Feb 2026)
 
@@ -39,9 +68,9 @@ During the refactoring process to a modular architecture, the following critical
    - **Fix**: Updated `src/build.js` to use `str.replace(regex, () => content)`, ensuring the content is treated as a raw literal string.
 
 4. **Inconsistent Data Structures causing NaN**:
-   - **Symptom**: Modal displayed `NaN` for section scores, and section-specific alerts found no stores.
-   - **Root Cause**: Data aggregation stored branch-level sections as objects `{ sum, count }` but store-level sections as flat numbers. The frontend logic applied `.sum/.count` universally.
-   - **Fix**: Implemented a helper `getStoreSecScore` to detect the data type and handle both structures correctly. Also added robust case-insensitive matching for section names.
+   - **Symptom**: Modal displayed `NaN` for journey scores, and journey-specific alerts found no stores.
+   - **Root Cause**: Data aggregation stored branch-level journeys as objects `{ sum, count }` but store-level journeys as flat numbers. The frontend logic applied `.sum/.count` universally.
+   - **Fix**: Implemented a helper `getStoreSecScore` to detect the data type and handle both structures correctly. Also added robust case-insensitive matching for journey names.
 
 The project has been refactored into a modular architecture for better maintainability and scalability.
 

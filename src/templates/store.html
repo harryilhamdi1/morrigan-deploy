@@ -2,11 +2,13 @@
 
     <!-- MASTER VIEW: STORE LIST -->
     <div id="storeListContainer" class="fade-in">
-        <h2 class="text-primary-custom mb-2">Store Deep Dive</h2>
+        <h2 class="fw-bold mb-1"
+            style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; color: var(--primary);">Store Deep Dive
+        </h2>
         <p class="text-muted mb-4">Detailed performance metrics per store with trend analysis & issue tracking.</p>
 
         <!-- Filters (Luxury Card) -->
-        <div class="card p-4 mb-4 border-0 shadow-sm">
+        <div class="card p-4 mb-4 border-0 shadow-sm accent-stripe-blue">
             <div class="row g-3 align-items-end">
                 <div class="col-lg-4 col-md-6">
                     <label class="small text-uppercase fw-bold text-muted mb-1"
@@ -50,7 +52,7 @@
                 <table class="table table-hover align-middle mb-0" id="storeMasterTable">
                     <thead class="bg-light">
                         <tr class="text-secondary small text-uppercase"
-                            style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                            style="font-size: 0.7rem; letter-spacing: 0.5px; font-weight: 700;">
                             <th class="py-3 ps-4" style="width: 5%; cursor: pointer;" onclick="sortStoreTable('rank')">
                                 Rank ↕</th>
                             <th class="py-3" style="width: 10%;">Store ID</th>
@@ -84,10 +86,10 @@
 
         <!-- 2. Hero Header (Dark Blue) -->
         <div class="rounded-3 p-4 mb-4 text-white position-relative shadow-sm"
-            style="background-color: #002060; overflow:hidden;">
+            style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); overflow:hidden;">
             <!-- Background Decoration -->
             <div
-                style="position:absolute; right:-50px; top:-50px; width:300px; height:300px; background:radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0) 70%); border-radius:50%;">
+                style="position:absolute; right:-50px; top:-50px; width:300px; height:300px; background:radial-gradient(circle, rgba(251,191,36,0.15) 0%, rgba(0,0,0,0) 70%); border-radius:50%;">
             </div>
 
             <div class="d-flex justify-content-between align-items-start position-relative">
@@ -176,9 +178,11 @@
         <!-- 3b. BATTLE MODE: Comparison Interface (Initially Hidden) -->
         <div id="stBattleMode" class="mb-4 fade-in" style="display:none;">
             <div class="card border-0 shadow-sm overflow-hidden mb-4">
-                <div class="card-header bg-dark text-white p-4">
+                <div class="card-header bg-dark text-white p-4"
+                    style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%) !important;">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h3 class="fw-bold mb-0 text-warning"><i class="bi bi-controller me-2"></i>Battle Arena</h3>
+                        <h3 class="fw-bold mb-0 text-warning" style="font-family: 'Outfit', sans-serif;"><i
+                                class="bi bi-controller me-2"></i>Battle Arena</h3>
                         <button class="btn btn-sm btn-outline-light rounded-pill" onclick="toggleBattleMode(false)">Exit
                             Battle Mode</button>
                     </div>
@@ -342,13 +346,14 @@
             <div class="col-12">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body p-4">
-                        <h5 class="fw-bold text-dark mb-4">Detailed Section Analysis</h5>
+                        <h5 class="fw-bold text-dark mb-4" style="font-family: 'Outfit', sans-serif;">Detailed Journey
+                            Analysis</h5>
                         <div class="table-responsive">
                             <table class="table align-middle table-hover" id="stSectionTable">
                                 <thead class="text-secondary small text-uppercase"
                                     style="font-size: 0.75rem; letter-spacing: 0.5px;">
                                     <tr>
-                                        <th style="width: 35%;">Section Name</th>
+                                        <th style="width: 35%;">Journey Name</th>
                                         <th style="width: 25%;">Trend (5 Waves)</th>
                                         <th style="width: 15%; text-align: right;">Cur. Score</th>
                                         <th style="width: 15%; text-align: center;">Gap</th>
@@ -392,14 +397,14 @@
         </div>
     </div>
 
-    <!-- 6. Failure Details Modal -->
-    <div class="modal fade" id="failureModal" tabindex="-1">
+    <!-- 6. Failure Details Modal (Premium Upgrade) -->
+    <div class="modal fade premium-modal" id="failureModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-xl">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
-                <div class="modal-header border-bottom-0 bg-danger text-white px-4 py-3"
-                    style="border-radius: 16px 16px 0 0;">
+            <div class="modal-content">
+                <div class="modal-header glass-header-dark px-4 py-3">
                     <div>
-                        <h5 class="modal-title fw-bold" id="failureModalTitle">Section Name</h5>
+                        <h5 class="modal-title fw-bold mb-0" id="failureModalTitle"
+                            style="font-family: 'Outfit', sans-serif;">Journey Name</h5>
                         <p class="mb-0 small opacity-75">Specific items that need improvement</p>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
@@ -410,7 +415,7 @@
                         <!-- Failed items injected here -->
                     </div>
                 </div>
-                <div class="modal-footer border-top-0 bg-light-subtle justify-content-center py-3">
+                <div class="modal-footer justify-content-center py-3">
                     <button type="button" class="btn btn-light text-muted btn-sm rounded-pill px-4"
                         data-bs-dismiss="modal">Close</button>
                 </div>

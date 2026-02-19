@@ -1,24 +1,28 @@
 <div id="tab-regions" style="display:none;">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
-            <h2 class="text-primary-custom mb-0 fw-bold">Regional Analysis</h2>
+            <h2 class="fw-bold mb-0"
+                style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; color: var(--primary);">Regional
+                Analysis</h2>
             <p class="text-muted m-0">Strategic comparison and focus areas for specific operational units</p>
         </div>
     </div>
+
     <!-- Row 1: Performance Trends -->
-    <div class="card mb-4 border-0 shadow-sm">
-        <div class="card-header-clean bg-white">📈 Historical Performance Trends</div>
-        <div class="card-body">
+    <div class="card mb-4 border-0 shadow-sm accent-stripe-blue">
+        <div class="card-body p-4">
+            <div class="section-header-premium"><i class="bi bi-graph-up"></i> Historical Performance Trends</div>
             <div id="regionTrendChart" style="height: 400px;"></div>
         </div>
     </div>
-    <!-- Row 1.5: Regional Priorities -->
-    <div class="card mb-4 border-0 shadow-sm">
-        <div class="card-header-clean bg-danger text-white d-flex justify-content-between align-items-center py-2"
-            style="border-radius: 8px 8px 0 0;">
+
+    <!-- Row 1.5: Regional Priorities (Premium Glass Header) -->
+    <div class="card mb-4 border-0 shadow-sm overflow-hidden">
+        <div class="glass-header-dark d-flex justify-content-between align-items-center py-3 px-4">
             <div class="d-flex align-items-center" id="regPriorityHeaderTitle">
-                <i class="bi bi-exclamation-triangle-fill me-3"></i>
-                <span class="fw-bold">Priority Focus: <span id="selectedRegionNameDisplay">Loading...</span></span>
+                <i class="bi bi-exclamation-triangle-fill me-3 text-warning"></i>
+                <h6 class="fw-bold mb-0">Priority Focus: <span id="selectedRegionNameDisplay"
+                        class="text-warning">Loading...</span></h6>
             </div>
             <div class="bg-white p-1 rounded-2 shadow-sm" style="min-width: 200px;">
                 <select id="regionSelector" class="form-select form-select-sm border-0 fw-bold text-primary"
@@ -28,18 +32,20 @@
                 </select>
             </div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-4">
             <div id="regPrioritiesList" class="row g-3"></div>
         </div>
     </div>
 
     <!-- Row 2: Leaderboard & Focus Areas -->
-    <h4 class="text-primary-custom mb-3">🏆 Regional Leaderboard & Focus Areas</h4>
+    <div class="section-header-premium mb-3"><i class="bi bi-trophy"></i> Regional Leaderboard & Focus Areas</div>
     <div class="row g-4 mb-5" id="regionDetailCards"></div>
+
     <!-- Row 3: Premium Heatmap -->
-    <div class="card mb-4 border-0 shadow-sm">
-        <div class="card-header-clean bg-white">🧩 Strategic Heatmap: Region vs Section Performance</div>
-        <div class="card-body">
+    <div class="card mb-4 border-0 shadow-sm accent-stripe-amber">
+        <div class="card-body p-4">
+            <div class="section-header-premium"><i class="bi bi-grid-3x3-gap"></i> Strategic Heatmap: Region vs Journey
+                Performance</div>
             <div id="regionSectionHeatmap" style="height: 600px;"></div>
         </div>
     </div>

@@ -53,7 +53,8 @@ function initSummary() {
         if (d && d.sum / d.count > bestS) { bestS = d.sum / d.count; bestR = r; }
     });
     document.getElementById("kpi-best-region").textContent = bestR || "N/A";
-    document.getElementById("kpi-best-region").className = "kpi-value animate-entry delay-300"; // Add animation class
+    document.getElementById("kpi-best-region").className = "metric-big text-success animate-entry delay-300";
+    document.getElementById("kpi-best-region").style.fontSize = "1.8rem";
 
     // 2. Critical Issues (Total Count)
     var totActions = 0;
@@ -65,6 +66,12 @@ function initSummary() {
         }
     });
     animateValue("kpi-actions", 0, totActions, 1000, 0);
+
+    // Animate KPI score progress bar
+    setTimeout(() => {
+        var bar = document.getElementById("kpi-score-bar");
+        if (bar) bar.style.width = s + "%";
+    }, 200);
 
     // 3. Chart with Deltas
     var scores = w.map(k => reportData.summary[k].sum / reportData.summary[k].count);
@@ -107,7 +114,7 @@ function initSummary() {
         plot_bgcolor: "rgba(0,0,0,0)"
     }, config);
 
-    // 4. Section Analysis (Clickable - Sexy Tiles)
+    // 4. Journey Analysis (Clickable - Sexy Tiles)
     var grid = document.getElementById("sectionAnalysisGrid");
     grid.innerHTML = "";
     var iconMap = {
@@ -135,15 +142,16 @@ function initSummary() {
             // ANIMATION: Add animate-entry and stagger delay
             var delayClass = "delay-" + ((i * 100) % 500);
 
-            col.innerHTML = `<div class="card h-100 p-4 shadow-sm section-tile ${isC ? 'bg-soft-danger' : 'bg-white'} animate-entry ${delayClass}" 
-            style="cursor:pointer; ${isTopLow ? 'border: 2px solid #EF4444;' : ''}"
+            col.innerHTML = `<div class="${isTopLow ? 'mandate-card' : 'data-panel'} h-100 hover-lift ${isC ? 'accent-stripe-danger' : 'accent-stripe-blue'} animate-entry ${delayClass}" 
+            style="cursor:pointer; padding: ${isTopLow ? '24px' : '20px'};" 
             onclick="openSectionDetail('${k}')">
-                ${isTopLow ? '<div class="position-absolute top-0 end-0 m-3"><span class="badge bg-danger">PRIORITY IMPROVEMENT</span></div>' : ''}
-                <div class="section-icon-wrapper"><div style="width:24px; height:24px;">${icon}</div></div>
-                <div class="${isTopLow ? 'display-5' : 'section-score'} fw-bold ${isC ? 'text-danger' : 'text-primary-custom'}">${sc.toFixed(1)}</div>
-                <div class="${isTopLow ? 'h5 fw-bold' : 'section-label'} mb-3" title="${k}">${k}</div>
+                ${isTopLow ? '<div class="position-absolute top-0 end-0 m-3"><span class="badge-premium bg-danger text-white shadow-sm">PRIORITY</span></div>' : ''}
+                <div class="section-icon-wrapper mb-2"><div style="width:24px; height:24px;">${icon}</div></div>
+                <div class="${isTopLow ? 'metric-big' : 'section-score'} fw-bold ${isC ? 'text-danger' : ''}" style="${isTopLow ? 'font-size:2rem;' : 'color: var(--primary);'}">${sc.toFixed(1)}</div>
+                <div class="progress-bar-premium mt-1 mb-2"><div class="fill ${isC ? 'fill-danger' : 'fill-blue'}" style="width: ${sc}%"></div></div>
+                <div class="${isTopLow ? 'h6 fw-bold' : 'section-label'} mb-3" title="${k}">${k}</div>
                 <div class="d-flex align-items-center justify-content-between mt-auto">
-                    <span class="badge rounded-pill ${cr > 0 ? 'bg-danger' : 'bg-success'}">${cr > 0 ? cr + " Critical" : "All Clean"}</span>
+                    <span class="badge-premium ${cr > 0 ? 'bg-danger text-white' : 'bg-success text-white'}">${cr > 0 ? cr + " Critical" : "All Clean"}</span>
                     <svg style="width:16px; height:16px; opacity:0.3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
                 </div></div> `;
             grid.appendChild(col);
@@ -206,13 +214,14 @@ function initSummary() {
 
         natContainer.innerHTML = topPriorities.map((item, idx) => `
                 <div class="col-md-6 col-lg-4" >
-                    <div class="h-100 p-3 bg-white rounded shadow-sm border-start border-4 border-danger d-flex align-items-center">
-                        <div class="me-3 fw-bold text-danger fs-4">#${idx + 1}</div>
+                    <div class="mandate-card h-100 d-flex align-items-start gap-3 hover-lift">
+                        <div class="mandate-number">${idx + 1}</div>
                         <div class="flex-grow-1">
-                            <div class="small fw-bold text-dark" style="line-height:1.2;">${item.t}</div>
+                            <div class="small fw-bold text-dark mb-1" style="line-height:1.3;">${item.t}</div>
+                            <div class="progress-bar-premium"><div class="fill fill-danger" style="width: ${(item.score * 100).toFixed(0)}%"></div></div>
                         </div>
-                        <div class="ms-2 text-end">
-                            <span class="badge bg-danger rounded-pill">${(item.score * 100).toFixed(0)}%</span>
+                        <div class="ms-1 text-end">
+                            <span class="badge-premium bg-danger text-white">${(item.score * 100).toFixed(0)}%</span>
                         </div>
                     </div>
             </div>
@@ -238,10 +247,10 @@ function initRegions() {
             } else {
                 var sc = d.sections[s].sum / d.sections[s].count;
                 row_val.push(sc.toFixed(1));
-                if (sc < 84) { row_cat.push(0); row_col.push("#991B1B"); }
-                else if (sc < 90) { row_cat.push(1); row_col.push("#92400E"); }
-                else if (sc < 95) { row_cat.push(2); row_col.push("#1e3a8a"); }
-                else { row_cat.push(3); row_col.push("#312E81"); }
+                if (sc < 84) { row_cat.push(0); row_col.push("#450A0A"); } // Deep Red text
+                else if (sc < 90) { row_cat.push(1); row_col.push("#451A03"); } // Deep Amber text
+                else if (sc < 95) { row_cat.push(2); row_col.push("#FFFFFF"); } // White text on Blue
+                else { row_cat.push(3); row_col.push("#FFFFFF"); } // White text on Indigo
             }
         });
         z_cat.push(row_cat); z_val.push(row_val); z_txt_col.push(row_col);
@@ -249,10 +258,10 @@ function initRegions() {
 
     var legendHTML = `
                 <div class="d-flex justify-content-center gap-4 small text-muted text-uppercase fw-bold" style="letter-spacing:1px; margin: 15px 0;" >
-               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FECACA;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Critical (<84)</div>
-               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FDE68A;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Warning (84-90)</div>
-               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#BFDBFE;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Good (90-95)</div>
-               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#A5B4FC;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Excellent (>95)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FCA5A5;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Critical (<84)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FBBF24;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Warning (84-90)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#60A5FA;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Good (90-95)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#1E3A8A;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Excellent (>95)</div>
            </div> `;
 
     var container = document.getElementById("regionSectionHeatmap").parentElement;
@@ -262,7 +271,7 @@ function initRegions() {
     topLeg.innerHTML = legendHTML;
     container.insertBefore(topLeg, document.getElementById("regionSectionHeatmap"));
 
-    var colors = [[0, "#FECACA"], [0.25, "#FECACA"], [0.25, "#FDE68A"], [0.5, "#FDE68A"], [0.5, "#BFDBFE"], [0.75, "#BFDBFE"], [0.75, "#A5B4FC"], [1, "#A5B4FC"]];
+    var colors = [[0, "#FCA5A5"], [0.25, "#FCA5A5"], [0.25, "#FBBF24"], [0.5, "#FBBF24"], [0.5, "#60A5FA"], [0.75, "#60A5FA"], [0.75, "#1E3A8A"], [1, "#1E3A8A"]];
     var hmDiv = document.getElementById("regionSectionHeatmap");
 
     Plotly.newPlot(hmDiv, [{
@@ -369,24 +378,25 @@ function initRegions() {
             var col = document.createElement("div");
             col.className = "col-lg-4 col-md-6";
             col.innerHTML = `
-                    <div class="card h-100 shadow-hover border-0" style="transition: transform 0.2s; border-radius: 12px; overflow: hidden;" >
-                        <div class="card-body p-4 position-relative">
-                            <div class="position-absolute top-0 end-0 m-3">${rankBadge}</div>
-                            <h5 class="fw-bold text-primary-custom mb-1">${item.n}</h5>
-                            <div class="text-muted small mb-3">${d.count} Outlet Aktif</div>
-                            <div class="d-flex align-items-center mb-4">
-                                <h2 class="display-5 fw-bold mb-0 me-3 ${score < 84 ? " text-danger" : "text-primary-custom"}">${score.toFixed(2)}</h2>
-                            <div class="${diff >= 0 ? " text-success" : "text-danger"} fw-bold small">
-                            ${diff >= 0 ? "▲" : "▼"} ${Math.abs(diff).toFixed(2)}
+                    <div class="data-panel h-100 hover-lift ${score < 84 ? 'accent-stripe-danger' : 'accent-stripe-blue'}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="fw-bold mb-1" style="color: var(--primary); font-family: 'Outfit', sans-serif;">${item.n}</h5>
+                                <div class="metric-label">${d.count} Outlet Active</div>
+                            </div>
+                            ${rankBadge}
                         </div>
-                       </div>
-                       <div class="p-3 bg-light rounded-3 mb-3 border-start border-3 border-danger">
-                           <div class="text-uppercase fw-bold text-muted small mb-2" style="font-size:0.7rem; letter-spacing:1px;">Focus Areas (Lowest 3)</div>
+                        <div class="d-flex align-items-end gap-3 mb-3">
+                            <div class="metric-big ${score < 84 ? 'text-danger' : ''}" style="font-size: 2.2rem;">${score.toFixed(2)}</div>
+                            <div class="${diff >= 0 ? 'text-success' : 'text-danger'} fw-bold small mb-1">${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff).toFixed(2)}</div>
+                        </div>
+                        <div class="progress-bar-premium mb-3"><div class="fill ${score < 84 ? 'fill-danger' : 'fill-blue'}" style="width: ${score}%"></div></div>
+                       <div class="p-3 rounded-3 mb-3" style="background: #F8FAFC; border-left: 3px solid #EF4444;">
+                           <div class="section-header-premium mb-1" style="margin-bottom: 4px !important;"><i class="bi bi-exclamation-circle text-danger"></i> Focus Areas (Lowest 3)</div>
                            ${weakHTML}
                        </div>
-                       <button class="btn btn-outline-primary w-100 btn-sm" onclick="showTab('stores'); document.getElementById('storeSearch').value='${item.n}'; renderStoreList();">Deep Dive</button>
-                   </div>
-               </div> `;
+                       <button class="btn btn-outline-primary w-100 btn-sm rounded-pill" onclick="showTab('stores'); document.getElementById('storeSearch').value='${item.n}'; renderStoreList();">Deep Dive →</button>
+                   </div> `;
             cont.appendChild(col);
         });
     }
@@ -428,21 +438,14 @@ function updateRegionalPriorities(regionName) {
 
     container.innerHTML = topPriorities.map((item, idx) => `
         <div class="col-md-6 col-lg-4">
-            <div class="card h-100 border-0 shadow-sm luxury-priority-card" style="border-radius: 16px; overflow: hidden; background: #fff;">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="priority-number">#${idx + 1}</div>
-                        <div class="priority-score-badge ${item.score * 100 < 84 ? 'bg-danger' : 'bg-warning'}">
-                            ${(item.score * 100).toFixed(0)}%
-                        </div>
-                    </div>
-                    <p class="mb-0 text-dark fw-bold small" style="line-height: 1.5; min-height: 3em;">${item.t}</p>
-                    <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between">
-                        <span class="text-muted" style="font-size: 0.65rem;">Impact Score</span>
-                        <div class="progress" style="height: 4px; width: 60px;">
-                            <div class="progress-bar ${item.score * 100 < 84 ? 'bg-danger' : 'bg-warning'}" style="width: ${item.score * 100}%"></div>
-                        </div>
-                    </div>
+            <div class="mandate-card h-100 d-flex align-items-start gap-3 hover-lift">
+                <div class="mandate-number">${idx + 1}</div>
+                <div class="flex-grow-1">
+                    <div class="small fw-bold text-dark mb-1" style="line-height:1.3;">${item.t}</div>
+                    <div class="progress-bar-premium"><div class="fill fill-danger" style="width: ${(item.score * 100).toFixed(0)}%"></div></div>
+                </div>
+                <div class="ms-1 text-end">
+                    <span class="badge-premium bg-danger text-white">${(item.score * 100).toFixed(0)}%</span>
                 </div>
             </div>
         </div>
@@ -492,8 +495,8 @@ function initBranches() {
 
     if (brPriContainer && lowestBranch && lowestBranch.d && lowestBranch.d.details) {
         // Update Title
-        const header = brPriContainer.closest('.card').querySelector('.card-header-clean');
-        if (header) header.textContent = `⚠️ Priority Focus for ${lowestBranch.n}(Lowest Performing Branch)`;
+        const header = brPriContainer.closest('.card').querySelector('.glass-header-dark h6');
+        if (header) header.innerHTML = `<i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Priority Focus: ${lowestBranch.n} (Lowest Performing Branch)`;
 
         let allBrItems = [];
         Object.entries(lowestBranch.d.details).forEach(([sec, items]) => {
@@ -508,13 +511,14 @@ function initBranches() {
 
         brPriContainer.innerHTML = topBrPriorities.map((item, idx) => `
                 <div class= "col-md-6 col-lg-4" >
-                <div class="h-100 p-3 bg-white rounded shadow-sm border-start border-4 border-danger d-flex align-items-center">
-                    <div class="me-3 fw-bold text-danger fs-4 text-nowrap">#${idx + 1}</div>
+                <div class="mandate-card h-100 d-flex align-items-start gap-3 hover-lift">
+                    <div class="mandate-number">${idx + 1}</div>
                     <div class="flex-grow-1">
-                        <div class="small fw-bold text-dark" style="line-height:1.2;">${item.t}</div>
+                        <div class="small fw-bold text-dark mb-1" style="line-height:1.3;">${item.t}</div>
+                        <div class="progress-bar-premium"><div class="fill fill-danger" style="width: ${(item.score * 100).toFixed(0)}%"></div></div>
                     </div>
-                    <div class="ms-2 text-end">
-                        <span class="badge bg-danger rounded-pill">${(item.score * 100).toFixed(0)}%</span>
+                    <div class="ms-1 text-end">
+                        <span class="badge-premium bg-danger text-white">${(item.score * 100).toFixed(0)}%</span>
                     </div>
                 </div>
             </div>
@@ -525,39 +529,44 @@ function initBranches() {
 function renderBranchKPIs(top, fast, gap, hExc, hWarn, hCrit) {
     var html = `
                 <div class="col-xl-3 col-md-6" >
-                    <div class="card border-0 shadow-sm h-100 kpi-card" style="background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);">
-                        <div class="card-body p-4">
-                            <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">🏆</span><span class="small fw-bold text-primary text-uppercase">Top Performer</span></div>
-                            <h5 class="fw-bold text-dark mb-1 text-truncate animate-entry delay-100">${top.n}</h5>
-                            <div class="small text-muted"><span id="br-kpi-top-val">0</span> pts</div>
+                    <div class="kpi-premium h-100 hover-lift">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="kpi-icon" style="background: linear-gradient(135deg, #EFF6FF, #DBEAFE); color: #2563EB;"><i class="bi bi-trophy"></i></div>
+                            <div class="metric-label">Top Performer</div>
                         </div>
+                        <h5 class="fw-bold text-dark mb-1 text-truncate animate-entry delay-100" style="font-family: 'Outfit', sans-serif;">${top.n}</h5>
+                        <div class="small text-muted"><span id="br-kpi-top-val">0</span> pts</div>
+                        <div class="progress-bar-premium mt-2"><div class="fill fill-blue" style="width: ${top.s}%"></div></div>
                     </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card border-0 shadow-sm h-100 kpi-card animate-entry delay-200" style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">🚀</span><span class="small fw-bold text-success text-uppercase">Momentum Leader</span></div>
-                <h5 class="fw-bold text-dark mb-1 text-truncate">${fast.n}</h5>
-                <div class="small text-muted"><span id="br-kpi-mom-val">0</span> pts (Fastest Growth)</div>
+        <div class="kpi-premium h-100 hover-lift accent-stripe-success">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #F0FDF4, #DCFCE7); color: #16A34A;"><i class="bi bi-rocket-takeoff"></i></div>
+                <div class="metric-label">Momentum Leader</div>
             </div>
+            <h5 class="fw-bold text-dark mb-1 text-truncate" style="font-family: 'Outfit', sans-serif;">${fast.n}</h5>
+            <div class="small text-muted"><span id="br-kpi-mom-val">0</span> pts (Fastest Growth)</div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card border-0 shadow-sm h-100 kpi-card animate-entry delay-300" style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">⚠️</span><span class="small fw-bold text-warning text-uppercase" style="color: #B45309 !important;">Gap Analysis</span></div>
-                <h5 class="fw-bold text-dark mb-1"><span id="br-kpi-gap-val">0</span> pts</h5>
-                <div class="small text-muted" style="color: #92400E !important;">Spread: High vs Low</div>
+        <div class="kpi-premium h-100 hover-lift accent-stripe-amber">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #FFFBEB, #FEF3C7); color: #D97706;"><i class="bi bi-arrows-expand"></i></div>
+                <div class="metric-label">Gap Analysis</div>
             </div>
+            <h5 class="fw-bold text-dark mb-1"><span id="br-kpi-gap-val">0</span> pts</h5>
+            <div class="small text-muted">Spread: High vs Low</div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card border-0 shadow-sm h-100 kpi-card animate-entry delay-400" style="background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);">
-            <div class="card-body p-4">
-                 <div class="d-flex align-items-center mb-2"><span class="fs-4 me-2">📊</span><span class="small fw-bold text-purple text-uppercase" style="color: #6B21A8 !important;">Health Index</span></div>
-                 <h5 class="fw-bold text-dark mb-1">${hExc} <span class="text-muted fw-light mx-1">/</span> ${hWarn} <span class="text-muted fw-light mx-1">/</span> ${hCrit}</h5>
-                 <div class="small text-muted" style="color: #581C87 !important;">Exc / Warn / Crit</div>
+        <div class="kpi-premium h-100 hover-lift">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #FAF5FF, #F3E8FF); color: #7C3AED;"><i class="bi bi-heart-pulse"></i></div>
+                <div class="metric-label">Health Index</div>
             </div>
+             <h5 class="fw-bold text-dark mb-1">${hExc} <span class="text-muted fw-light mx-1">/</span> ${hWarn} <span class="text-muted fw-light mx-1">/</span> ${hCrit}</h5>
+             <div class="small text-muted">Exc / Warn / Crit</div>
         </div>
     </div>`;
     document.getElementById("branchKPIs").innerHTML = html;
@@ -1644,7 +1653,7 @@ function loadStoreDetail(idOverride) {
         paper_bgcolor: 'rgba(0,0,0,0)'
     }, config);
 
-    // 4. Section Table with Sparklines
+    // 4. Journey Table with Sparklines
     var tb = document.querySelector("#stSectionTable tbody");
     tb.innerHTML = "";
 
@@ -2068,7 +2077,7 @@ function renderBattleAnalysis() {
             return;
         }
 
-        // Group items by Section
+        // Group items by Journey
         const grouped = {};
         list.forEach(item => {
             if (!grouped[item.sec]) grouped[item.sec] = [];
@@ -2080,7 +2089,7 @@ function renderBattleAnalysis() {
             html += `<div class="mb-3" >
                 <div class="d-flex align-items-center mb-2">
                     <span class="badge bg-dark rounded-pill me-2">${sec}</span>
-                    <h6 class="mb-0 fw-bold border-bottom flex-grow-1 pb-1 text-secondary" style="font-size:0.85rem">Section ${sec}</h6>
+                    <h6 class="mb-0 fw-bold border-bottom flex-grow-1 pb-1 text-secondary" style="font-size:0.85rem">Journey ${sec}</h6>
                 </div>
                 <ul class="list-unstyled mb-0 ps-2">`;
 
@@ -2104,7 +2113,7 @@ function renderPerformanceInsights(data) {
     if (!data || data.length === 0) return;
 
     // 1. Deviation Chart (Horizontal Bar)
-    // Sort by Section Name for consistent order (reversed for TOP-down view in horz bar)
+    // Sort by Journey Name for consistent order (reversed for TOP-down view in horz bar)
     const sortedData = [...data].sort((a, b) => b.sec.localeCompare(a.sec));
 
     // Shorten Labels (First 3 words)
@@ -2135,7 +2144,7 @@ function renderPerformanceInsights(data) {
         font: { family: "Inter, sans-serif", size: 11 }
     }, config);
 
-    // 2. Top Priorities (Lowest Scoring Sections) - TILES UI
+    // 2. Top Priorities (Lowest Scoring Journeys) - TILES UI
     // Sort by Score Ascending (Worst first)
     const worstSections = [...data].sort((a, b) => a.score - b.score);
     const impList = document.getElementById("stImprovementList");
@@ -2524,7 +2533,7 @@ function openChartModal(sourceId, title) {
     }, { once: true });
 }
 
-// --- Section Detail Modal Logic ---
+// --- Journey Detail Modal Logic ---
 function openSectionDetail(sectionName) {
     console.log("Opening section detail for:", sectionName);
     try {
@@ -2588,7 +2597,7 @@ function openSectionDetail(sectionName) {
         <div class="modal-dialog modal-xl modal-dialog-centered" >
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title" id="sectionDetailTitle">Section Analysis</h5>
+                    <h5 class="modal-title" id="sectionDetailTitle">Journey Analysis</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body bg-light" id="sectionDetailBody"></div>
@@ -2599,7 +2608,7 @@ function openSectionDetail(sectionName) {
 
         document.getElementById('sectionDetailTitle').innerHTML = `
             <div class="d-flex align-items-center">
-                <span class="badge bg-primary me-3" style="font-size: 0.7rem;">SECTION ANALYSIS</span>
+                <span class="badge bg-primary me-3" style="font-size: 0.7rem;">JOURNEY ANALYSIS</span>
                 <span>${sectionName}</span>
             </div>`;
         const body = document.getElementById('sectionDetailBody');
@@ -2679,7 +2688,7 @@ function openSectionDetail(sectionName) {
                         </div>
                         <div>
                             <h6 class="mb-0 fw-bold">Regional Leaderboard</h6>
-                            <small class="text-muted" style="font-size: 0.7rem;">Across 5 Regions</small>
+                            <span class="text-muted" style="font-size: 0.65rem;">Impact Score</span>
                         </div>
                     </div>
                     <div class="card-body p-0">

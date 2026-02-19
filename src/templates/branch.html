@@ -2,7 +2,9 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
-            <h2 class="text-primary-custom fw-bold mb-1">Branch Strategic Analysis</h2>
+            <h2 class="fw-bold mb-1"
+                style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; color: var(--primary);">Branch
+                Strategic Analysis</h2>
             <p class="text-muted mb-0">Performance assessment, momentum tracking & strategic diagnostics.</p>
         </div>
         <div class="text-end">
@@ -16,10 +18,13 @@
         <!-- Injected via JS -->
     </div>
 
-    <!-- 1.5 Branch Priorities -->
-    <div class="card mb-4 border-0 shadow-sm">
-        <div class="card-header-clean bg-danger text-white">⚠️ Branch Top Priorities (Lowest Scoring Items)</div>
-        <div class="card-body">
+    <!-- 1.5 Branch Priorities (Glass Header) -->
+    <div class="card mb-4 border-0 shadow-sm overflow-hidden">
+        <div class="glass-header-dark py-3 px-4 d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+            <h6 class="mb-0 fw-bold">Branch Top Priorities (Lowest Scoring Items)</h6>
+        </div>
+        <div class="card-body p-4">
             <div id="branchPrioritiesList" class="row g-3"></div>
         </div>
     </div>
@@ -27,9 +32,10 @@
     <!-- 2. Strategic Visuals (Charts) -->
     <div class="row g-4 mb-4">
         <div class="col-xl-6">
-            <div class="card border-0 shadow-sm h-100 p-4">
+            <div class="card border-0 shadow-sm h-100 p-4 accent-stripe-blue">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <h5 class="fw-bold text-dark mb-0">Branch Performance Ranking</h5>
+                    <div class="section-header-premium mb-0"><i class="bi bi-bar-chart-steps"></i> Branch Performance
+                        Ranking</div>
                     <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
                         onclick="openChartModal('branchMomentumChart', 'Branch Performance Ranking')"
                         title="Expand Chart"><i class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
@@ -40,9 +46,10 @@
             </div>
         </div>
         <div class="col-xl-6">
-            <div class="card border-0 shadow-sm p-4 mb-4">
+            <div class="card border-0 shadow-sm p-4 mb-4 accent-stripe-amber">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <h5 class="fw-bold text-dark mb-0">Strategic Growth Matrix</h5>
+                    <div class="section-header-premium mb-0"><i class="bi bi-scatter-chart"></i> Strategic Growth Matrix
+                    </div>
                     <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
                         onclick="openChartModal('branchMatrixChart', 'Strategic Growth Matrix')" title="Expand Chart"><i
                             class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
@@ -51,9 +58,10 @@
                 <div id="branchMatrixChart" style="height: 400px;"></div>
             </div>
 
-            <div class="card border-0 shadow-sm p-4">
+            <div class="card border-0 shadow-sm p-4 accent-stripe-success">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <h5 class="fw-bold text-dark mb-0">Scale Efficiency Analysis</h5>
+                    <div class="section-header-premium mb-0"><i class="bi bi-graph-up-arrow"></i> Scale Efficiency
+                        Analysis</div>
                     <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
                         onclick="openChartModal('branchScaleChart', 'Scale Efficiency Analysis')"
                         title="Expand Chart"><i class="bi bi-arrows-fullscreen me-1"></i> Expand</button>
@@ -64,11 +72,12 @@
         </div>
     </div>
 
-    <!-- 3. Key Insights -->
-    <div class="card border-0 shadow-sm p-4 mb-5" style="border-left: 5px solid #002060 !important;">
+    <!-- 3. Key Insights (Premium Panel) -->
+    <div class="card border-0 shadow-sm p-4 mb-5 accent-stripe-blue"
+        style="border-left: 4px solid var(--primary) !important;">
         <div class="d-flex align-items-center mb-3">
-            <h5 class="fw-bold text-dark mb-0 me-3">Key Strategic Findings</h5>
-            <span class="badge bg-primary-custom small">AUTO-GENERATED</span>
+            <div class="section-header-premium mb-0 me-3"><i class="bi bi-lightbulb"></i> Key Strategic Findings</div>
+            <span class="badge-premium bg-dark text-white small">AUTO-GENERATED</span>
         </div>
         <div id="branchInsights" class="vstack gap-2">
             <!-- Injected via JS -->
@@ -78,8 +87,9 @@
     <!-- 4. Branch Health Monitor -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h5 class="fw-bold text-dark mb-1">Branch Health Monitor</h5>
-            <p class="text-muted small mb-0">Detailed diagnostic cards with trend, drag stores & priority sections</p>
+            <div class="section-header-premium mb-0"><i class="bi bi-heart-pulse"></i> Branch Health Monitor</div>
+            <p class="text-muted small mb-0 mt-1">Detailed diagnostic cards with trend, drag stores & priority journeys
+            </p>
         </div>
         <div class="input-group shadow-sm" style="width: 300px;">
             <span class="input-group-text bg-white border-0 ps-3"><svg style="width:16px;height:16px;color:#9CA3AF"
@@ -96,20 +106,19 @@
     </div>
 </div>
 
-<!-- Premium Culprit Modal (Modern Upgrade) -->
-<div class="modal fade" id="culpritModal" tabindex="-1" aria-hidden="true">
+<!-- Premium Culprit Modal (Strategic Briefing Design) -->
+<div class="modal fade premium-modal" id="culpritModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-2xl" style="border-radius: 20px; overflow: hidden;">
-            <div class="modal-header border-0 py-4 px-4 align-items-start"
-                style="background: linear-gradient(to right, #F8FAFC, #FFFFFF);">
+        <div class="modal-content">
+            <div class="modal-header glass-header-dark py-4 px-4 align-items-start">
                 <div>
-                    <h5 class="modal-title fw-bold text-dark mb-1" style="font-family: 'Outfit', sans-serif;">Critical
+                    <h5 class="modal-title fw-bold mb-1" style="font-family: 'Outfit', sans-serif;">Critical
                         Performance Alerts</h5>
-                    <p class="text-muted small mb-0 fw-medium">Stores requiring immediate attention (<span
-                            class="text-danger fw-bold">
-                            &lt;84</span>) in <span id="culpritBranchName" class="fw-bold text-primary"></span></p>
+                    <p class="text-white small mb-0 fw-medium opacity-75">Stores requiring immediate attention (<span
+                            class="text-warning fw-bold">
+                            &lt;84</span>) in <span id="culpritBranchName" class="fw-bold text-warning"></span></p>
                 </div>
-                <button type="button" class="btn-close opacity-50 hover-opacity-100 transition" data-bs-dismiss="modal"
+                <button type="button" class="btn-close btn-close-white opacity-75" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 bg-white">
@@ -117,7 +126,7 @@
                     <!-- Stores injected here -->
                 </div>
             </div>
-            <div class="modal-footer border-0 bg-light-subtle justify-content-between px-4 py-3">
+            <div class="modal-footer justify-content-between px-4 py-3">
                 <span id="culpritPageIndicator" class="text-muted small fw-bold">Page 1</span>
                 <div class="btn-group rounded-pill overflow-hidden shadow-sm">
                     <button id="btnCulpritPrev" class="btn btn-sm btn-white border px-3" onclick="changeCulpritPage(-1)"
