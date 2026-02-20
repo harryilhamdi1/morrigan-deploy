@@ -133,7 +133,7 @@ function initSummary() {
     Object.entries(dat.sections)
         .sort((a, b) => (a[1].sum / a[1].count) - (b[1].sum / b[1].count))
         .forEach(([k, v], i) => {
-            var sc = v.sum / v.count, cr = v.critical || 0, isC = sc < 84;
+            var sc = v.sum / v.count, cr = v.critical || 0, isC = sc < 86;
             var prefix = k.split(" ")[0]; var icon = iconMap[prefix] || iconMap["A."];
             var isTopLow = i < 3;
             var col = document.createElement("div");
@@ -247,7 +247,7 @@ function initRegions() {
             } else {
                 var sc = d.sections[s].sum / d.sections[s].count;
                 row_val.push(sc.toFixed(1));
-                if (sc < 84) { row_cat.push(0); row_col.push("#450A0A"); } // Deep Red text
+                if (sc < 86) { row_cat.push(0); row_col.push("#450A0A"); } // Deep Red text
                 else if (sc < 90) { row_cat.push(1); row_col.push("#451A03"); } // Deep Amber text
                 else if (sc < 95) { row_cat.push(2); row_col.push("#FFFFFF"); } // White text on Blue
                 else { row_cat.push(3); row_col.push("#FFFFFF"); } // White text on Indigo
@@ -258,8 +258,8 @@ function initRegions() {
 
     var legendHTML = `
                 <div class="d-flex justify-content-center gap-4 small text-muted text-uppercase fw-bold" style="letter-spacing:1px; margin: 15px 0;" >
-               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FCA5A5;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Critical (<84)</div>
-               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FBBF24;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Warning (84-90)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FCA5A5;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Critical (<86)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FBBF24;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Warning (86-90)</div>
                <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#60A5FA;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Good (90-95)</div>
                <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#1E3A8A;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Excellent (>95)</div>
            </div> `;
@@ -326,13 +326,13 @@ function initRegions() {
         document.getElementById("hmModalTitle").textContent = r;
         document.getElementById("hmModalSubtitle").textContent = fullSec;
         var scEl = document.getElementById("hmScore"); scEl.textContent = score.toFixed(2);
-        scEl.className = "display-3 fw-bold mb-2 " + (score < 84 ? "text-danger" : "text-primary-custom");
-        document.getElementById("hmBadge").innerHTML = score < 84 ? `<span class="badge bg-danger px-3 py-2 rounded-pill" > CRITICAL</span> ` : (score < 90 ? ` <span class="badge bg-warning text-dark px-3 py-2 rounded-pill" > WARNING</span> ` : ` <span class="badge bg-success px-3 py-2 rounded-pill" > GOOD</span> `);
+        scEl.className = "display-3 fw-bold mb-2 " + (score < 86 ? "text-danger" : "text-primary-custom");
+        document.getElementById("hmBadge").innerHTML = score < 86 ? `<span class="badge bg-danger px-3 py-2 rounded-pill" > CRITICAL</span> ` : (score < 90 ? ` <span class="badge bg-warning text-dark px-3 py-2 rounded-pill" > WARNING</span> ` : ` <span class="badge bg-success px-3 py-2 rounded-pill" > GOOD</span> `);
         document.getElementById("hmVsNat").innerHTML = (diff >= 0 ? `<span class="text-success" >▲ +` : ` <span class="text-danger" >▼ `) + diff.toFixed(2) + "</span>";
         document.getElementById("hmAction").textContent = reportData.actionPlanConfig[fullSec] || "Review operational standards and compliance.";
 
         var culprits = Object.values(reportData.stores).filter(s => s.meta.region === r && s.results[curWave]).map(s => ({ n: s.meta.name, s: s.results[curWave].sections[fullSec] || 0 })).sort((a, b) => a.s - b.s).slice(0, 5);
-        document.getElementById("hmCulprits").innerHTML = culprits.map(c => `<tr ><td>${c.n}</td><td class="text-end fw-bold ${c.s < 84 ? "text-danger" : ""}" > ${c.s.toFixed(2)}</td></tr> `).join("");
+        document.getElementById("hmCulprits").innerHTML = culprits.map(c => `<tr ><td>${c.n}</td><td class="text-end fw-bold ${c.s < 86 ? "text-danger" : ""}" > ${c.s.toFixed(2)}</td></tr> `).join("");
 
         var yTrend = waves.map(w => { var rd = reportData.regions[r][w]; return rd && rd.sections[fullSec] ? rd.sections[fullSec].sum / rd.sections[fullSec].count : null; });
         Plotly.newPlot("hmTrendChart", [{ x: waves, y: yTrend, type: "scatter", mode: "lines+markers", line: { color: "#002060", width: 2, shape: "spline" }, marker: { color: "#002060", size: 6 } }], { margin: { t: 10, l: 30, r: 10, b: 20 }, height: 120, xaxis: { showgrid: false, tickfont: { size: 10 } }, yaxis: { showgrid: true, gridcolor: "#eee", tickfont: { size: 10 } } }, config);
@@ -372,31 +372,74 @@ function initRegions() {
             var diff = score - prevS;
 
             var secs = Object.entries(d.sections).map(([k, v]) => ({ k: k, v: v.sum / v.count })).sort((a, b) => a.v - b.v).slice(0, 3);
-            var weakHTML = secs.map(x => `<div class="d-flex justify-content-between align-items-center mb-1 text-danger small" ><span class="text-truncate" style="max-width:180px">${x.k}</span><strong>${x.v.toFixed(1)}</strong></div> `).join("");
-            var rankBadge = idx < 3 ? `<span class="rank-badge rank-top-${idx + 1} shadow-sm" style="width:32px;height:32px;font-size:1rem;" > ${idx + 1}</span> ` : ` <span class="badge bg-light text-dark border" > #${idx + 1}</span> `;
+            var weakHTML = secs.map(x => `
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span class="text-truncate text-muted pe-2" style="max-width: 200px;"><i class="bi bi-record-circle text-danger me-1 opacity-50" style="font-size: 0.7rem;"></i> ${x.k}</span>
+                    <strong class="${x.v < 86 ? 'text-danger' : 'text-dark'}">${x.v.toFixed(1)}</strong>
+                </div>
+            `).join("");
+
+            var borderColor = score < 86 ? 'var(--bs-danger)' : 'var(--bs-primary)';
+            var scoreColor = score < 86 ? 'var(--bs-danger)' : '#0F172A';
+            var bgGradient = score < 86 ? 'linear-gradient(180deg, #FEF2F2 0%, #FFFFFF 20%)' : 'linear-gradient(180deg, #F0F9FF 0%, #FFFFFF 20%)';
+            var momColor = diff >= 0 ? '#059669' : '#DC2626';
+            var momBg = diff >= 0 ? '#D1FAE5' : '#FEE2E2';
+
+            var rankBadgeHTML = idx < 3
+                ? `<div class="regional-rank glass-rank rank-${idx + 1}">${idx + 1}</div>`
+                : `<div class="regional-rank text-muted border bg-white shadow-sm" style="font-size: 0.9rem;">#${idx + 1}</div>`;
 
             var col = document.createElement("div");
             col.className = "col-lg-4 col-md-6";
             col.innerHTML = `
-                    <div class="data-panel h-100 hover-lift ${score < 84 ? 'accent-stripe-danger' : 'accent-stripe-blue'}">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <h5 class="fw-bold mb-1" style="color: var(--primary); font-family: 'Outfit', sans-serif;">${item.n}</h5>
-                                <div class="metric-label">${d.count} Outlet Active</div>
-                            </div>
-                            ${rankBadge}
-                        </div>
-                        <div class="d-flex align-items-end gap-3 mb-3">
-                            <div class="metric-big ${score < 84 ? 'text-danger' : ''}" style="font-size: 2.2rem;">${score.toFixed(2)}</div>
-                            <div class="${diff >= 0 ? 'text-success' : 'text-danger'} fw-bold small mb-1">${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff).toFixed(2)}</div>
-                        </div>
-                        <div class="progress-bar-premium mb-3"><div class="fill ${score < 84 ? 'fill-danger' : 'fill-blue'}" style="width: ${score}%"></div></div>
-                       <div class="p-3 rounded-3 mb-3" style="background: #F8FAFC; border-left: 3px solid #EF4444;">
-                           <div class="section-header-premium mb-1" style="margin-bottom: 4px !important;"><i class="bi bi-exclamation-circle text-danger"></i> Focus Areas (Lowest 3)</div>
-                           ${weakHTML}
+                   <div class="card h-100 regional-card-premium border-0" style="background: ${bgGradient}; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.08); transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 16px; overflow: hidden; position: relative;">
+                       <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: ${borderColor};"></div>
+                       
+                       <div class="card-body p-4 d-flex flex-column">
+                           <div class="d-flex justify-content-between align-items-start mb-3">
+                               <div>
+                                   <h4 class="fw-bold mb-1" style="color: #0F172A; font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">${item.n}</h4>
+                                   <span class="badge bg-light text-secondary border px-2 py-1 fw-medium" style="font-size: 0.65rem; letter-spacing: 0.5px;">${d.count} OUTLET ACTIVE</span>
+                               </div>
+                               ${rankBadgeHTML}
+                           </div>
+
+                           <div class="d-flex align-items-center gap-3 mb-4">
+                               <div class="fw-black" style="font-size: 2.75rem; line-height: 1; color: ${scoreColor}; font-family: 'Outfit', sans-serif; letter-spacing: -1px;">
+                                   ${score.toFixed(2)}
+                               </div>
+                               <div class="px-2 py-1 rounded-pill d-flex align-items-center gap-1 shadow-sm" style="background: ${momBg}; color: ${momColor}; font-size: 0.85rem; font-weight: 700;">
+                                   ${diff >= 0 ? '<i class="bi bi-arrow-up-short"></i>' : '<i class="bi bi-arrow-down-short"></i>'} ${Math.abs(diff).toFixed(2)}
+                               </div>
+                           </div>
+
+                           <div class="mb-4">
+                               <div class="d-flex justify-content-between text-muted small mb-1 fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                   <span>PERFORMANCE PROGRESS</span>
+                                   <span>TARGET: 86.00</span>
+                               </div>
+                               <div class="progress" style="height: 6px; border-radius: 50px; background-color: #E2E8F0; overflow: visible;">
+                                   <div class="progress-bar rounded-pill position-relative" role="progressbar" style="width: ${Math.min(score, 100)}%; background: ${borderColor}; transition: width 1s ease-in-out;">
+                                       <div style="position: absolute; right: 0; top: 50%; transform: translate(50%, -50%); width: 12px; height: 12px; background: white; border: 3px solid ${borderColor}; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.5);"></div>
+                                   </div>
+                               </div>
+                           </div>
+
+                           <div class="mt-auto p-3 rounded-4 mb-4" style="background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(239, 68, 68, 0.2); backdrop-filter: blur(10px);">
+                               <div class="text-uppercase text-danger fw-bold mb-3 d-flex align-items-center gap-2" style="font-size: 0.68rem; letter-spacing: 0.8px;">
+                                   <i class="bi bi-exclamation-triangle-fill"></i> Strategic Priority Areas
+                               </div>
+                               <div class="d-flex flex-column gap-1">
+                                    ${weakHTML}
+                               </div>
+                           </div>
+
+                           <button class="btn w-100 rounded-3 py-2 fw-semibold btn-regional-action" onclick="openRegionalDetail('${item.n}')" style="background: white; border: 1px solid #E2E8F0; color: #3B82F6; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s;">
+                               Deep Dive Analysis <i class="bi bi-arrow-right ms-1"></i>
+                           </button>
                        </div>
-                       <button class="btn btn-outline-primary w-100 btn-sm rounded-pill" onclick="showTab('stores'); document.getElementById('storeSearch').value='${item.n}'; renderStoreList();">Deep Dive →</button>
-                   </div> `;
+                   </div>
+            `;
             cont.appendChild(col);
         });
     }
@@ -479,8 +522,8 @@ function initBranches() {
     var scores = brData.map(b => b.s);
     var gap = Math.max(...scores) - Math.min(...scores);
     var hExc = scores.filter(s => s >= 95).length;
-    var hWarn = scores.filter(s => s >= 84 && s < 95).length;
-    var hCrit = scores.filter(s => s < 84).length;
+    var hWarn = scores.filter(s => s >= 86 && s < 95).length;
+    var hCrit = scores.filter(s => s < 86).length;
 
     // 3. Render Components
     renderBranchKPIs(topPerf, fastImp, gap, hExc, hWarn, hCrit);
@@ -601,8 +644,8 @@ function renderBranchMomentumChart(brData) {
     var yNames = sorted.map(d => d.n);
     var xScores = sorted.map(d => d.s);
 
-    // Color logic: Green (>=95), Amber (>=84), Red (<84)
-    var dotColors = xScores.map(s => s >= 95 ? '#059669' : (s >= 84 ? '#D97706' : '#DC2626'));
+    // Color logic: Green (>=95), Amber (>=86), Red (<86)
+    var dotColors = xScores.map(s => s >= 95 ? '#059669' : (s >= 86 ? '#D97706' : '#DC2626'));
 
     // Dynamic Height
     var dynamicHeight = Math.max(550, yNames.length * 50);
@@ -684,7 +727,7 @@ function renderBranchMomentumChart(brData) {
     var shapes = [
         {
             type: 'line',
-            x0: 84, x1: 84,
+            x0: 86, x1: 86,
             y0: -0.5, y1: yNames.length - 0.5,
             line: { color: '#EF4444', width: 1.5, dash: 'dash' },
             layer: 'below'
@@ -715,9 +758,9 @@ function renderBranchMomentumChart(brData) {
 
     // Threshold Label (Bottom)
     annotations.push({
-        x: 84,
+        x: 86,
         y: -0.5, // Bottom
-        text: '<b>TARGET: 84</b>',
+        text: '<b>TARGET: 86</b>',
         showarrow: false,
         font: { size: 10, color: '#EF4444', family: 'Inter', weight: 'bold' },
         yanchor: 'top',
@@ -781,14 +824,14 @@ function renderBranchMatrixChart(brData) {
 
     // Visuals: White background for text labels to improve readability over gridlines
     var size = brData.map(d => Math.max(12, Math.min(35, Math.sqrt(d.count) * 7))); // Slightly larger bubbles
-    var colors = x.map(s => s >= 84 ? '#002060' : '#DC2626');
+    var colors = x.map(s => s >= 86 ? '#002060' : '#DC2626');
 
     // Shapes: Q1 (Stars), Q2 (Rising), Q3 (Watch), Q4 (Critical)
     var shapes = [
-        { type: 'rect', x0: 84, y0: 0, x1: 105, y1: 20, fillcolor: '#ECFDF5', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Stars
-        { type: 'rect', x0: 50, y0: 0, x1: 84, y1: 20, fillcolor: '#EFF6FF', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Rising
-        { type: 'rect', x0: 84, y0: -20, x1: 105, y1: 0, fillcolor: '#FFFBEB', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Watch
-        { type: 'rect', x0: 50, y0: -20, x1: 84, y1: 0, fillcolor: '#FEF2F2', opacity: 0.4, line: { width: 0 }, layer: 'below' }  // Critical
+        { type: 'rect', x0: 86, y0: 0, x1: 105, y1: 20, fillcolor: '#ECFDF5', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Stars
+        { type: 'rect', x0: 50, y0: 0, x1: 86, y1: 20, fillcolor: '#EFF6FF', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Rising
+        { type: 'rect', x0: 86, y0: -20, x1: 105, y1: 0, fillcolor: '#FFFBEB', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Watch
+        { type: 'rect', x0: 50, y0: -20, x1: 86, y1: 0, fillcolor: '#FEF2F2', opacity: 0.4, line: { width: 0 }, layer: 'below' }  // Critical
     ];
 
     var divId = "branchMatrixChart";
@@ -805,7 +848,7 @@ function renderBranchMatrixChart(brData) {
         yaxis: { title: 'Momentum ↑', range: [-20, 22], showgrid: true, gridcolor: 'white', zeroline: true, zerolinecolor: '#9CA3AF' },
         shapes: [
             ...shapes,
-            { type: 'line', x0: 84, x1: 84, y0: -20, y1: 20, line: { color: '#EF4444', width: 2, dash: 'dash' } },
+            { type: 'line', x0: 86, x1: 86, y0: -20, y1: 20, line: { color: '#EF4444', width: 2, dash: 'dash' } },
             { type: 'line', x0: 50, x1: 105, y0: 0, y1: 0, line: { color: '#9CA3AF', width: 1 } }
         ],
         annotations: [
@@ -856,7 +899,7 @@ function renderBranchScaleChart(brData) {
         groups[k].scoreSum += d.s;
         groups[k].momSum += d.mom;
         groups[k].count += d.count;
-        if (d.s < 84) groups[k].critical++;
+        if (d.s < 86) groups[k].critical++;
         groups[k].scores.push(d.s);
         groups[k].names.push({ n: d.n, s: d.s });
     });
@@ -959,13 +1002,13 @@ function renderBranchInsights(top, fast, hCrit, brData) {
     var insights = [];
     insights.push(`<div >📌 <strong>${top.n}</strong> leads with <strong>${top.s.toFixed(2)}</strong>.`);
     if (hCrit > 0) {
-        var names = brData.filter(b => b.s < 84).map(b => b.n).join(", ");
-        insights.push(`<div >🚨 <strong>${hCrit} Critical Branches</strong> (< 84): <span class="text-danger">${names}</span>.</div> `);
+        var names = brData.filter(b => b.s < 86).map(b => b.n).join(", ");
+        insights.push(`<div >🚨 <strong>${hCrit} Critical Branches</strong> (< 86): <span class="text-danger">${names}</span>.</div> `);
     }
     insights.push(`<div >📈 <strong>${fast.n}</strong> has the strongest momentum(<span class="text-success">+${fast.mom.toFixed(2)}</span>).</div> `);
 
-    var stars = brData.filter(b => b.s >= 84 && b.mom > 0).length;
-    var rising = brData.filter(b => b.s < 84 && b.mom > 0).length;
+    var stars = brData.filter(b => b.s >= 86 && b.mom > 0).length;
+    var rising = brData.filter(b => b.s < 86 && b.mom > 0).length;
     insights.push(`<div >💡 <strong>Strategic Mix</strong>: ${stars} Stars(High / Growing), ${rising} Rising(Low / Growing).</div> `);
 
     document.getElementById("branchInsights").innerHTML = insights.join("");
@@ -983,7 +1026,7 @@ window.changeCulpritPage = function (delta) {
 // Global variables to store current modal context
 var currentCulpritData = [];
 var currentCulpritPage = 1;
-const CULPRIT_PAGE_SIZE = 5;
+const CULPRIT_PAGE_SIZE = 6; // Increased from 5 for dense view
 var currentCulpritSection = null; // Track if we are viewing a specific section
 
 function showCulpritModal(branchName, sectionName = null) {
@@ -991,7 +1034,20 @@ function showCulpritModal(branchName, sectionName = null) {
     var targetWave = (typeof sortedWaves !== 'undefined') ? sortedWaves[sortedWaves.length - 1] : "Wave 1";
     currentCulpritSection = sectionName ? sectionName.trim() : null;
 
-    document.getElementById("culpritBranchName").innerText = branchName + (currentCulpritSection ? ` - ${currentCulpritSection} ` : "");
+    var titleEl = document.getElementById("culpritModalTitle");
+    var descEl = document.getElementById("culpritModalDesc");
+    var kpiCont = document.getElementById("culpritKpiContainer");
+
+    if (currentCulpritSection) {
+        titleEl.innerHTML = `<i class="bi bi-box-arrow-in-right opacity-50 me-2"></i>Section Deep Dive`;
+        descEl.innerHTML = `Analyzing <span class="text-warning fw-bold">${currentCulpritSection}</span> across <strong>${branchName}</strong>`;
+        kpiCont.style.display = 'none';
+        kpiCont.innerHTML = '';
+    } else {
+        titleEl.innerHTML = `<i class="bi bi-building opacity-50 me-2"></i>Branch Performance Deep Dive`;
+        descEl.innerHTML = `Comprehensive view of all stores in <span class="text-warning fw-bold">${branchName}</span>`;
+        kpiCont.style.display = 'flex';
+    }
 
     // Helper: get section score from store-level data
     // Store sections are flat numbers { sectionName: score }
@@ -1011,31 +1067,92 @@ function showCulpritModal(branchName, sectionName = null) {
         return null;
     }
 
-    // Get Stores < 84
-    currentCulpritData = Object.values(reportData.stores)
-        .filter(s => {
-            if (s.meta.branch !== branchName || !s.results[targetWave]) return false;
-
-            if (currentCulpritSection) {
-                var score = getStoreSecScore(s.results[targetWave].sections, currentCulpritSection);
-                return score !== null && score < 84;
-            } else {
-                return s.results[targetWave].totalScore < 84;
+    // Get Stores < 86
+    // Find all raw stores belonging to this branch
+    var storesInBranch = [];
+    Object.values(reportData.regions).forEach(region => {
+        Object.values(region).forEach(waveData => {
+            if (waveData && waveData.branches && waveData.branches[branchName] && waveData.branches[branchName].stores) {
+                // To avoid duplicates if iterating multiple waves incorrectly, just grab stores from the target wave scope if possible
+                // Actually, reportData structure: regions -> [regionName] -> [wave] -> branches -> [branchName] -> stores
             }
-        })
+        });
+    });
+
+    // Filter reportData.stores directly since rawStoreData is not available on frontend
+    var storesInBranch = Object.values(reportData.stores).filter(s => s.meta.branch === branchName && s.results[targetWave]);
+
+    // Calculate Branch KPIs if no section is targeted
+    if (!currentCulpritSection) {
+        var totalStores = storesInBranch.length;
+        var avgScore = totalStores > 0 ? storesInBranch.reduce((sum, s) => sum + s.results[targetWave].totalScore, 0) / totalStores : 0;
+        var critCount = storesInBranch.filter(s => s.results[targetWave].totalScore < 86).length;
+
+        var prevWave = sortedWaves[sortedWaves.length - 2];
+        var avgMom = 0;
+        if (prevWave) {
+            var prevStores = storesInBranch.filter(s => s.results[prevWave]);
+            var prevAvg = prevStores.length > 0 ? prevStores.reduce((sum, s) => sum + s.results[prevWave].totalScore, 0) / prevStores.length : 0;
+            avgMom = avgScore - prevAvg;
+        }
+
+        kpiCont.innerHTML = `
+            <div class="col-md-3">
+                <div class="p-3 rounded border bg-light h-100 position-relative overflow-hidden">
+                    <div class="text-muted small fw-bold mb-1">TOTAL STORES</div>
+                    <h3 class="fw-bold mb-0">${totalStores}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border bg-light h-100 position-relative overflow-hidden ${avgScore < 86 ? 'border-danger' : 'border-success'}">
+                    <div class="text-muted small fw-bold mb-1">AVG SCORE</div>
+                    <h3 class="fw-bold mb-0 ${avgScore < 86 ? 'text-danger' : 'text-success'}">${avgScore.toFixed(1)}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border bg-light h-100 position-relative overflow-hidden">
+                    <div class="text-muted small fw-bold mb-1">MOMENTUM</div>
+                    <h3 class="fw-bold mb-0 ${avgMom >= 0 ? 'text-success' : 'text-danger'}">${avgMom >= 0 ? '▲' : '▼'} ${Math.abs(avgMom).toFixed(1)}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border bg-light h-100 position-relative overflow-hidden bg-danger-subtle border-danger">
+                    <div class="text-danger small fw-bold mb-1">CRITICAL STORES</div>
+                    <h3 class="fw-bold text-danger mb-0">${critCount}</h3>
+                </div>
+            </div>
+        `;
+    }
+
+    currentCulpritData = storesInBranch
         .map(s => {
             var d = s.results[targetWave];
+            var prevWave = sortedWaves[sortedWaves.length - 2];
+            var prevScore = prevWave && s.results[prevWave] ? s.results[prevWave].totalScore : null;
+
+            // Calculate Branch Average for comparison
+            var brScore = reportData.branches && reportData.branches[branchName] && reportData.branches[branchName][targetWave]
+                ? reportData.branches[branchName][targetWave].sum / reportData.branches[branchName][targetWave].count
+                : (currentCulpritSection ? 0 : avgScore);
+
             return {
                 n: s.meta.name,
                 c: s.meta.code,
                 s: d.totalScore,
+                mom: prevScore !== null ? d.totalScore - prevScore : 0,
+                region: s.meta.region,
+                brAvg: brScore || 0,
                 secScore: currentCulpritSection ? getStoreSecScore(d.sections, currentCulpritSection) : null,
                 sect: d.sections
             };
         })
+        .filter(s => {
+            if (currentCulpritSection) return s.secScore !== null;
+            return true; // Return all stores for branch deep dive
+        })
         .sort((a, b) => {
             if (currentCulpritSection) return a.secScore - b.secScore;
-            return a.s - b.s;
+            return a.s - b.s; // Lowest first
         });
 
     currentCulpritPage = 1;
@@ -1076,35 +1193,62 @@ function renderCulpritList() {
         // Determine what score to show prominently
         var displayScore = currentCulpritSection ? s.secScore : s.s;
 
-        // Make clickable link
-        var item = document.createElement("a");
-        item.href = "?store=" + s.c;
-        item.target = "_blank";
-        item.className = "list-group-item list-group-item-action p-3 border-light hover-bg-light text-decoration-none";
+        // Make container a div instead of an anchor
+        var item = document.createElement("div");
+        item.className = "list-group-item p-4 border-light";
+        item.style.transition = "all 0.2s ease";
 
-        var badgeColor = displayScore < 70 ? 'bg-danger' : (displayScore < 84 ? 'bg-warning text-dark' : 'bg-success');
+        var badgeColor = displayScore < 70 ? 'bg-danger' : (displayScore < 86 ? 'bg-warning text-dark' : 'bg-success');
+        var momColor = s.mom >= 0 ? "text-success" : "text-danger";
+        var momIcon = s.mom >= 0 ? "▲ +" : "▼ ";
+
+        var devColor = displayScore >= s.brAvg ? "text-success" : "text-danger";
+        var devAmount = (displayScore - s.brAvg).toFixed(1);
+        var devStr = displayScore >= s.brAvg ? "+" + devAmount : devAmount;
 
         item.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center mb-1" >
-                <span class="fw-bold text-dark">${s.n}</span>
-                <span class="badge ${badgeColor} rounded-pill fs-6">${displayScore.toFixed(1)}</span>
-            </div>
-            
-            <div class="mt-2 mb-2">
-                <div class="text-muted small fw-medium mb-1">Lowest Performing Areas:</div>
-                <div class="d-flex flex-wrap">
-                    ${worstHTML}
+        <div class="row align-items-center g-3">
+            <div class="col-md-7 border-end border-light">
+                <div class="d-flex justify-content-between align-items-center mb-1" >
+                    <span class="fw-bold text-dark" style="font-size: 1.05rem; letter-spacing: -0.2px;">${s.n}</span>
+                    <span class="badge ${badgeColor} rounded-pill fs-6 fw-bold ms-2 shadow-sm">${displayScore.toFixed(1)}</span>
+                </div>
+                <div class="text-muted small mb-3"><i class="bi bi-geo-alt-fill me-1 opacity-50"></i>${s.region}</div>
+                
+                <div>
+                    <div class="text-muted small fw-bold mb-2 text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Priority Intervention Areas:</div>
+                    <div class="d-flex flex-wrap gap-1">
+                        ${worstHTML}
+                    </div>
                 </div>
             </div>
-
-            <div class="small text-muted d-flex align-items-center justify-content-between mt-2 pt-2 border-top border-light-subtle">
-                ${currentCulpritSection
-                ? `<span>Total Store Score: <strong>${s.s.toFixed(1)}</strong></span>`
-                : `<span class="text-danger fw-medium"><i class="bi bi-exclamation-circle me-1"></i> Requires Attention</span>`
+            
+            <div class="col-md-5 ps-md-4 d-flex flex-column h-100 justify-content-center">
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-light">
+                    <span class="text-muted fw-medium" style="font-size: 0.75rem;">Momentum (vs Prev)</span>
+                    <span class="fw-bold ${momColor} px-2 py-1 rounded" style="background: var(--bs-${momColor === 'text-success' ? 'success' : 'danger'}-bg-subtle); font-size: 0.75rem;">
+                        ${momIcon}${Math.abs(s.mom).toFixed(1)}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted fw-medium" style="font-size: 0.75rem;">Div vs Branch Avg</span>
+                    <span class="fw-bold ${devColor} px-2 py-1 rounded" style="background: var(--bs-${devColor === 'text-success' ? 'success' : 'danger'}-bg-subtle); font-size: 0.75rem;">
+                        ${devStr} pts
+                    </span>
+                </div>
+                
+                <div class="d-flex align-items-center justify-content-between mt-auto pt-2">
+                    ${currentCulpritSection
+                ? `<span class="text-muted small">Total Store Score: <strong class="text-dark">${s.s.toFixed(1)}</strong></span>`
+                : (displayScore < 86
+                    ? `<span class="text-danger small fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> Immediate Action</span>`
+                    : `<span class="text-success small fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Performance Stable</span>`)
             }
-                <span class="text-primary fw-medium" style="font-size: 0.85rem;">View Full Analysis <i class="bi bi-arrow-right ms-1"></i></span>
+                    <button class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm hover-shadow" style="font-size: 0.75rem;" onclick="window.open('?mode=standalone&store=${encodeURIComponent(s.n)}', '_blank')">Deep Dive <i class="bi bi-arrow-right ms-1"></i></button>
+                </div>
             </div>
-    `;
+        </div>
+        `;
         container.appendChild(item);
     });
 
@@ -1113,6 +1257,49 @@ function renderCulpritList() {
     document.getElementById("culpritPageIndicator").innerText = `Page ${currentCulpritPage} of ${totalPages || 1} `;
     document.getElementById("btnCulpritPrev").disabled = currentCulpritPage === 1;
     document.getElementById("btnCulpritNext").disabled = (end >= currentCulpritData.length) || (totalPages <= 1);
+}
+
+// --- Premium Sparkline Generator ---
+function generatePremiumSparkline(data, labels) {
+    if (!data || data.length < 2) return '';
+
+    const width = 200;
+    const height = 60;
+    const padding = 5;
+
+    // Scale
+    const max = Math.max(...data);
+    const min = Math.min(...data);
+    const range = max - min || 1;
+
+    // Points
+    const points = data.map((val, i) => {
+        const x = (i / (data.length - 1)) * (width - 2 * padding) + padding;
+        const y = height - ((val - min) / range) * (height - 2 * padding) - padding;
+        return `${x},${y}`;
+    });
+
+    const linePath = `M ${points[0]} L ${points.slice(1).join(' L ')}`;
+    const areaPath = `${linePath} L ${width - padding},${height} L ${padding},${height} Z`;
+
+    // Determine color based on trend (Last vs First)
+    const isPositive = data[data.length - 1] >= data[0];
+    const color = isPositive ? '#10B981' : '#EF4444'; // Emerald or Red
+    const uniqueId = 'grad-' + Math.random().toString(36).substr(2, 9);
+
+    return `
+    <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="overflow: visible;">
+        <defs>
+            <linearGradient id="${uniqueId}" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:${color};stop-opacity:0.2" />
+                <stop offset="100%" style="stop-color:${color};stop-opacity:0" />
+            </linearGradient>
+        </defs>
+        <path d="${areaPath}" fill="url(#${uniqueId})" stroke="none" />
+        <path d="${linePath}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+        ${points.map((p, i) => `<circle cx="${p.split(',')[0]}" cy="${p.split(',')[1]}" r="${i === points.length - 1 ? 4 : 2}" fill="${color}" />`).join('')}
+    </svg>
+    `;
 }
 
 function renderBranchCards(data, waves) {
@@ -1124,16 +1311,16 @@ function renderBranchCards(data, waves) {
 
     viewData.forEach((d, i) => {
         var rank = i + 1;
-        var badge = d.s >= 95 ? '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill fw-bold">EXCELLENT</span>' :
-            (d.s >= 84 ? '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-2 rounded-pill fw-bold">WARNING</span>' :
-                '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-2 rounded-pill fw-bold">CRITICAL</span>');
+        var badge = d.s >= 95 ? '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1 rounded-pill fw-bold small">EXCELLENT</span>' :
+            (d.s >= 86 ? '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-1 rounded-pill fw-bold small">WARNING</span>' :
+                '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-1 rounded-pill fw-bold small">CRITICAL</span>');
 
         var yTrend = waves.map(w => { var bd = reportData.branches[d.n][w]; return bd ? bd.sum / bd.count : null; });
-        var sparkHTML = generateSparkline(yTrend, waves);
+        var sparkHTML = generatePremiumSparkline(yTrend, waves);
 
         // Data for Lists
         var branchStores = Object.values(reportData.stores).filter(s => s.meta.branch === d.n && s.results[waves[waves.length - 1]]);
-        var criticalCount = branchStores.filter(s => s.results[waves[waves.length - 1]].totalScore < 84).length;
+        var criticalCount = branchStores.filter(s => s.results[waves[waves.length - 1]].totalScore < 86).length;
 
         var lowestStores = [...branchStores]
             .map(s => ({ n: s.meta.name, s: s.results[waves[waves.length - 1]].totalScore }))
@@ -1143,15 +1330,15 @@ function renderBranchCards(data, waves) {
         var lowestHTML = lowestStores.map(s => `
         <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle" >
                 <span class="fw-medium text-dark small text-wrap lh-sm" style="max-width: 70%;">${s.n}</span>
-                <span class="fw-bold ${s.s < 84 ? 'text-danger' : 'text-dark'} small bg-light-subtle px-2 py-1 rounded">${s.s.toFixed(1)}</span>
+                <span class="fw-bold ${s.s < 86 ? 'text-danger' : 'text-dark'} small bg-white border px-2 py-1 rounded">${s.s.toFixed(1)}</span>
             </div> `).join("");
 
-        // Critical Stores Button (Moved to Middle Column)
+        // Critical Stores Button
         var criticalBtnHTML = "";
         if (criticalCount > 0) {
             criticalBtnHTML = `
         <div class="mt-3 text-center" >
-            <button onclick="showCulpritModal('${d.n}')" class="btn btn-sm btn-danger shadow-sm w-100 py-2 fw-medium" style="border-radius: 8px;">
+            <button onclick="showCulpritModal('${d.n}')" class="btn btn-sm btn-outline-danger shadow-sm w-100 py-2 fw-medium" style="border-radius: 8px; border-width: 1px;">
                 <i class="bi bi-exclamation-triangle-fill me-1"></i> View ${criticalCount} Critical Stores
             </button>
             </div> `;
@@ -1169,7 +1356,7 @@ function renderBranchCards(data, waves) {
                 if (!res || res.sections[s.k] === undefined) return false;
                 var sv = res.sections[s.k];
                 var score = (typeof sv === 'object' && sv.sum !== undefined) ? (sv.sum / sv.count) : sv;
-                return !isNaN(score) && score < 84;
+                return !isNaN(score) && score < 86;
             }).length;
 
             return `
@@ -1179,59 +1366,56 @@ function renderBranchCards(data, waves) {
     title="Click to view problematic stores in ${s.k}" >
                 
                 <div class="d-flex align-items-center gap-2" style="max-width: 75%;">
-                    <!-- Visual Indicator: Small icon -->
-                    <i class="bi bi-box-arrow-in-up-right text-muted" style="font-size: 0.75rem;"></i>
-                    
+                    <i class="bi bi-caret-right-fill text-muted" style="font-size: 0.6rem;"></i>
                     <div class="text-wrap lh-sm">
                         <div class="fw-medium text-dark small text-decoration-underline-hover">${s.k}</div>
-                        ${probCount > 0 ? `<div class="mt-1"><span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.6rem; padding: 2px 6px;">${probCount} STORES BELOW 84</span></div>` : ''}
+                        ${probCount > 0 ? `<div class="mt-1"><span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.6rem; padding: 1px 6px;">${probCount} Issues</span></div>` : ''}
                     </div>
                 </div>
-                <span class="fw-bold ${s.s < 84 ? 'text-danger' : 'text-dark'} small bg-light-subtle px-2 py-1 rounded">${s.s.toFixed(1)}</span>
+                <span class="fw-bold ${s.s < 86 ? 'text-danger' : 'text-dark'} small bg-white border px-2 py-1 rounded">${s.s.toFixed(1)}</span>
             </div> `;
         }).join("");
 
         var col = document.createElement("div");
-        col.className = "col-12 branch-card-item";
+        col.className = "col-xxl-6 col-md-6 branch-card-item"; // GRID LAYOUT (2 per row)
         col.dataset.name = d.n.toLowerCase();
 
         col.innerHTML = `
-        <div class="card border-0 shadow hover-shadow-lg mb-4 overflow-hidden" style="border-radius: 16px; transition: all 0.3s ease;" >
-            < !--Header -->
-            <div class="card-header border-0 bg-gradient-to-r from-light to-white p-4" style="background: linear-gradient(90deg, #F9FAFB 0%, #FFFFFF 100%);">
+        <div class="card border-0 shadow-sm hover-shadow-lg mb-4 h-100 overflow-hidden text-start" style="border-radius: 16px; transition: all 0.3s ease; background: #fff;" >
+            <div class="card-header border-0 p-4" style="background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width:40px;height:40px;font-size:1.1rem;">${rank}</div>
+                        <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width:48px;height:48px;font-size:1.1rem; border: 1px solid #DBEAFE;">${rank}</div>
                         <div>
-                            <h4 class="fw-bold text-dark mb-0" style="font-family: 'Outfit', sans-serif;">${d.n}</h4>
-                            <div class="text-muted small mt-1 fw-medium">${d.count} Outlets · Average Score</div>
+                            <h4 class="fw-bold text-dark mb-0" style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">${d.n}</h4>
+                            <div class="text-muted small mt-1 fw-bold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">${d.count} Outlets</div>
                         </div>
                     </div>
                     <div class="text-end">
-                        <h2 class="display-5 fw-bold mb-0 ${d.s < 84 ? 'text-danger' : 'text-success'}">${d.s.toFixed(2)}</h2>
+                        <div class="display-6 fw-bold ${d.s < 86 ? 'text-danger' : 'text-primary'}" style="font-family: 'Outfit', sans-serif;">${d.s.toFixed(1)}</div>
                         ${badge}
                     </div>
                 </div>
             </div>
             
-            <div class="card-body p-0">
-                <div class="row g-0">
+            <div class="card-body p-0 d-flex flex-column">
+                <div class="row g-0 flex-grow-1">
                     <!-- Col 1: Trend -->
-                    <div class="col-lg-3 border-end border-light-subtle p-4">
+                    <div class="col-lg-4 border-end border-light-subtle p-4 d-flex flex-column justify-content-center bg-white">
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="text-uppercase fw-bold text-muted small mb-0">Momentum</h6>
-                            <span class="badge ${d.mom >= 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} rounded-pill">
+                            <h6 class="text-uppercase fw-bold text-muted small mb-0 fs-7">Momentum</h6>
+                            <span class="badge ${d.mom >= 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} rounded-pill fw-bold">
                                 ${d.mom >= 0 ? '▲ +' : '▼ '}${d.mom.toFixed(2)}
                             </span>
                         </div>
-                        <div style="height: 60px; opacity: 0.7;">${sparkHTML}</div>
-                        <p class="small text-muted mt-3 mb-0 lh-sm">Wave-over-wave trend.</p>
+                        <div style="height: 80px; width: 100%;">${sparkHTML}</div>
+                        <p class="small text-muted mt-2 mb-0 lh-sm text-center fst-italic">5-Wave Trend</p>
                     </div>
 
                     <!-- Col 2: Lowest Performing Stores (Middle) -->
-                    <div class="col-lg-5 border-end border-light-subtle p-4 bg-light bg-opacity-10">
-                        <h6 class="text-uppercase fw-bold text-muted small mb-3">
-                            <i class="bi bi-graph-down-arrow me-1"></i> Lowest Performing Stores
+                    <div class="col-lg-4 border-end border-light-subtle p-4 bg-light bg-opacity-25">
+                        <h6 class="text-uppercase fw-bold text-muted small mb-3 fs-7">
+                            <i class="bi bi-graph-down-arrow me-1"></i> Lowest Stores
                         </h6>
                         <div class="d-flex flex-column gap-1">
                             ${lowestHTML}
@@ -1240,9 +1424,9 @@ function renderBranchCards(data, waves) {
                     </div>
 
                     <!-- Col 3: Priority Focus Areas -->
-                    <div class="col-lg-4 p-4">
-                        <h6 class="text-uppercase fw-bold text-warning small mb-3">
-                            <i class="bi bi-exclamation-triangle me-1"></i> Priority Focus Areas
+                    <div class="col-lg-4 p-4 bg-white">
+                        <h6 class="text-uppercase fw-bold text-warning small mb-3 fs-7">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Priorities
                         </h6>
                         <div class="d-flex flex-column gap-1">
                             ${priorityHTML}
@@ -1519,7 +1703,7 @@ function loadStoreDetail(idOverride) {
 
     var stScore = cur.totalScore;
     // document.getElementById("stScore").textContent = stScore.toFixed(2); // REMOVED
-    document.getElementById("stScore").className = "display-3 fw-bold " + (stScore < 84 ? "text-danger" : "text-white");
+    document.getElementById("stScore").className = "display-3 fw-bold " + (stScore < 86 ? "text-danger" : "text-white");
     animateValue("stScore", 0, stScore, 1500, 2);
 
     // Calculate Rank
@@ -1562,8 +1746,8 @@ function loadStoreDetail(idOverride) {
         return d ? d.sum / d.count : null;
     });
 
-    // Target Line (Constant 84)
-    var yTarget = sortedWaves.map(() => 84);
+    // Target Line (Constant 86)
+    var yTarget = sortedWaves.map(() => 86);
 
     Plotly.newPlot("stTrendChart", [
         // 1. Main Store Trace (Area)
@@ -1587,9 +1771,9 @@ function loadStoreDetail(idOverride) {
         },
         // 4. Target (Red Dash)
         {
-            x: sortedWaves, y: yTarget, name: "Target (84)", type: "scatter", mode: "lines",
+            x: sortedWaves, y: yTarget, name: "Target (86)", type: "scatter", mode: "lines",
             line: { color: "#EF4444", width: 1.5, dash: 'longdashdot' },
-            marker: { size: 0 }, hovertemplate: 'Target: 84<extra></extra>'
+            marker: { size: 0 }, hovertemplate: 'Target: 86<extra></extra>'
         }
     ], {
         margin: { t: 20, l: 30, r: 20, b: 0 }, // Increased bottom for legend
@@ -1661,7 +1845,7 @@ function loadStoreDetail(idOverride) {
     const insightData = [];
 
     Object.entries(cur.sections).forEach(([k, v]) => {
-        var isBad = v < 84;
+        var isBad = v < 86;
 
         // Calculate Gap for Table
         var tableAvg = 0;
@@ -2175,7 +2359,7 @@ function renderPerformanceInsights(data) {
                         <div class="small text-muted" style="font-size: 0.75rem;">vs ${deviationMode.charAt(0).toUpperCase() + deviationMode.slice(1)}: <span class="${item.gap >= 0 ? 'text-success' : 'text-danger'} fw-bold">${item.gap > 0 ? '+' : ''}${item.gap.toFixed(1)}</span></div>
                     </div>
                     <div class="text-end">
-                        <span class="badge ${item.score < 84 ? 'bg-danger' : 'bg-success'} rounded-pill" style="font-size: ${isTop3 ? '0.9rem' : '0.75rem'}">${item.score.toFixed(1)}</span>
+                        <span class="badge ${item.score < 86 ? 'bg-danger' : 'bg-success'} rounded-pill" style="font-size: ${isTop3 ? '0.9rem' : '0.75rem'}">${item.score.toFixed(1)}</span>
                     </div>
                 </div>
             </div>
@@ -2717,9 +2901,9 @@ function openSectionDetail(sectionName) {
                                                 <div class="text-muted" style="font-size: 0.65rem;">Regional Performance</div>
                                             </td>
                                             <td class="text-end pe-4 border-light">
-                                                <div class="fw-bold ${r.score >= 84 ? 'text-success' : 'text-danger'}" style="font-size: 1rem;">${r.score.toFixed(1)}</div>
+                                                <div class="fw-bold ${r.score >= 86 ? 'text-success' : 'text-danger'}" style="font-size: 1rem;">${r.score.toFixed(1)}</div>
                                                 <div class="progress mt-1 ms-auto" style="height: 3px; width: 40px;">
-                                                    <div class="progress-bar ${r.score >= 84 ? 'bg-success' : 'bg-danger'}" style="width: ${r.score}%"></div>
+                                                    <div class="progress-bar ${r.score >= 86 ? 'bg-success' : 'bg-danger'}" style="width: ${r.score}%"></div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -2845,12 +3029,26 @@ const VOC_CAT_COLORS = {
     'Facility Maintenance': '#EF4444',
     'Staff Friendliness': '#06B6D4',
     'Store Cleanliness': '#10B981',
+    'Cleanliness': '#10B981', // Added Cleanliness (Same as Store Cleanliness)
     'Product Quality': '#F97316',
     'Hygiene': '#84CC16'
 };
 
 function getVocCatColor(cat) {
     return VOC_CAT_COLORS[cat] || '#94A3B8';
+}
+
+// Global normalization: map legacy AI category names to standardized ones
+const VOC_CAT_NORMALIZE = {
+    'Facility Maintenance': 'Cleanliness',
+    'Store Cleanliness': 'Cleanliness',
+    'Hygiene': 'Cleanliness',
+    'Store Ambience': 'Ambiance'
+};
+function normalizeVocTopics(item) {
+    const raw = item.topics || item.themes || [];
+    const mapped = raw.map(t => VOC_CAT_NORMALIZE[t] || t);
+    return [...new Set(mapped)];
 }
 
 function initVoc() {
@@ -2899,10 +3097,18 @@ function initVocTimeFilter() {
     });
 
     select.innerHTML = html;
-    select.value = 'all';
+
+    // FIX: Default to latest wave instead of 'all'
+    const defaultVal = sortedWaves.length > 0 ? sortedWaves[0] : 'all';
+    select.value = defaultVal;
 
     // Add event listener
     select.onchange = (e) => filterVocByTime(e.target.value);
+
+    // Trigger initial filter
+    if (defaultVal !== 'all') {
+        setTimeout(() => filterVocByTime(defaultVal), 100);
+    }
 }
 
 function filterVocByTime(timeVal) {
@@ -2943,7 +3149,9 @@ function filterVocByTime(timeVal) {
     // Usually Trend Chart implies time series. If we filter to 1 wave, trend is 1 point.
     // Let's leave Trend Chart showing ALL data for context, unless user wants otherwise.
     // Implementing: Trend Chart uses reportData.voc (Global) to show context.
+    // Implementing: Trend Chart uses reportData.voc (Global) to show context.
     renderVocManagerNotes();
+    renderVocGridSummary(); // FIX: Ensure summary tiles update on time change
 }
 
 function renderVocKpis() {
@@ -3083,7 +3291,7 @@ function renderVocRegionalHeatmap() {
         regObj.total++;
 
         // Categories
-        (item.topics || []).forEach(t => {
+        normalizeVocTopics(item).forEach(t => {
             regObj.catCount[t] = (regObj.catCount[t] || 0) + 1;
         });
 
@@ -3172,7 +3380,7 @@ function filterVocGrid(type) {
         currentGridData = timeFilteredVocData;
     } else {
         currentGridData = timeFilteredVocData.filter(item => {
-            const topics = item.topics || item.themes || [];
+            const topics = normalizeVocTopics(item);
             const insight = item.aiInsight || '';
             const noteKey = insight.includes(':') ? insight.split(':')[0].trim() : insight.trim();
             return topics.includes(type) || noteKey === type;
@@ -3184,6 +3392,7 @@ function filterVocGrid(type) {
 
     try {
         renderVocGrid();
+        renderVocGridSummary(); // Update summary tiles
     } catch (e) {
         console.error("VoC Filter Error:", e);
     }
@@ -3251,6 +3460,62 @@ function renderVocGrid() {
 
     if (prevBtn) prevBtn.disabled = currentVocPage === 1;
     if (nextBtn) nextBtn.disabled = currentVocPage >= maxPage || maxPage === 0;
+    if (nextBtn) nextBtn.disabled = currentVocPage >= maxPage || maxPage === 0;
+
+    renderVocGridSummary(); // Ensure summary is rendered
+}
+
+function renderVocGridSummary() {
+    const container = document.getElementById("vocGridSummary");
+    if (!container) return;
+
+    const data = currentGridData || [];
+    const count = data.length;
+
+    if (count === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    // Calc Stats
+    const pos = data.filter(i => i.sentiment === 'positive').length;
+    const score = Math.round((pos / count) * 100);
+
+    const cats = {};
+    const notes = {};
+    data.forEach(i => {
+        const topics = normalizeVocTopics(i);
+        if (topics[0]) cats[topics[0]] = (cats[topics[0]] || 0) + 1;
+
+        const insight = i.aiInsight || '';
+        const key = insight.includes(':') ? insight.split(':')[0].trim() : insight.trim();
+        if (key && key !== 'N/A') notes[key] = (notes[key] || 0) + 1;
+    });
+
+    const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
+    const topNote = Object.entries(notes).sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
+
+    const cards = [
+        { label: 'Total Feedback', value: count.toLocaleString(), icon: 'bi-chat-right-text', color: '#3B82F6' },
+        { label: 'Positive Sentiment', value: score + '%', icon: 'bi-emoji-smile', color: '#10B981' },
+        { label: 'Top Category', value: topCat[0], icon: 'bi-tags', color: '#F59E0B' },
+        { label: 'Top Issue', value: topNote[0], icon: 'bi-exclamation-circle', color: '#EF4444' }
+    ];
+
+    container.innerHTML = cards.map(c => `
+        <div class="col-md-3">
+             <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center h-100" style="border-radius: 12px; background: white;">
+                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                     style="width: 45px; height: 45px; background: ${c.color}15; color: ${c.color};">
+                    <i class="bi ${c.icon} fs-5"></i>
+                </div>
+                <div>
+                    <div class="text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">${c.label}</div>
+                    <div class="fw-bold text-dark fs-5">${c.value}</div>
+                </div>
+             </div>
+        </div>
+    `).join('');
 }
 
 function createFeedbackTile(item, index) {
@@ -3258,7 +3523,7 @@ function createFeedbackTile(item, index) {
     col.className = "col-md-6 col-xl-4";
 
     // Category badge (primary topic)
-    const topics = item.topics || item.themes || [];
+    const topics = normalizeVocTopics(item);
     const primaryTopic = topics[0] || 'General';
     const catColor = getVocCatColor(primaryTopic);
 
@@ -3303,7 +3568,8 @@ function createFeedbackTile(item, index) {
                                 <i class="bi bi-shop" style="color: ${catColor}; font-size: 0.75rem;"></i>
                             </div>
                             <div style="line-height:1.2">
-                                <div class="small fw-bold text-truncate" style="max-width: 140px; color: #1E293B;" title="${item.siteName || 'Store'}">${item.siteName || 'Store'}</div>
+                                <!-- FIX: Explicitly force wrap -->
+                                <div class="small fw-bold" style="color: #1E293B; white-space: normal; word-break: break-word;" title="${item.siteName || 'Store'}">${item.siteName || 'Store'}</div>
                                 <div style="font-size: 0.65rem; color: #94A3B8;">${item.region || 'Region'}</div>
                             </div>
                         </div>
@@ -3321,7 +3587,17 @@ function createFeedbackTile(item, index) {
 // INITIALIZATION ENTRY POINT
 window.onload = function () {
     initSummary();
-    initRegions(); // NOTE: Calling again here might duplicate if initVoc calls it too. 
+    initRegions();
+
+    // Hook into Regional Dropdown for VoC
+    const regionSelector = document.getElementById('regionSelector');
+    if (regionSelector) {
+        regionSelector.addEventListener('change', function () {
+            renderRegionalVoc(this.value);
+        });
+        // Initial Render
+        setTimeout(() => renderRegionalVoc('National'), 500);
+    }
     // But initRegions relies on current tab? 
     // Let's check initRegions implementation. It attaches to current tab?
     // No, it renders charts to IDs. 
@@ -3330,8 +3606,47 @@ window.onload = function () {
     initStoreTable(); // Initialize Store List
     initVoc(); // START VOC ENGINE
 
-    // Show summary by default
-    showTab('summary');
+    // Show summary by default — UNLESS in standalone mode
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'standalone') {
+        // Standalone: Navigate directly to store detail
+        const targetStoreName = urlParams.get('store');
+        if (targetStoreName) {
+            try {
+                let targetName = decodeURIComponent(targetStoreName).replace(/^"|"$/g, '');
+                console.log('Standalone: Looking for store:', targetName);
+
+                let targetId = null;
+                const allStores = Object.entries(reportData.stores);
+                const matchEntry = allStores.find(([key, s]) => s.meta.name.trim().toLowerCase() === targetName.trim().toLowerCase());
+
+                if (matchEntry) {
+                    targetId = matchEntry[0]; // Use the key as ID
+                    console.log('Standalone: Found store ID:', targetId);
+                }
+
+                if (targetId) {
+                    showTab('stores');
+                    viewStore(targetId);
+                } else {
+                    console.error('Standalone: Store not found:', targetName);
+                    showTab('stores');
+                    var searchInput = document.getElementById('storeSearch');
+                    if (searchInput) {
+                        searchInput.value = targetName;
+                        renderStoreList();
+                    }
+                }
+            } catch (e) {
+                console.error('Standalone error:', e);
+                showTab('stores');
+            }
+        } else {
+            showTab('stores');
+        }
+    } else {
+        showTab('summary');
+    }
 };
 
 
@@ -3688,7 +4003,7 @@ function renderVocDrilldownRegions() {
 
     // Filter by Category
     const catData = reportData.voc.filter(item => {
-        return (item.topics || []).includes(currentDrillCategory);
+        return normalizeVocTopics(item).includes(currentDrillCategory);
     });
 
     // Group by Region
@@ -3727,7 +4042,7 @@ function renderVocDrilldownBranches(region) {
 
     // Filter by Category AND Region
     const branchData = reportData.voc.filter(item => {
-        return (item.topics || []).includes(currentDrillCategory) && item.region === region;
+        return normalizeVocTopics(item).includes(currentDrillCategory) && item.region === region;
     });
 
     // Group by Branch
@@ -3840,7 +4155,7 @@ function renderVocDrilldownStoreTable(branch) {
 
     // 1. Filter Feedback by Category + Region + Branch
     const storeItems = reportData.voc.filter(item => {
-        return (item.topics || []).includes(currentDrillCategory) &&
+        return normalizeVocTopics(item).includes(currentDrillCategory) &&
             item.region === currentDrillRegion &&
             item.branch === branch;
     });
@@ -3929,8 +4244,8 @@ function calculateVocStats() {
 
     timeFilteredVocData.forEach(item => {
         // 1. Categories
-        const topics = item.topics || item.themes || [];
-        topics.forEach(t => {
+        const uniqueTopics = normalizeVocTopics(item);
+        uniqueTopics.forEach(t => {
             vocCategoryData[t] = (vocCategoryData[t] || 0) + 1;
         });
 
@@ -3962,4 +4277,489 @@ function calculateVocStats() {
             sample: data.sample
         }))
         .sort((a, b) => b.count - a.count);
+}
+// --- Regional Executive Summary Modal ---
+function openRegionalDetail(regionName, page = 1) {
+    console.log("Opening Regional Detail for:", regionName, "Page:", page);
+    const curWave = sortedWaves[sortedWaves.length - 1];
+    const prevWave = sortedWaves.length > 1 ? sortedWaves[sortedWaves.length - 2] : null;
+
+    const d = reportData.regions[regionName][curWave];
+    const prevD = prevWave ? reportData.regions[regionName][prevWave] : null;
+
+    if (!d) { console.error("No data found for region:", regionName); return; }
+
+    const score = d.sum / d.count;
+    const prevScore = prevD ? prevD.sum / prevD.count : 0;
+    const diff = score - prevScore;
+
+    // 1. Journeys Analysis (Top 3 & Bottom 3)
+    const journeys = Object.entries(d.sections).map(([k, v]) => ({
+        n: k,
+        s: v.sum / v.count
+    })).sort((a, b) => b.s - a.s);
+
+    const top3 = journeys.slice(0, 3);
+    const bottom3 = journeys.slice().reverse().slice(0, 3);
+
+    // 2. Critical Stores Watchlist (< 86)
+    // DEBUG: Log the filtering process
+    console.log(`Filtering Critical Stores for ${regionName} < 86`);
+    const criticalStores = Object.values(reportData.stores)
+        .filter(s => {
+            // Case-insensitive match for robustness
+            const regMatch = s.meta.region && s.meta.region.toLowerCase() === regionName.toLowerCase();
+            const hasRes = s.results && s.results[curWave];
+            if (!regMatch || !hasRes) return false;
+
+            const sScore = s.results[curWave].totalScore;
+            return sScore < 86;
+        })
+        .map(s => {
+            const sScore = s.results[curWave].totalScore;
+            // Find worst journey for this store
+            const worstJ = Object.entries(s.results[curWave].sections)
+                .map(([k, v]) => ({ n: k, s: (v.sum !== undefined ? v.sum / v.count : v) }))
+                .sort((a, b) => a.s - b.s)[0];
+            return { n: s.meta.name, s: sScore, w: worstJ ? worstJ.n : 'N/A' };
+        })
+        .sort((a, b) => a.s - b.s); // Lowest first
+
+    console.log(`Found ${criticalStores.length} critical stores.`);
+
+    // Pagination Logic
+    const PAGE_SIZE = 5;
+    const totalPages = Math.ceil(criticalStores.length / PAGE_SIZE);
+
+    // Safety check for page number
+    if (page < 1) page = 1;
+    if (page > totalPages && totalPages > 0) page = totalPages;
+
+    const startIdx = (page - 1) * PAGE_SIZE;
+    const endIdx = startIdx + PAGE_SIZE;
+    const paginatedStores = criticalStores.slice(startIdx, endIdx);
+
+    // 3. Sparkline Data (All Waves)
+    const trendData = sortedWaves.map(w => {
+        const ad = reportData.regions[regionName][w];
+        return ad ? ad.sum / ad.count : null;
+    });
+
+    // --- QUALITATIVE DATA PREP (Action-Oriented) ---
+    // FIX: Strict filter — only latest wave (e.g. "2025 Wave 2")
+    const latestWaveParts = curWave.split(' '); // e.g. "2025 Wave 2" -> ["2025", "Wave", "2"]
+    const regionVoc = reportData.voc.filter(v => {
+        const rMatch = regionName === 'National' || v.region === regionName;
+        // Strict wave match: year + wave name must both match
+        const wMatch = v.year && v.wave && (`${v.year} ${v.wave}` === curWave);
+        return rMatch && wMatch;
+    });
+
+    const totalVoc = regionVoc.length;
+    let themeBadgeHtml = '';
+    let voicesGridHtml = '<div class="col-12 text-center text-muted py-4">No qualitative insights available for this period.</div>';
+
+    // Moved outside if-block so recapTilesHtml can access it
+    const themeCounts = {};
+    regionVoc.forEach(v => {
+        normalizeVocTopics(v).forEach(t => themeCounts[t] = (themeCounts[t] || 0) + 1);
+    });
+
+    if (totalVoc > 0) {
+        // 1. Priority Themes (Top 8) — use normalized topics
+        const sortedThemes = Object.entries(themeCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+
+        if (sortedThemes.length > 0) {
+            themeBadgeHtml = `
+                <div class="d-flex gap-2 overflow-auto pb-2" style="scrollbar-width: thin;">
+                    ${sortedThemes.map(([t, c]) => `
+                        <span class="badge bg-white text-dark shadow-sm border px-3 py-2 fw-normal d-inline-flex align-items-center flex-shrink-0">
+                            ${t} <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-2">${c}</span>
+                        </span>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // 2. Insight Tiles (Top 12)
+        // Sort: Has Manager Note > Length > Recent
+        const voices = regionVoc
+            .sort((a, b) => {
+                const aNote = a.aiInsight && a.aiInsight !== 'N/A' ? 1 : 0;
+                const bNote = b.aiInsight && b.aiInsight !== 'N/A' ? 1 : 0;
+                if (aNote !== bNote) return bNote - aNote;
+                return b.text.length - a.text.length;
+            })
+            .slice(0, 12);
+
+        voicesGridHtml = voices.map(v => {
+            const hasNote = v.aiInsight && v.aiInsight !== 'N/A';
+            const noteText = hasNote ? (v.aiInsight.includes(':') ? v.aiInsight.split(':')[0].trim() : 'Action Required') : 'Customer Feedback';
+            const cat = v.category || v.themes?.[0] || 'General';
+
+            return `
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm feedback-tile" style="background: #F8FAFC; transition: all 0.2s;" 
+                     onclick="this.classList.toggle('expanded');">
+                    <div class="card-body p-3 d-flex flex-column">
+                        <!-- Header -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-white border text-dark shadow-sm">${cat}</span>
+                            <span class="text-muted xsmall fw-bold" style="white-space: normal; word-break: break-word; text-align: right; max-width: 180px;">${v.siteName || 'Store'}</span>
+                        </div>
+                        
+                        <!-- Manager Action Highlight -->
+                        ${hasNote ? `
+                        <div class="mb-2">
+                             <div class="d-flex align-items-center text-primary mb-1">
+                                <i class="bi bi-lightning-charge-fill me-1 small"></i>
+                                <span class="fw-bold xsmall text-uppercase ls-1">Priority Action</span>
+                             </div>
+                             <div class="fw-bold text-dark small" style="line-height: 1.3;">${noteText}</div>
+                        </div>
+                        ` : ''}
+
+                        <!-- Truncated Feedback -->
+                        <div class="feedback-text mt-auto">
+                            <p class="mb-0 text-secondary small fst-italic text-truncate-multiline" style="line-height: 1.5;">"${v.text}"</p>
+                        </div>
+                        
+                        <!-- Toggle Hint -->
+                        <div class="text-center mt-2 pt-2 border-top border-light d-none expand-hint">
+                            <span class="text-primary xsmall fw-bold">Click to Collapse</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // --- PRE-COMPUTE RECAP TILES HTML ---
+    let recapTilesHtml = '';
+    if (totalVoc > 0) {
+        // Most & Least commented category
+        const sortedCats = Object.entries(themeCounts).sort((a, b) => b[1] - a[1]);
+        const mostCat = sortedCats[0] || ['N/A', 0];
+        const leastCat = sortedCats[sortedCats.length - 1] || ['N/A', 0];
+
+        // Most commented branch
+        const branchCounts = {};
+        regionVoc.forEach(v => {
+            if (v.branch) branchCounts[v.branch] = (branchCounts[v.branch] || 0) + 1;
+        });
+        const topBranch = Object.entries(branchCounts).sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
+
+        const recapCards = [
+            { label: 'Total Feedback', value: totalVoc.toLocaleString(), icon: 'bi-chat-right-text', color: '#3B82F6' },
+            { label: 'Most Commented Category', value: mostCat[0], icon: 'bi-arrow-up-circle', color: '#EF4444' },
+            { label: 'Least Commented Category', value: leastCat[0], icon: 'bi-arrow-down-circle', color: '#10B981' },
+            { label: 'Most Commented Branch', value: topBranch[0], icon: 'bi-building', color: '#8B5CF6' }
+        ];
+        recapTilesHtml = recapCards.map(c =>
+            '<div class="col-md-3 col-6">' +
+            '<div class="card border-0 shadow-sm p-3 h-100" style="border-radius: 12px; background: white;">' +
+            '<div class="d-flex align-items-center">' +
+            '<div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; background: ' + c.color + '15; color: ' + c.color + '; flex-shrink: 0;">' +
+            '<i class="bi ' + c.icon + '"></i></div>' +
+            '<div style="min-width: 0;"><div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">' + c.label + '</div>' +
+            '<div class="fw-bold text-dark" style="font-size: 1.1rem;">' + c.value + '</div></div>' +
+            '</div></div></div>'
+        ).join('');
+    }
+
+    // --- RENDER HTML ---
+    const html = `
+        <!-- Header Stats -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="data-panel h-100 d-flex flex-column justify-content-center">
+                    <div class="text-muted small fw-bold text-uppercase ls-1 mb-2">Overall Performance</div>
+                    <div class="d-flex align-items-baseline gap-3">
+                        <div class="display-4 fw-bold text-dark">${score.toFixed(1)}</div>
+                        <div class="${diff >= 0 ? 'text-success' : 'text-danger'} fw-bold">
+                            ${diff >= 0 ? '<i class="bi bi-arrow-up"></i>' : '<i class="bi bi-arrow-down"></i>'} ${Math.abs(diff).toFixed(2)}
+                        </div>
+                    </div>
+                     <div class="progress-bar-premium mt-3"><div class="fill ${score < 86 ? 'fill-danger' : 'fill-blue'}" style="width: ${score}%"></div></div>
+                </div>
+            </div>
+             <div class="col-md-8">
+                <div class="data-panel h-100 p-0 overflow-hidden">
+                     <div class="glass-header-dark py-2 px-3 small fw-bold">Performance Trend (5 Waves)</div>
+                     <div id="regModalSparkline" style="height: 150px; width:100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategic Gap Analysis -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-success bg-opacity-10 text-success fw-bold border-0 py-3">
+                        <i class="bi bi-trophy-fill me-2"></i> Winning Journeys (Top 3)
+                    </div>
+                    <div class="list-group list-group-flush">
+                        ${top3.map((j, i) => `
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="badge bg-success bg-opacity-25 text-success rounded-circle p-2" style="width:24px;height:24px;display:flex;justify-content:center;align-items:center;">${i + 1}</span>
+                                    <span class="fw-medium">${j.n}</span>
+                                </div>
+                                <span class="fw-bold text-success">${j.s.toFixed(1)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                 <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-danger bg-opacity-10 text-danger fw-bold border-0 py-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Critical Focus Areas (Bottom 3)
+                    </div>
+                     <div class="list-group list-group-flush">
+                        ${bottom3.map((j, i) => `
+                             <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div class="d-flex align-items-center gap-3">
+                                     <span class="badge bg-danger bg-opacity-25 text-danger rounded-circle p-2" style="width:24px;height:24px;display:flex;justify-content:center;align-items:center;">${i + 1}</span>
+                                    <span class="fw-medium">${j.n}</span>
+                                </div>
+                                <span class="fw-bold text-danger">${j.s.toFixed(1)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUALITATIVE INTELLIGENCE (Row 3 - Action Tiles) -->
+        <div class="card mb-4 border-0 shadow-sm accent-stripe-purple">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-chat-square-quote-fill me-2 text-primary"></i> Qualitative Analysis & Action Plans</h6>
+                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">${totalVoc} Insights</span>
+            </div>
+            <div class="card-body p-4 bg-light">
+                <!-- Priority Themes -->
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted xsmall fw-bold mb-2 ls-1">Priority Themes</h6>
+                    ${themeBadgeHtml || '<div class="text-muted small">No themes detected.</div>'}
+                </div>
+                
+                <!-- AI Recap Summary Tiles -->
+                <div class="row g-3 mb-4">
+                    ${recapTilesHtml}
+                </div>
+                
+                <!-- Insight Tiles Grid -->
+                <div class="row g-3">
+                    ${voicesGridHtml}
+                </div>
+            </div>
+        </div>
+
+        <!-- Critical Watchlist (Paginated) -->
+        <div class="card border-0 shadow-sm">
+             <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-eye-fill me-2"></i> Critical Watchlist (Stores < 86)</h6>
+                <span class="badge bg-danger rounded-pill">${criticalStores.length} Stores</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="bg-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-4">Store Name</th>
+                            <th>Overall Score</th>
+                            <th>Primary Issue (Lowest Journey)</th>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${paginatedStores.length > 0 ? paginatedStores.map(s => `
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">${s.n}</td>
+                                <td><span class="badge bg-danger">${s.s.toFixed(1)}</span></td>
+                                <td class="text-secondary small"><i class="bi bi-arrow-down-right text-danger me-1"></i> ${s.w}</td>
+                                <td class="text-end pe-4">
+                                     <!-- STANDALONE MODE LINK -->
+                                     <button class="btn btn-sm btn-outline-dark rounded-pill" 
+                                        onclick="window.open('?mode=standalone&store=' + encodeURIComponent('${s.n}'), '_blank')">
+                                        View Details <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('') : `<tr><td colspan="4" class="text-center py-4 text-muted">No critical stores found in this region. Good job!</td></tr>`}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination Controls -->
+            ${totalPages > 1 ? `
+            <div class="card-footer bg-white py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-sm btn-outline-secondary ${page === 1 ? 'disabled' : ''}" 
+                        onclick="openRegionalDetail('${regionName}', ${page - 1})">
+                        <i class="bi bi-chevron-left"></i> Prev
+                    </button>
+                    <span class="small text-muted">Page ${page} of ${totalPages}</span>
+                    <button class="btn btn-sm btn-outline-secondary ${page === totalPages ? 'disabled' : ''}" 
+                        onclick="openRegionalDetail('${regionName}', ${page + 1})">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+
+    document.getElementById("regionalExecBody").innerHTML = html;
+    document.getElementById("regionalExecTitle").innerText = regionName + " Briefing";
+    document.getElementById("regionalExecSubtitle").innerText = `${d.count} Outlets Active • Wave ${curWave.replace('Wave ', '')}`;
+
+    var modalEl = document.getElementById('regionalExecModal');
+    // Ensure Modal Class is XL
+    modalEl.querySelector('.modal-dialog').className = 'modal-dialog modal-xl modal-dialog-centered';
+
+    var myModal = bootstrap.Modal.getInstance(modalEl);
+    if (!myModal) {
+        myModal = new bootstrap.Modal(modalEl);
+    }
+    myModal.show();
+
+    // Render Sparkline (Premium)
+    setTimeout(() => {
+        // Target Line (86)
+        const targetLine = sortedWaves.map(() => 86);
+
+        Plotly.newPlot('regModalSparkline', [
+            {
+                x: sortedWaves,
+                y: trendData.filter(x => x !== null),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Region Score',
+                line: { shape: 'spline', color: '#0F172A', width: 4 },
+                marker: { size: 8, color: '#0F172A', line: { color: 'white', width: 2 } },
+                fill: 'tozeroy',
+                fillcolor: 'rgba(15, 23, 42, 0.05)'
+            },
+            {
+                x: sortedWaves,
+                y: targetLine,
+                mode: 'lines',
+                name: 'Target (86)',
+                line: { color: '#EF4444', width: 1.5, dash: 'dot' },
+                hoverinfo: 'none'
+            }
+        ], {
+            margin: { t: 20, l: 40, r: 20, b: 30 },
+            showlegend: true,
+            legend: { orientation: 'h', y: 1.1, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' },
+            xaxis: {
+                showgrid: false,
+                tickfont: { size: 11, family: 'Inter', color: '#64748B' },
+                fixedrange: true
+            },
+            yaxis: {
+                showgrid: true,
+                gridcolor: '#F1F5F9',
+                tickfont: { size: 11, family: 'Inter', color: '#64748B' },
+                range: [60, 100],
+                fixedrange: true
+            },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            hovermode: 'x unified'
+        }, { responsive: true, displayModeBar: false });
+    }, 200);
+}
+// --- Standalone Mode Logic (CSS only — navigation handled in window.onload) ---
+(function () {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'standalone') {
+        document.body.classList.add('standalone-mode');
+        var sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.style.display = 'none';
+    }
+})();
+
+// --- REGIONAL VOC LOGIC (Snippet View) ---
+function renderRegionalVoc(regionName) {
+    const titleEl = document.getElementById('vocRegionTitle');
+    const subtitleEl = document.getElementById('vocSnippetSubtitle');
+    const posEl = document.getElementById('vocSnippetPosPct');
+    const negEl = document.getElementById('vocSnippetNegPct');
+    const barEl = document.getElementById('vocSnippetSentimentBar');
+    const themesEl = document.getElementById('vocSnippetThemes');
+    const btnEl = document.getElementById('btnVocDeepDive');
+
+    if (titleEl) titleEl.textContent = regionName;
+
+    // 1. Filter Data (Use Latest Wave)
+    const waves = Object.keys(reportData.summary).sort();
+    const curWave = waves[waves.length - 1];
+    console.log(`[VoC] Filtering for Region: ${regionName}, Wave: ${curWave}`);
+
+    const regionVoc = reportData.voc.filter(v => {
+        const rMatch = regionName === 'National' || v.region === regionName;
+        let wMatch = true;
+        if (v.wave) {
+            wMatch = curWave.includes(v.wave) || (v.year && curWave.includes(v.year));
+        }
+        return rMatch && wMatch;
+    });
+
+    const total = regionVoc.length;
+
+    // Update Subtitle with Count (No Sentiment)
+    if (subtitleEl) {
+        subtitleEl.innerHTML = `<span class="fw-bold text-dark">${total}</span> insights found in <span class="badge bg-light text-dark border">${curWave}</span>`;
+    }
+
+    // Hide/Clear Sentiment Elements if they exist (Clean up)
+    if (posEl) posEl.parentElement.style.display = 'none'; // Hide the percent row
+    if (barEl) barEl.style.display = 'none'; // Hide the bar itself
+
+    // 2. Top Themes (Snippet: Top 4)
+    const themeCounts = {};
+    regionVoc.forEach(v => {
+        (v.themes || []).forEach(t => themeCounts[t] = (themeCounts[t] || 0) + 1);
+        (v.topics || []).forEach(t => themeCounts[t] = (themeCounts[t] || 0) + 1);
+    });
+
+    const sortedThemes = Object.entries(themeCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4);
+
+    if (themesEl) {
+        if (sortedThemes.length > 0) {
+            themesEl.innerHTML = sortedThemes.map(([theme, count]) => `
+                <span class="badge bg-light text-dark border rounded-pill px-3">
+                    ${theme}
+                </span>
+            `).join('');
+        } else {
+            themesEl.innerHTML = '<span class="badge bg-light text-muted border">No Data</span>';
+        }
+    }
+
+    // 3. Update Deep Dive Button
+    if (btnEl) {
+        btnEl.onclick = function () {
+            openRegionalDetail(regionName);
+        };
+    }
+}
+
+function createMiniFeedbackCard(item) {
+    let borderClass = item.sentiment === 'Positive' ? 'border-success' : (item.sentiment === 'Negative' ? 'border-danger' : 'border-secondary');
+    let icon = item.sentiment === 'Positive' ? 'bi-hand-thumbs-up-fill text-success' : (item.sentiment === 'Negative' ? 'bi-exclamation-triangle-fill text-danger' : 'bi-chat-text-fill text-muted');
+
+    return `
+        <div class="list-group-item border-0 border-start border-4 ${borderClass} bg-light mb-2 rounded-end shadow-sm p-3">
+            <div class="d-flex justify-content-between mb-2">
+                <small class="fw-bold text-dark"><i class="${icon} me-2"></i>${item.category || item.themes?.[0] || 'General'}</small>
+                <small class="text-muted" style="font-size: 0.75rem;">${item.siteName}</small>
+            </div>
+            <p class="mb-1 text-secondary fst-italic small">"${item.text}"</p>
+            ${item.aiInsight && item.aiInsight !== 'N/A' ? `<div class="mt-2 p-2 bg-white rounded border border-light small text-primary"><i class="bi bi-stars me-1"></i> AI Note: ${item.aiInsight}</div>` : ''}
+        </div>
+    `;
 }

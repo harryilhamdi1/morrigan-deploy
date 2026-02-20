@@ -1,4 +1,4 @@
-const THRESHOLD_SCORE = 84;
+const THRESHOLD_SCORE = 86;
 
 // Validated Section Item Codes
 const SECTION_ITEMS = {

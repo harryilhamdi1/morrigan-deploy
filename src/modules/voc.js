@@ -253,10 +253,11 @@ function analyzeFeedback(qualitativeList) {
     let negativeCount = 0;
     let neutralCount = 0;
 
-    let themes = {
+    const themes = {
         'Service': { keywords: ['pelayanan', 'karyawan', 'staff', 'kasir', 'sopan', 'ramah', 'judes', 'senyum', 'salam', 'trainee', 'retail', 'assistant', 'petugas'], count: 0, sentiment: 0, wordCounts: {} },
         'Product': { keywords: ['produk', 'barang', 'stok', 'ukuran', 'size', 'warna', 'model', 'kualitas', 'bahan', 'product', 'knowledge'], count: 0, sentiment: 0, wordCounts: {} },
-        'Ambience': { keywords: ['suasana', 'tempat', 'dingin', 'panas', 'musik', 'lagu', 'bersih', 'kotor', 'rapi', 'toilet', 'fitting', 'lantai', 'kebersihan', 'kusam'], count: 0, sentiment: 0, wordCounts: {} },
+        'Ambience': { keywords: ['suasana', 'tempat', 'dingin', 'panas', 'musik', 'lagu', 'fitting', 'lantai', 'kusam', 'crowded', 'sempit', 'luas'], count: 0, sentiment: 0, wordCounts: {} },
+        'Cleanliness': { keywords: ['bersih', 'kotor', 'rapi', 'berantakan', 'toilet', 'wc', 'kamar mandi', 'kebersihan', 'sampah', 'bau', 'wangi', 'debu', 'higienis'], count: 0, sentiment: 0, wordCounts: {} },
         'Process': { keywords: ['antri', 'bayar', 'transaksi', 'kasir', 'lama', 'cepat', 'ribet', 'mudah', 'member', 'struk', 'registrasi'], count: 0, sentiment: 0, wordCounts: {} }
     };
 
@@ -286,18 +287,42 @@ function analyzeFeedback(qualitativeList) {
         });
 
         // Theme Sentiment & Word Attribution
-        mentionedThemes.forEach(theme => {
-            themes[theme].count++;
-            // Map 'positive' to +1, 'negative' to -1, 'neutral' to 0
-            let sentimentVal = 0;
-            if (result.sentiment === 'positive') sentimentVal = 1;
-            else if (result.sentiment === 'negative') sentimentVal = -1;
+        // 1. AI CACHE PRIORITY: If category is already 'Cleanliness', force it.
+        // This ensures the 18k+ cached items are respected.
+        if (feedback.category === 'Cleanliness' || (feedback.themes && feedback.themes.includes('Cleanliness'))) {
+            themes['Cleanliness'].count++;
+            if (result.netScore > 0) themes['Cleanliness'].sentiment++; // Use netScore for rule-based sentiment
+            else if (result.netScore < 0) themes['Cleanliness'].sentiment--;
 
-            themes[theme].sentiment += sentimentVal;
+            // Add words to Cleanliness word cloud
             validWords.forEach(w => {
-                themes[theme].wordCounts[w] = (themes[theme].wordCounts[w] || 0) + 1;
+                themes['Cleanliness'].wordCounts[w] = (themes['Cleanliness'].wordCounts[w] || 0) + 1;
             });
-        });
+
+            mentionedThemes.add('Cleanliness'); // Ensure it's marked as mentioned
+        }
+
+        // 2. FALLBACK Check other themes only if not already cleanly captured, OR allowing multi-tagging
+        // But preventing 'Ambience' if 'Cleanliness' is already set to avoid pollution
+        for (const [theme, data] of Object.entries(themes)) {
+            // Skip Cleanliness if we already handled it via cache
+            if (theme === 'Cleanliness' && mentionedThemes.has('Cleanliness')) continue;
+
+            // Skip Ambience if Cleanliness is already mentioned (Cleanliness is often a subset of Ambience)
+            if (theme === 'Ambience' && mentionedThemes.has('Cleanliness')) continue;
+
+            // Only process if this theme was detected by keywords in the text
+            if (mentionedThemes.has(theme)) {
+                themes[theme].count++;
+                if (result.netScore > 0) themes[theme].sentiment++;
+                else if (result.netScore < 0) themes[theme].sentiment--;
+
+                // Word frequencies per theme
+                validWords.forEach(w => {
+                    themes[theme].wordCounts[w] = (themes[theme].wordCounts[w] || 0) + 1;
+                });
+            }
+        }
 
         // Overall Sentiment Classification
         if (result.sentiment === 'positive') positiveCount++;
@@ -346,7 +371,8 @@ function classifySingle(text) {
     const themes = {
         'Service': ['pelayanan', 'karyawan', 'staff', 'kasir', 'sopan', 'ramah', 'judes', 'senyum', 'salam', 'retail', 'assistant', 'trainee', 'petugas'],
         'Product': ['produk', 'barang', 'stok', 'ukuran', 'size', 'warna', 'model', 'kualitas', 'bahan', 'product', 'knowledge'],
-        'Ambience': ['suasana', 'tempat', 'dingin', 'panas', 'musik', 'lagu', 'bersih', 'kotor', 'rapi', 'toilet', 'fitting', 'lantai', 'kebersihan', 'kusam'],
+        'Ambience': ['suasana', 'tempat', 'dingin', 'panas', 'musik', 'lagu', 'fitting', 'lantai', 'kusam', 'sempit', 'luas'],
+        'Cleanliness': ['bersih', 'kotor', 'rapi', 'berantakan', 'toilet', 'wc', 'kamar mandi', 'kebersihan', 'sampah', 'bau', 'wangi', 'debu'],
         'Process': ['antri', 'bayar', 'transaksi', 'kasir', 'lama', 'cepat', 'ribet', 'mudah', 'member', 'struk', 'registrasi']
     };
 
@@ -391,6 +417,15 @@ function generateInsights(feedbackItems) {
         else neu++;
 
         const text = (item.text || "").toLowerCase();
+
+        // AI CACHE PRIORITY
+        if (item.category && topicKeywords[item.category]) {
+            if (item.sentiment === 'positive') topics.positive[item.category] = (topics.positive[item.category] || 0) + 1;
+            else if (item.sentiment === 'negative') topics.negative[item.category] = (topics.negative[item.category] || 0) + 1;
+            // If cached, we skip keyword scanning to avoid double counting or misclassification
+            return;
+        }
+
         for (const [topic, keys] of Object.entries(topicKeywords)) {
             if (keys.some(k => text.includes(k))) {
                 if (item.sentiment === 'positive') topics.positive[topic] = (topics.positive[topic] || 0) + 1;

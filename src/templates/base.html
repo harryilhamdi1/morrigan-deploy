@@ -158,16 +158,30 @@
         }
 
         .sidebar-footer {
-            padding: 24px;
-            margin: 0 16px 24px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            backdrop-filter: blur(5px);
+            padding: 24px 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-align: center;
         }
+
+        /* STANDALONE MODE (No Sidebar) */
+        body.standalone-mode .sidebar {
+            display: none !important;
+        }
+
+        body.standalone-mode .main-content {
+            margin-left: 0 !important;
+            /* Reset sidebar margin */
+            margin: 0 auto !important;
+            /* Center horizontally */
+            padding: 30px !important;
+            max-width: 95%;
+            /* Use more screen real estate */
+            width: 100%;
+        }
+
+
 
         .user-avatar {
             width: 40px;
@@ -249,6 +263,50 @@
             color: white;
         }
 
+        /* Premium Regional Cards */
+        .regional-card-premium:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px -15px rgba(0,0,0,0.15) !important;
+        }
+        .btn-regional-action:hover {
+            background: #F8FAFC !important;
+            border-color: #3B82F6 !important;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15) !important;
+        }
+        .regional-rank {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+        .glass-rank.rank-1 {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.85) 0%, rgba(245, 158, 11, 0.95) 100%);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.6);
+            backdrop-filter: blur(4px);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .glass-rank.rank-2 {
+            background: linear-gradient(135deg, rgba(209, 213, 219, 0.85) 0%, rgba(156, 163, 175, 0.95) 100%);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.6);
+            backdrop-filter: blur(4px);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .glass-rank.rank-3 {
+            background: linear-gradient(135deg, rgba(253, 186, 116, 0.85) 0%, rgba(205, 127, 50, 0.95) 100%);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.6);
+            backdrop-filter: blur(4px);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
         /* Section Analysis Grid */
         .section-tile {
             position: relative;
@@ -314,6 +372,37 @@
             flex-direction: column;
             justify-content: center;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header-premium {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* Feedback Tile Expansion Logic */
+        .feedback-tile {
+            cursor: pointer;
+        }
+
+        .feedback-tile:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+        }
+
+        .feedback-tile .text-truncate-multiline {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .feedback-tile.expanded .text-truncate-multiline {
+            -webkit-line-clamp: unset;
+            overflow: visible;
+        }
+
+        .feedback-tile.expanded .expand-hint {
+            display: block !important;
         }
 
         .action-card {
@@ -771,10 +860,12 @@
             </a>
         </div>
         <div class="sidebar-footer">
-            <div class="user-avatar">H</div>
-            <div style="line-height: 1.3;">
-                <div style="font-weight: 600; color: white;">Harry Ilhamdi</div>
-                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">HCBP Dept</div>
+            <div class="d-flex align-items-center px-1">
+                <div class="user-avatar shadow-sm" style="width: 36px; height: 36px; background: rgba(255,255,255,0.1); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem; margin-right: 12px; border: 1px solid rgba(255,255,255,0.2);">H</div>
+                <div style="line-height: 1.2;">
+                    <div style="font-weight: 600; color: white; font-size: 0.85rem; letter-spacing: 0.3px;">Harry Ilhamdi</div>
+                    <div style="font-size: 0.7rem; color: rgba(148, 163, 184, 0.9); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">HCBP Dept</div>
+                </div>
             </div>
         </div>
     </div>
@@ -857,6 +948,40 @@
                 <div class="modal-body p-5 bg-white d-flex align-items-center justify-content-center"
                     style="background-image: radial-gradient(#F1F5F9 1.5px, transparent 1.5px); background-size: 30px 30px;">
                     <div id="chartModalContainer" class="animate-entry" style="width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Regional Executive Modal -->
+    <div class="modal fade premium-modal" id="regionalExecModal" tabindex="-1" aria-hidden="true"
+        style="z-index: 1060;">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0">
+                <div class="modal-header glass-header-dark py-3 px-4 align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-white/10 rounded-3 p-2 d-flex align-items-center justify-content-center"
+                            style="width:48px;height:48px;backdrop-filter:blur(4px);">
+                            <i class="bi bi-geo-alt-fill text-warning fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0 text-white" id="regionalExecTitle"
+                                style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">Regional Briefing
+                            </h5>
+                            <div class="small text-white/70" id="regionalExecSubtitle">Strategic Overview</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white opacity-75 hover-opacity-100 transition-all"
+                        data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <!-- Dynamic Content Injected Here -->
+                    <div id="regionalExecBody"></div>
+                </div>
+                <div class="modal-footer justify-content-between bg-white border-top-0 py-3 px-4">
+                    <div class="small text-muted"><i class="bi bi-info-circle me-1"></i> Data updated for current wave
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4"
+                        data-bs-dismiss="modal">Close Briefing</button>
                 </div>
             </div>
         </div>

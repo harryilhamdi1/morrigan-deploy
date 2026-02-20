@@ -18,16 +18,7 @@
         <!-- Injected via JS -->
     </div>
 
-    <!-- 1.5 Branch Priorities (Glass Header) -->
-    <div class="card mb-4 border-0 shadow-sm overflow-hidden">
-        <div class="glass-header-dark py-3 px-4 d-flex align-items-center gap-2">
-            <i class="bi bi-exclamation-triangle-fill text-warning"></i>
-            <h6 class="mb-0 fw-bold">Branch Top Priorities (Lowest Scoring Items)</h6>
-        </div>
-        <div class="card-body p-4">
-            <div id="branchPrioritiesList" class="row g-3"></div>
-        </div>
-    </div>
+
 
     <!-- 2. Strategic Visuals (Charts) -->
     <div class="row g-4 mb-4">
@@ -108,20 +99,19 @@
 
 <!-- Premium Culprit Modal (Strategic Briefing Design) -->
 <div class="modal fade premium-modal" id="culpritModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
         <div class="modal-content">
             <div class="modal-header glass-header-dark py-4 px-4 align-items-start">
                 <div>
-                    <h5 class="modal-title fw-bold mb-1" style="font-family: 'Outfit', sans-serif;">Critical
-                        Performance Alerts</h5>
-                    <p class="text-white small mb-0 fw-medium opacity-75">Stores requiring immediate attention (<span
-                            class="text-warning fw-bold">
-                            &lt;84</span>) in <span id="culpritBranchName" class="fw-bold text-warning"></span></p>
+                    <h5 class="modal-title fw-bold mb-1" id="culpritModalTitle"
+                        style="font-family: 'Outfit', sans-serif;">Branch Deep Dive</h5>
+                    <p class="text-white small mb-0 fw-medium opacity-75" id="culpritModalDesc"></p>
                 </div>
                 <button type="button" class="btn-close btn-close-white opacity-75" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0 bg-white">
+            <div id="culpritKpiContainer" class="row g-3 px-4 pt-4 pb-0 bg-white m-0"></div>
+            <div class="modal-body p-0 bg-light">
                 <div id="culpritList" class="list-group list-group-flush animate-entry">
                     <!-- Stores injected here -->
                 </div>
