@@ -2,18 +2,83 @@
 // --- NEW FIX: DYNAMIC ACTION PLAN EXTRACTOR ---
 
 function generateStoreActionPlan(storeData, currentWaveKey, feedbackData) {
-    const res = storeData.results[currentWaveKey];
-
-    if (!res) {
-        return null; // Return null instead of manipulating DOM
-    }
+    const res = storeData.results ? storeData.results[currentWaveKey] : null;
 
     const planData = {
-        storeName: storeData.meta.name,
+        storeName: storeData.meta ? storeData.meta.name : "Unknown Store",
         wave: currentWaveKey,
         generatedAt: new Date().toLocaleDateString('en-GB'),
         actions: []
     };
+
+    // --- RISING STAR PROTOCOL (Unassessed/Blank Stores) ---
+    if (!res || !res.sections) {
+        planData.actions = [
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section A) Tampilan Tampak Depan Outlet',
+                action: 'Lakukan Pengecekan Harian: Pastikan kesiapan operasional dasar seperti kebersihan fasad, area parkir, kaca depan, dan nyala lampu toko (Signage) sebelum opening.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section B) Sambutan Hangat Ketika Masuk',
+                action: 'Roleplay Interaksi Awal: Latih Retail Assistant untuk selalu siap dengan Senyum 1 Jari, Tangan Kanan di Dada Kiri, dan sapaan "Selamat Datang di EIGER" kepada setiap pelanggan yang masuk.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section C) Suasana & Kenyamanan Outlet',
+                action: 'Inspeksi Suasana: Periksa temperatur AC agar tetap sejuk, pastikan musik background sesuai standar Eiger, dan tidak ada aroma tidak sedap di seluruh area toko.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section D) Tata Letak Presentasi Produk',
+                action: 'Cek Visual Merchandising (VM): Pastikan semua produk dipajang sesuai panduan VM terbaru, pengelompokan warna rapi, dan semua manekin menggunakan outfit lengkap terbaru.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section E) Komunikasi Penjelasan Produk',
+                action: 'Roleplay Product Knowledge: Lakukan tanya jawab singkat antar staf mengenai fitur utama produk (Teknologi Tropic, dll.) agar sigap saat ditanya fungsi dan kelebihan barang oleh pelanggan.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section F) Pengalaman Mencoba Produk',
+                action: 'Standar Fitting Room: Pastikan kamar ganti bersih dari sampah/hanger bekas, cermin tidak bercap tangan, dan staf selalu proaktif menawarkan ukuran atau alternatif warna kepada pelanggan.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section G) Ketersediaan Harga Produk',
+                action: 'Inspeksi Price Tag & Promo: Keliling area toko untuk memastikan setiap barang memiliki label harga (price tag) yang benar, dan materi promo (POP) terpasang tegak dan tidak kedaluwarsa.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section H) Pembelian & Pembayaran Kasir',
+                action: 'Roleplay SOP Kasir: Lakukan simulasi penawaran produk tambahan (add-on), konfirmasi Member EAC, stempel kartu garansi, input data akurat, hingga salam penutup.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section I) Interaksi Penanganan Keluhan',
+                action: 'Simulasi Handling Complaint: Diskusikan cara meredam emosi pelanggan menggunakan teknik empati, serta pemahaman batas wewenang pengembalian/tukar barang sesuai kebijakan Eiger.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section J) Kesan Perpisahan Kepada Pela..',
+                action: 'Roleplay Kesan Terakhir: Latih staf (termasuk Security) untuk selalu memberikan salam perpisahan yang hangat (contoh: "Terima kasih, selamat berpetualang kembali!") hingga pelanggan keluar pintu.',
+                status: 'pending'
+            }
+        ];
+        window._currentStoreActionPlan = planData;
+        return planData.actions;
+    }
+
 
     // 1. EXTRACT ALL QUANTITATIVE ITEMS
     let quantGaps = [];

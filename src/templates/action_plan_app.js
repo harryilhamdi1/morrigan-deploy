@@ -337,10 +337,11 @@ function renderActionPlanStoreTable(searchQuery = '', page = 1) {
 
     // Filter based on search query
     const filteredStores = query === '' ? allStores : allStores.filter(st => {
-        return st.meta.name.toLowerCase().includes(query) ||
-            st.meta.region.toLowerCase().includes(query) ||
-            st.meta.branch.toLowerCase().includes(query) ||
-            st.meta.brand.toLowerCase().includes(query);
+        const nameMatch = (st.meta.name || '').toLowerCase().includes(query);
+        const regionMatch = (st.meta.region || '').toLowerCase().includes(query);
+        const branchMatch = (st.meta.branch || '').toLowerCase().includes(query);
+        const brandMatch = (st.meta.brand || '').toLowerCase().includes(query);
+        return nameMatch || regionMatch || branchMatch || brandMatch;
     });
 
     if (filteredStores.length === 0) {
@@ -499,12 +500,17 @@ function openStoreActionPlan(storeName) {
 }
 
 function buildRealActionPlanWithTracking(storeObj) {
-    if (!storeObj || !storeObj.results) return [];
+    if (!storeObj) return [];
 
-    // Pick the most recent wave available for this store
-    const waves = Object.keys(storeObj.results).sort().reverse();
-    if (waves.length === 0) return [];
-    const currentWave = waves[0];
+    let currentWave = 'Unknown Wave';
+    if (storeObj.results && Object.keys(storeObj.results).length > 0) {
+        // Pick the most recent wave available for this store
+        const waves = Object.keys(storeObj.results).sort().reverse();
+        currentWave = waves[0];
+    } else if (typeof sortedWaves !== 'undefined' && sortedWaves.length > 0) {
+        // Fallback for Rising Star stores (no wave data)
+        currentWave = sortedWaves[sortedWaves.length - 1];
+    }
 
     // Generate the raw action plan from the common algorithm
     const rawActions = generateStoreActionPlan(storeObj, currentWave, storeObj.feedback);

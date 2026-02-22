@@ -44,7 +44,8 @@ function initSummary() {
     document.getElementById("kpi-score-trend").innerHTML = (diff >= 0 ? "▲ +" : "▼ ") + Math.abs(diff).toFixed(2) + " vs last wave";
     document.getElementById("kpi-score-trend").className = "animate-entry delay-200 kpi-trend " + (diff >= 0 ? "text-success" : "text-danger");
 
-    animateValue("kpi-stores", 0, dat.count, 1000, 0);
+    const activeNationalStores = Object.values(reportData.stores).filter(s => !s.meta.code.startsWith('9')).length;
+    animateValue("kpi-stores", 0, activeNationalStores, 1000, 0);
 
     // Best Region
     var bestR = "", bestS = -1;
@@ -399,7 +400,7 @@ function initRegions() {
                            <div class="d-flex justify-content-between align-items-start mb-3">
                                <div>
                                    <h4 class="fw-bold mb-1" style="color: #0F172A; font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">${item.n}</h4>
-                                   <span class="badge bg-light text-secondary border px-2 py-1 fw-medium" style="font-size: 0.65rem; letter-spacing: 0.5px;">${d.count} OUTLET ACTIVE</span>
+                                   <span class="badge bg-light text-secondary border px-2 py-1 fw-medium" style="font-size: 0.65rem; letter-spacing: 0.5px;">${Object.values(reportData.stores).filter(s => s.meta.region === item.n && !s.meta.code.startsWith('9')).length} OUTLET ACTIVE</span>
                                </div>
                                ${rankBadgeHTML}
                            </div>
@@ -510,7 +511,7 @@ function initBranches() {
         var score = d ? d.sum / d.count : 0;
         var pScore = dPrev ? dPrev.sum / dPrev.count : 0;
         var momentum = score - pScore;
-        var outletCount = Object.values(reportData.stores).filter(s => s.meta.branch === br && s.results[cur]).length;
+        var outletCount = Object.values(reportData.stores).filter(s => s.meta.branch === br && !s.meta.code.startsWith('9')).length;
         return { n: br, s: score, mom: momentum, count: outletCount, d: d };
     }); // Sorting happens in specific charts
 
@@ -1530,7 +1531,8 @@ function renderStoreTable() {
         const matchRegion = regionFilter === "" || s.meta.region === regionFilter;
         const matchBranch = branchFilter === "" || s.meta.branch === branchFilter;
 
-        let sLeague = s.meta.liga && s.meta.liga.tier_2025 ? s.meta.liga.tier_2025 : 'UNRATED';
+        let isUnassessed = !s.results || !s.results[cur] || Object.keys(s.results[cur]).length === 0;
+        let sLeague = s.meta.liga && s.meta.liga.tier_2025 && s.meta.liga.tier_2025 !== 'UNKNOWN' ? s.meta.liga.tier_2025 : (isUnassessed ? 'RISING STAR' : 'UNRATED');
         const matchLeague = leagueFilter === "" || sLeague.toUpperCase() === leagueFilter.toUpperCase();
 
         return matchSearch && matchRegion && matchBranch && matchLeague;
@@ -1588,12 +1590,13 @@ function renderStoreTable() {
         const momHtml = mom !== 0 ? `<div class="small fw-bold mt-1 ${mom > 0 ? 'text-success' : 'text-danger'}" style="font-size: 0.75rem;">${mom > 0 ? '▲ +' : '▼ '}${Math.abs(mom).toFixed(1)}</div>` : '';
 
         // Liga Badge
-        const ligaTier = s.meta.liga ? s.meta.liga.tier_2025 : 'UNKNOWN';
+        const isUnassessedS = !s.results || !s.results[lastWave] || Object.keys(s.results[lastWave]).length === 0;
+        const ligaTier = s.meta.liga && s.meta.liga.tier_2025 && s.meta.liga.tier_2025 !== 'UNKNOWN' ? s.meta.liga.tier_2025 : (isUnassessedS ? 'RISING STAR' : 'UNKNOWN');
         let ligaHTML = '';
         if (ligaTier === 'GOLD') ligaHTML = '<span class="badge rounded-pill liga-badge-gold ms-2 align-text-bottom" style="font-size: 0.6rem;"><i class="bi bi-award-fill"></i> GOLD</span>';
         else if (ligaTier === 'SILVER') ligaHTML = '<span class="badge rounded-pill liga-badge-silver ms-2 align-text-bottom" style="font-size: 0.6rem;"><i class="bi bi-shield-fill"></i> SILVER</span>';
         else if (ligaTier === 'BRONZE') ligaHTML = '<span class="badge rounded-pill liga-badge-bronze ms-2 align-text-bottom" style="font-size: 0.6rem;"><i class="bi bi-star-fill"></i> BRONZE</span>';
-        else if (ligaTier === 'RISING STAR') ligaHTML = '<span class="badge rounded-pill liga-badge-rising ms-2 align-text-bottom" style="font-size: 0.6rem;"><i class="bi bi-stars"></i> RISING</span>';
+        else if (ligaTier === 'RISING STAR') ligaHTML = '<span class="badge rounded-pill liga-badge-rising ms-2 align-text-bottom" style="font-size: 0.6rem; color: #D97706; background-color: rgba(253, 230, 138, 0.4);"><i class="bi bi-stars"></i> RISING STAR</span>';
 
         const dRank = s.meta.globalRank || '-';
 
@@ -1741,159 +1744,195 @@ function loadStoreDetail(idOverride) {
 
     if (!c) return;
 
-    var s = reportData.stores[c], cur = s.results[sortedWaves[sortedWaves.length - 1]];
+    var s = reportData.stores[c];
     var currentWaveKey = sortedWaves[sortedWaves.length - 1];
+    var cur = s.results ? s.results[currentWaveKey] : null;
+
+    // --- RISING STAR PROTOCOL (Unassessed/Blank Stores) ---
+    var isUnassessed = !cur;
 
     // 1. Basic Info & Rank Calculation
-    var ligaTier = s.meta.liga ? s.meta.liga.tier_2025 : 'UNKNOWN';
+    var ligaTier = s.meta.liga ? s.meta.liga.tier_2025 : (isUnassessed ? 'RISING STAR' : 'UNKNOWN');
     var ligaHTML = '';
     if (ligaTier === 'GOLD') ligaHTML = '<span class="badge rounded-pill liga-badge-gold ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-award-fill me-1"></i>GOLD</span>';
     else if (ligaTier === 'SILVER') ligaHTML = '<span class="badge rounded-pill liga-badge-silver ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-shield-fill me-1"></i>SILVER</span>';
     else if (ligaTier === 'BRONZE') ligaHTML = '<span class="badge rounded-pill liga-badge-bronze ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-star-fill me-1"></i>BRONZE</span>';
-    else if (ligaTier === 'RISING STAR') ligaHTML = '<span class="badge rounded-pill liga-badge-rising ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-stars me-1"></i>RISING STAR</span>';
+    else if (ligaTier === 'RISING STAR') ligaHTML = '<span class="badge rounded-pill liga-badge-rising ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-stars me-1 text-warning"></i>RISING STAR</span>';
 
     document.getElementById("stName").innerHTML = s.meta.name + ligaHTML;
     document.getElementById("stMeta").textContent = s.meta.region + " | " + s.meta.branch;
 
-    var stScore = cur.totalScore;
-    // document.getElementById("stScore").textContent = stScore.toFixed(2); // REMOVED
-    document.getElementById("stScore").className = "display-3 fw-bold " + (stScore < 86 ? "text-danger" : "text-white");
-    animateValue("stScore", 0, stScore, 1500, 2);
-
-    // Calculate Rank
-    var allStores = Object.values(reportData.stores);
-    allStores.sort((a, b) => {
-        var sa = a.results[currentWaveKey] ? a.results[currentWaveKey].totalScore : 0;
-        var sb = b.results[currentWaveKey] ? b.results[currentWaveKey].totalScore : 0;
-        return sb - sa;
-    });
-    var rank = allStores.findIndex(x => x.meta.code === c) + 1;
-    document.getElementById("stRankBadge").textContent = "Rank #" + rank;
-
-    // Calculate Momentum (YoY / Wave-over-Wave)
-    var prevWaveKey = sortedWaves[sortedWaves.length - 2];
-    var momHTML = "";
-    if (prevWaveKey && s.results[prevWaveKey]) {
-        var prevScore = s.results[prevWaveKey].totalScore;
-        var diff = stScore - prevScore;
-        var icon = diff >= 0 ? "▲" : "▼";
-        var colorClass = diff >= 0 ? "text-success" : "text-danger"; // Note: text-success on dark bg might need adjustment, but using inline style for safety
-        var colorStyle = diff >= 0 ? "#4ADE80" : "#F87171"; // Light Green / Light Red for visibility on Dark Blue
-        momHTML = `<span style="color:${colorStyle}" > ${icon} ${Math.abs(diff).toFixed(2)}</span> <span class="opacity-75 small fw-normal text-white">vs last wave</span>`;
+    if (isUnassessed) {
+        document.getElementById("stScore").textContent = "N/A";
+        document.getElementById("stScore").className = "display-3 fw-bold text-muted";
+        document.getElementById("stRankBadge").textContent = "Pending Audit";
+        document.getElementById("stMomentum").innerHTML = `<span class="opacity-75 small fw-bold text-warning"><i class="bi bi-info-circle me-1"></i>No Historical Data. Awaiting Initial Assessment.</span>`;
     } else {
-        momHTML = `<span class="opacity-50 small" > No previous data</span> `;
-    }
-    document.getElementById("stMomentum").innerHTML = momHTML;
+        var stScore = cur.totalScore;
+        document.getElementById("stScore").className = "display-3 fw-bold " + (stScore < 86 ? "text-danger" : "text-white");
+        animateValue("stScore", 0, stScore, 1500, 2);
 
-    // 2. Trend Line (Main Chart) - Luxury Style
-    // 2. Trend Line (Main Chart) - Luxury Style
-    var y = sortedWaves.map(w => s.results[w] ? s.results[w].totalScore : null);
+        // Calculate Rank
+        var allStores = Object.values(reportData.stores);
+        allStores.sort((a, b) => {
+            var sa = a.results && a.results[currentWaveKey] ? a.results[currentWaveKey].totalScore : 0;
+            var sb = b.results && b.results[currentWaveKey] ? b.results[currentWaveKey].totalScore : 0;
+            return sb - sa;
+        });
+        var rank = allStores.findIndex(x => x.meta.code === c) + 1;
+        document.getElementById("stRankBadge").textContent = "Rank #" + rank;
 
-    // Calculate Averages
-    var yNat = sortedWaves.map(w => {
-        var d = reportData.summary[w];
-        return d ? d.sum / d.count : null;
-    });
-
-    var yReg = sortedWaves.map(w => {
-        var d = reportData.regions[s.meta.region][w];
-        return d ? d.sum / d.count : null;
-    });
-
-    // Target Line (Constant 86)
-    var yTarget = sortedWaves.map(() => 86);
-
-    Plotly.newPlot("stTrendChart", [
-        // 1. Main Store Trace (Area)
-        {
-            x: sortedWaves, y: y, name: s.meta.name, type: "scatter", mode: "lines+markers",
-            line: { color: "#1E3A8A", width: 4, shape: 'spline', smoothing: 1.3 },
-            marker: { size: 10, color: "#1E3A8A", line: { color: "white", width: 2 } },
-            fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)'
-        },
-        // 2. National Avg (Dotted)
-        {
-            x: sortedWaves, y: yNat, name: "National Avg", type: "scatter", mode: "lines",
-            line: { color: "#9CA3AF", width: 2, dash: 'dot', shape: 'spline' },
-            marker: { size: 0 }, hovertemplate: 'Nat Avg: %{y:.2f}<extra></extra>'
-        },
-        // 3. Regional Avg (Dashed)
-        {
-            x: sortedWaves, y: yReg, name: "Region Avg", type: "scatter", mode: "lines",
-            line: { color: "#8B5CF6", width: 2, dash: 'dash', shape: 'spline' },
-            marker: { size: 0 }, hovertemplate: 'Reg Avg: %{y:.2f}<extra></extra>'
-        },
-        // 4. Target (Red Dash)
-        {
-            x: sortedWaves, y: yTarget, name: "Target (86)", type: "scatter", mode: "lines",
-            line: { color: "#EF4444", width: 1.5, dash: 'longdashdot' },
-            marker: { size: 0 }, hovertemplate: 'Target: 86<extra></extra>'
+        // Calculate Momentum
+        var prevWaveKey = sortedWaves[sortedWaves.length - 2];
+        var momHTML = "";
+        if (prevWaveKey && s.results[prevWaveKey]) {
+            var prevScore = s.results[prevWaveKey].totalScore;
+            var diff = stScore - prevScore;
+            var icon = diff >= 0 ? "▲" : "▼";
+            var colorStyle = diff >= 0 ? "#4ADE80" : "#F87171";
+            momHTML = `<span style="color:${colorStyle}"> ${icon} ${Math.abs(diff).toFixed(2)}</span> <span class="opacity-75 small fw-normal text-white">vs last wave</span>`;
+        } else {
+            momHTML = `<span class="opacity-50 small"> No previous data</span>`;
         }
-    ], {
-        margin: { t: 20, l: 30, r: 20, b: 0 }, // Increased bottom for legend
-        yaxis: { gridcolor: "#F3F4F6", range: [60, 105], zeroline: false },
-        xaxis: { showgrid: false, zeroline: false },
-        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-        hoverlabel: { bgcolor: "#1E3A8A", font: { color: "white", family: "Inter" } },
-        showlegend: true,
-        legend: { orientation: "h", y: -0.2, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' }
-    }, config);
+        document.getElementById("stMomentum").innerHTML = momHTML;
+    }
+
+    // 2. Trend Line (Main Chart) - Luxury Style
+    if (isUnassessed) {
+        document.getElementById("stTrendChart").innerHTML = '<div class="d-flex align-items-center justify-content-center h-100 text-muted fst-italic"><i class="bi bi-clock-history me-2"></i>Awaiting 1st Wave Data</div>';
+    } else {
+        var y = sortedWaves.map(w => s.results[w] ? s.results[w].totalScore : null);
+
+        // Calculate Averages
+        var yNat = sortedWaves.map(w => {
+            var d = reportData.summary[w];
+            return d ? d.sum / d.count : null;
+        });
+
+        var yReg = sortedWaves.map(w => {
+            var d = reportData.regions[s.meta.region][w];
+            return d ? d.sum / d.count : null;
+        });
+
+        // Target Line (Constant 86)
+        var yTarget = sortedWaves.map(() => 86);
+
+        Plotly.newPlot("stTrendChart", [
+            // 1. Main Store Trace (Area)
+            {
+                x: sortedWaves, y: y, name: s.meta.name, type: "scatter", mode: "lines+markers",
+                line: { color: "#1E3A8A", width: 4, shape: 'spline', smoothing: 1.3 },
+                marker: { size: 10, color: "#1E3A8A", line: { color: "white", width: 2 } },
+                fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)'
+            },
+            // 2. National Avg (Dotted)
+            {
+                x: sortedWaves, y: yNat, name: "National Avg", type: "scatter", mode: "lines",
+                line: { color: "#9CA3AF", width: 2, dash: 'dot', shape: 'spline' },
+                marker: { size: 0 }, hovertemplate: 'Nat Avg: %{y:.2f}<extra></extra>'
+            },
+            // 3. Regional Avg (Dashed)
+            {
+                x: sortedWaves, y: yReg, name: "Region Avg", type: "scatter", mode: "lines",
+                line: { color: "#8B5CF6", width: 2, dash: 'dash', shape: 'spline' },
+                marker: { size: 0 }, hovertemplate: 'Reg Avg: %{y:.2f}<extra></extra>'
+            },
+            // 4. Target (Red Dash)
+            {
+                x: sortedWaves, y: yTarget, name: "Target (86)", type: "scatter", mode: "lines",
+                line: { color: "#EF4444", width: 1.5, dash: 'longdashdot' },
+                marker: { size: 0 }, hovertemplate: 'Target: 86<extra></extra>'
+            }
+        ], {
+            margin: { t: 20, l: 30, r: 20, b: 0 }, // Increased bottom for legend
+            yaxis: { gridcolor: "#F3F4F6", range: [60, 105], zeroline: false },
+            xaxis: { showgrid: false, zeroline: false },
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+            hoverlabel: { bgcolor: "#1E3A8A", font: { color: "white", family: "Inter" } },
+            showlegend: true,
+            legend: { orientation: "h", y: -0.2, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' }
+        }, config);
+    }
 
 
     // 3. Radar Chart with Unified Toggle Logic - Luxury Style
-    var secKeys = Object.keys(cur.sections).sort();
-    var stVals = secKeys.map(k => cur.sections[k]);
-    var radarKeys = [...secKeys, secKeys[0]];
-    var rSt = [...stVals, stVals[0]];
+    if (isUnassessed) {
+        document.getElementById("stRadarChart").innerHTML = '<div class="d-flex align-items-center justify-content-center h-100 text-muted fst-italic"><i class="bi bi-radar me-2"></i>No Section Data Available</div>';
+    } else {
+        var secKeys = Object.keys(cur.sections).sort();
+        var stVals = secKeys.map(k => cur.sections[k]);
+        var radarKeys = [...secKeys, secKeys[0]];
+        var rSt = [...stVals, stVals[0]];
 
-    var natData = reportData.summary[currentWaveKey];
-    var regData = reportData.regions[s.meta.region][currentWaveKey];
-    var brData = reportData.branches[s.meta.branch][currentWaveKey];
+        var natData = reportData.summary[currentWaveKey];
+        var regData = reportData.regions[s.meta.region][currentWaveKey];
+        var brData = reportData.branches[s.meta.branch][currentWaveKey];
 
-    var compVals = [];
-    var compName = "";
-    var compColor = "";
+        var compVals = [];
+        var compName = "";
+        var compColor = "";
 
-    if (deviationMode === 'national') {
-        compVals = secKeys.map(k => natData && natData.sections[k] ? natData.sections[k].sum / natData.sections[k].count : 0);
-        compName = "National Avg";
-        compColor = "#3B82F6"; // Blue
-    } else if (deviationMode === 'region') {
-        compVals = secKeys.map(k => regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0);
-        compName = "Region Avg";
-        compColor = "#9CA3AF"; // Gray
-    } else if (deviationMode === 'branch') {
-        compVals = secKeys.map(k => brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
-        compName = "Branch Avg";
-        compColor = "#F59E0B"; // Orange
-    }
-    var rComp = [...compVals, compVals[0]];
-
-    Plotly.newPlot("stRadarChart", [
-        {
-            type: 'scatterpolar', r: rSt, theta: radarKeys.map(k => k.split(' ')[0]),
-            fill: 'toself', fillcolor: 'rgba(30, 58, 138, 0.2)', // Darker blue fill
-            name: 'Store', line: { color: '#1E3A8A', width: 3 }, marker: { size: 1 }
-        },
-        {
-            type: 'scatterpolar', r: rComp, theta: radarKeys.map(k => k.split(' ')[0]),
-            name: compName, line: { color: compColor, dash: 'dot', width: 2 }, marker: { size: 1 }, hoverinfo: 'skip'
+        if (deviationMode === 'national') {
+            compVals = secKeys.map(k => natData && natData.sections[k] ? natData.sections[k].sum / natData.sections[k].count : 0);
+            compName = "National Avg";
+            compColor = "#3B82F6"; // Blue
+        } else if (deviationMode === 'region') {
+            compVals = secKeys.map(k => regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0);
+            compName = "Region Avg";
+            compColor = "#9CA3AF"; // Gray
+        } else if (deviationMode === 'branch') {
+            compVals = secKeys.map(k => brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
+            compName = "Branch Avg";
+            compColor = "#F59E0B"; // Orange
         }
-    ], {
-        polar: {
-            radialaxis: { visible: true, range: [0, 100], tickfont: { size: 9, color: "#9CA3AF" }, gridcolor: "#E5E7EB", linecolor: "rgba(0,0,0,0)" },
-            angularaxis: { tickfont: { size: 10, family: "Inter, sans-serif", weight: "bold" }, gridcolor: "#E5E7EB", linecolor: "#E5E7EB" },
-            bgcolor: 'rgba(0,0,0,0)'
-        },
-        showlegend: true, legend: { orientation: "h", y: -0.15, font: { family: "Inter", size: 11 } },
-        margin: { t: 20, l: 40, r: 40, b: 20 },
-        font: { family: "Inter, sans-serif" },
-        paper_bgcolor: 'rgba(0,0,0,0)'
-    }, config);
+        var rComp = [...compVals, compVals[0]];
+
+        Plotly.newPlot("stRadarChart", [
+            {
+                type: 'scatterpolar', r: rSt, theta: radarKeys.map(k => k.split(' ')[0]),
+                fill: 'toself', fillcolor: 'rgba(30, 58, 138, 0.2)', // Darker blue fill
+                name: 'Store', line: { color: '#1E3A8A', width: 3 }, marker: { size: 1 }
+            },
+            {
+                type: 'scatterpolar', r: rComp, theta: radarKeys.map(k => k.split(' ')[0]),
+                name: compName, line: { color: compColor, dash: 'dot', width: 2 }, marker: { size: 1 }, hoverinfo: 'skip'
+            }
+        ], {
+            polar: {
+                radialaxis: { visible: true, range: [0, 100], tickfont: { size: 9, color: "#9CA3AF" }, gridcolor: "#E5E7EB", linecolor: "rgba(0,0,0,0)" },
+                angularaxis: { tickfont: { size: 10, family: "Inter, sans-serif", weight: "bold" }, gridcolor: "#E5E7EB", linecolor: "#E5E7EB" },
+                bgcolor: 'rgba(0,0,0,0)'
+            },
+            showlegend: true, legend: { orientation: "h", y: -0.15, font: { family: "Inter", size: 11 } },
+            margin: { t: 20, l: 40, r: 40, b: 20 },
+            font: { family: "Inter, sans-serif" },
+            paper_bgcolor: 'rgba(0,0,0,0)'
+        }, config);
+    }
 
     // 4. Journey Table with Sparklines
     var tb = document.querySelector("#stSectionTable tbody");
     tb.innerHTML = "";
+
+    if (isUnassessed) {
+        tb.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-muted fst-italic"><i class="bi bi-info-circle me-1"></i>Toko ini berstatus Rising Star dan belum memiliki rekam jejak penilaian Journey.</td></tr>`;
+
+        // Clear out other dynamic UI elements
+        const recapContainer = document.getElementById("stRecapTiles");
+        if (recapContainer) recapContainer.innerHTML = '';
+        document.getElementById('stFeedbackCount').textContent = '0';
+        document.getElementById('stPriorityThemes').innerHTML = '<span class="text-muted small">No themes detected.</span>';
+        var fbList = document.getElementById("stFeedback");
+        if (fbList) fbList.innerHTML = "<div class='text-center text-muted py-4 small col-12'>No feedback recorded</div>";
+        var imprList = document.getElementById('stImprovementList');
+        if (imprList) imprList.innerHTML = "<div class='text-center text-muted py-4 w-100'><i class='bi bi-info-circle me-2'></i>Belum ada data area kritis untuk toko Rising Star.</div>";
+        var dialogueSection = document.getElementById('stDialogueSection');
+        if (dialogueSection) dialogueSection.style.display = 'none';
+
+        // CRITICAL: Call action plan generator to clear loading spinner
+        generateStoreActionPlan(s, currentWaveKey, []);
+        return; // Safe to exit early now
+    }
 
     // Data for Insights
     const insightData = [];
@@ -1908,7 +1947,7 @@ function loadStoreDetail(idOverride) {
         else tableAvg = (brData && brData.sections[k]) ? brData.sections[k].sum / brData.sections[k].count : 0;
 
         var tableGap = v - tableAvg;
-        var gapHTML = `<span class="small fw-bold ${tableGap >= 0 ? 'text-success' : 'text-danger'}" > ${tableGap >= 0 ? '+' : ''}${tableGap.toFixed(1)}</span> `;
+        var gapHTML = `<span class="small fw-bold ${tableGap >= 0 ? 'text-success' : 'text-danger'}"> ${tableGap >= 0 ? '+' : ''}${tableGap.toFixed(1)}</span>`;
 
         // Multi-level Gaps for Deviation Chart
         var natData = reportData.summary[currentWaveKey];
@@ -4869,7 +4908,9 @@ function openRegionalDetail(regionName, page = 1) {
 
     document.getElementById("regionalExecBody").innerHTML = html;
     document.getElementById("regionalExecTitle").innerText = regionName + " Briefing";
-    document.getElementById("regionalExecSubtitle").innerText = `${d.count} Outlets Active • Wave ${curWave.replace('Wave ', '')}`;
+
+    const activeRegStoresModal = Object.values(reportData.stores).filter(s => s.meta.region === regionName && !s.meta.code.startsWith('9')).length;
+    document.getElementById("regionalExecSubtitle").innerText = `${activeRegStoresModal} Outlets Active • Wave ${curWave.replace('Wave ', '')}`;
 
     var modalEl = document.getElementById('regionalExecModal');
     // Ensure Modal Class is XL
@@ -5027,21 +5068,85 @@ function createMiniFeedbackCard(item) {
 // --- NEW FIX: DYNAMIC ACTION PLAN EXTRACTOR ---
 
 function generateStoreActionPlan(storeData, currentWaveKey, feedbackData) {
-    const res = storeData.results[currentWaveKey];
+    const res = storeData.results ? storeData.results[currentWaveKey] : null;
     const container = document.getElementById("stActionPlanContainer");
     if (!container) return;
 
-    if (!res) {
-        container.innerHTML = "<div class='text-center text-muted p-4 small'>Data kuantitatif tidak cukup untuk menghasilkan Action Plan pada gelombang ini.</div>";
-        return;
-    }
-
     const planData = {
-        storeName: storeData.meta.name,
+        storeName: storeData.meta ? storeData.meta.name : "Unknown Store",
         wave: currentWaveKey,
         generatedAt: new Date().toLocaleDateString('en-GB'),
         actions: []
     };
+
+    // --- RISING STAR PROTOCOL (Unassessed/Blank Stores) ---
+    if (!res || !res.sections || Object.keys(res.sections).length === 0) {
+        planData.actions = [
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section A) Tampilan Tampak Depan Outlet',
+                action: 'Lakukan Pengecekan Harian: Pastikan kesiapan operasional dasar seperti kebersihan fasad, area parkir, kaca depan, dan nyala lampu toko (Signage) sebelum opening.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section B) Sambutan Hangat Ketika Masuk',
+                action: 'Roleplay Interaksi Awal: Latih Retail Assistant untuk selalu siap dengan Senyum 1 Jari, Tangan Kanan di Dada Kiri, dan sapaan "Selamat Datang di EIGER" kepada setiap pelanggan yang masuk.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section C) Suasana & Kenyamanan Outlet',
+                action: 'Inspeksi Suasana: Periksa temperatur AC agar tetap sejuk, pastikan musik background sesuai standar Eiger, dan tidak ada aroma tidak sedap di seluruh area toko.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section D) Tata Letak Presentasi Produk',
+                action: 'Cek Visual Merchandising (VM): Pastikan semua produk dipajang sesuai panduan VM terbaru, pengelompokan warna rapi, dan semua manekin menggunakan outfit lengkap terbaru.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section E) Komunikasi Penjelasan Produk',
+                action: 'Roleplay Product Knowledge: Lakukan tanya jawab singkat antar staf mengenai fitur utama produk (Teknologi Tropic, dll.) agar sigap saat ditanya fungsi dan kelebihan barang oleh pelanggan.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section F) Pengalaman Mencoba Produk',
+                action: 'Standar Fitting Room: Pastikan kamar ganti bersih dari sampah/hanger bekas, cermin tidak bercap tangan, dan staf selalu proaktif menawarkan ukuran atau alternatif warna kepada pelanggan.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section G) Ketersediaan Harga Produk',
+                action: 'Inspeksi Price Tag & Promo: Keliling area toko untuk memastikan setiap barang memiliki label harga (price tag) yang benar, dan materi promo (POP) terpasang tegak dan tidak kedaluwarsa.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section H) Pembelian & Pembayaran Kasir',
+                action: 'Roleplay SOP Kasir: Lakukan simulasi penawaran produk tambahan (add-on), konfirmasi Member EAC, stempel kartu garansi, input data akurat, hingga salam penutup.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section I) Interaksi Penanganan Keluhan',
+                action: 'Simulasi Handling Complaint: Diskusikan cara meredam emosi pelanggan menggunakan teknik empati, serta pemahaman batas wewenang pengembalian/tukar barang sesuai kebijakan Eiger.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section J) Kesan Perpisahan Kepada Pela..',
+                action: 'Roleplay Kesan Terakhir: Latih staf (termasuk Security) untuk selalu memberikan salam perpisahan yang hangat (contoh: "Terima kasih, selamat berpetualang kembali!") hingga pelanggan keluar pintu.',
+                status: 'pending'
+            }
+        ];
+        window._currentStoreActionPlan = planData;
+        renderActionPlan(planData.actions);
+        return;
+    }
 
     // 1. EXTRACT ALL QUANTITATIVE ITEMS
     let quantGaps = [];

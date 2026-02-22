@@ -48,7 +48,29 @@ async function main() {
     console.log("   Building Hierarchy & Stats...");
     console.log(`    > Total records: ${allStoreData.length}`);
     const { hierarchy, allQualitative, allFailureReasons } = buildHierarchy(allStoreData, WAVES);
-    console.log(`    > Hierarchy built. Stores: ${Object.keys(hierarchy.stores).length}, Regions: ${Object.keys(hierarchy.regions).length}`);
+
+    // --- Inject Unassessed (Rising Star) Stores ---
+    let injectedCount = 0;
+    Object.keys(masterMap).forEach(siteCode => {
+        // Exclude bazaars and skip stores that already have wave data
+        if (!siteCode.startsWith('9') && !hierarchy.stores[siteCode]) {
+            const m = masterMap[siteCode];
+            hierarchy.stores[siteCode] = {
+                meta: {
+                    name: m.siteName || ("Store " + siteCode),
+                    region: m.region || "UNKNOWN",
+                    branch: m.branch || "UNKNOWN",
+                    code: siteCode,
+                    liga: ligaMap && ligaMap[siteCode] ? ligaMap[siteCode] : null
+                },
+                results: {} // Explicitly empty to trigger N/A states on frontend
+            };
+            injectedCount++;
+        }
+    });
+
+    console.log(`    > Hierarchy built. Unique Active Stores (including Rising Stars): ${Object.keys(hierarchy.stores).length}`);
+    console.log(`    > Injected ${injectedCount} unassessed Rising Star stores into Data hierarchy.`);
 
     // 3b. Local VoC Enrichment (Internal Cache-Only)
     console.log("   Enriching VoC with Local Cache...");
