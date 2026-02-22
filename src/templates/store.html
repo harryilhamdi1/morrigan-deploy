@@ -268,9 +268,10 @@
 
         <!-- 3c. PERFORMANCE INSIGHTS (New Section) -->
         <div id="stInsights" class="row g-4 mb-4 fade-in">
-            <!-- Deviation Chart -->
-            <div class="col-lg-7">
-                <div class="card h-100 border-0 shadow-sm">
+            <!-- Left Column: Deviation Chart & Action Plan -->
+            <div class="col-lg-7 d-flex flex-column gap-4">
+                <!-- Deviation Chart -->
+                <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                         <h6 class="fw-bold text-dark mb-0"><i
                                 class="bi bi-bar-chart-align-global me-2 text-primary"></i>Performance Deviation</h6>
@@ -284,7 +285,41 @@
                             store outperforms the regional average.</p>
                     </div>
                 </div>
+
+                <!-- NEW: Action Plan & Monitoring -->
+                <div class="card border-0 shadow-sm flex-grow-1">
+                    <div
+                        class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="fw-bold text-dark mb-1"><i
+                                    class="bi bi-rocket-takeoff-fill me-2 text-warning"></i>Action Plan & Monitoring
+                            </h6>
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">AI-generated actionable
+                                insights from quantitative gaps and qualitative feedback.</small>
+                        </div>
+                        <div class="btn-group shadow-sm">
+                            <button class="btn btn-dark fw-bold px-3 py-2" onclick="exportActionPlanPDF()"
+                                title="Print / Save PDF">
+                                <i class="bi bi-printer-fill"></i> <span class="d-none d-md-inline ms-1">Export</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="stActionPlanContainer" class="p-3 d-flex flex-column gap-3">
+                            <!-- Injected via JS -->
+                            <div class="text-center text-muted p-4 small">
+                                <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                                <br>Analyzing comprehensive data...
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light border-0 py-3 text-center">
+                        <div class="btn btn-sm btn-white text-primary border fw-bold rounded-pill px-4 shadow-sm"
+                            style="font-size: 0.75rem;"><i class="bi bi-shield-check me-1"></i> Data-Driven Advice</div>
+                    </div>
+                </div>
             </div>
+
             <!-- Top Priorities -->
             <div class="col-lg-5">
                 <div class="card h-100 border-0 shadow-sm">

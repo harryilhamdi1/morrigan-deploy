@@ -1926,6 +1926,7 @@ function loadStoreDetail(idOverride) {
         // Store for Insights
         const failedItems = [];
         const fixedItems = [];
+        const stableItems = [];
 
         // Extract section code (e.g., "A" from "A. Tampilan...")
         const sectionCode = k.split('.')[0].trim();
@@ -1965,18 +1966,28 @@ function loadStoreDetail(idOverride) {
 
                 // Check if Failed
                 if (item.r === 0 || item.r === "0" || item.r === false) {
-                    failedItems.push({ text: item.t, history: history, regAvg: regAvg });
+                    failedItems.push({ text: item.t, history: history, regAvg: regAvg, reason: item.reason });
                 }
-                // Check if Fixed (Passed now, Failed before)
-                else if (prevWaveDetails && prevWaveDetails[code]) {
-                    const prevItem = prevWaveDetails[code];
-                    if (prevItem.r === 0 || prevItem.r === "0" || prevItem.r === false) {
-                        fixedItems.push({ text: item.t, history: history });
+                // Check if Passed
+                else if (item.r === 1 || item.r === "1" || item.r === true) {
+                    // Check if Fixed (Passed now, Failed in previous wave)
+                    let isFixed = false;
+                    if (prevWaveDetails && prevWaveDetails[code]) {
+                        const prevItem = prevWaveDetails[code];
+                        if (prevItem.r === 0 || prevItem.r === "0" || prevItem.r === false) {
+                            isFixed = true;
+                        }
+                    }
+
+                    if (isFixed) {
+                        fixedItems.push({ text: item.t, history: history, regAvg: regAvg });
+                    } else {
+                        stableItems.push({ text: item.t, history: history, regAvg: regAvg });
                     }
                 }
             });
         }
-        insightData.push({ sec: k, score: v, gap: gaps[deviationMode], gaps: gaps, failed: failedItems, fixed: fixedItems });
+        insightData.push({ sec: k, score: v, gap: gaps[deviationMode], gaps: gaps, failed: failedItems, fixed: fixedItems, stable: stableItems });
 
 
         // Generate Sparkline Data
@@ -2102,6 +2113,9 @@ function loadStoreDetail(idOverride) {
         document.getElementById('stRecapTiles').innerHTML = '';
         fbList.innerHTML = "<div class='text-center text-muted py-4 small col-12'>No feedback recorded</div>";
     }
+
+    // Render Action Plan regardless of qualitative feedback presence
+    generateStoreActionPlan(s, currentWaveKey, feedbackData);
 
     // 7. Customer Interaction Replay (Dialogue)
     var dialogueSection = document.getElementById('stDialogueSection');
@@ -2532,6 +2546,7 @@ function renderPerformanceInsights(data) {
         // Data for Modal
         const failedJson = JSON.stringify(item.failed || []).replace(/"/g, '&quot;');
         const fixedJson = JSON.stringify(item.fixed || []).replace(/"/g, '&quot;');
+        const stableJson = JSON.stringify(item.stable || []).replace(/"/g, '&quot;');
 
         impList.innerHTML += `
         <div class="${colClass}" >
@@ -2539,7 +2554,7 @@ function renderPerformanceInsights(data) {
                 style="cursor: pointer; transition: all 0.2s ease-in-out;"
                 onmouseover="this.style.transform='translateY(-2px)'"
                 onmouseout="this.style.transform='translateY(0)'"
-                onclick='showFailureDetails("${item.sec}", ${failedJson}, ${fixedJson})'>
+                onclick='showFailureDetails("${item.sec}", ${failedJson}, ${fixedJson}, ${stableJson})'>
                 <div class="card-body p-3 d-flex justify-content-between align-items-center">
                     <div style="max-width: 75%;">
                         <h6 class="fw-bold text-dark mb-1 ${!isTop3 ? 'small' : ''}" style="line-height:1.2;">${item.sec}</h6>
@@ -2554,114 +2569,170 @@ function renderPerformanceInsights(data) {
     });
 }
 
-function showFailureDetails(section, failedItems, fixedItems) {
+function showFailureDetails(section, failedItems, fixedItems, stableItems) {
     document.getElementById("failureModalTitle").textContent = section;
     const body = document.getElementById("failureModalBody");
+    body.style.backgroundColor = "#f8fafc"; // Soft premium background
     body.innerHTML = "";
 
-    // Helper to render history dots
+    // Helper to render history dots (Polished Status Indicators)
     const renderHistoryDots = (history) => {
         if (!history || history.length === 0) return '';
-        let dotsHtml = '<div class="d-flex align-items-center mt-2">';
-        dotsHtml += '<span class="text-muted small me-2" style="font-size: 0.7rem;">History (Old &rarr; New):</span>';
+        let dotsHtml = '<div class="d-flex align-items-center mt-3 p-2 bg-light rounded-pill d-inline-flex border">';
+        dotsHtml += '<span class="text-muted fw-bold xsmall me-2 ms-2" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;">History</span>';
 
-        history.forEach(status => {
-            let colorClass = 'bg-secondary';
-            let iconClass = 'bi-dash';
+        history.forEach((status, idx) => {
+            let color = '#CBD5E1'; // N/A
+            let icon = 'bi-dash';
+            const isLatest = idx === history.length - 1;
 
-            if (status === 1) { colorClass = 'bg-success'; iconClass = 'bi-check-lg'; }
-            if (status === 0) { colorClass = 'bg-danger'; iconClass = 'bi-x-lg'; }
+            if (status === 1) {
+                color = '#10B981';
+                icon = 'bi-check-lg';
+            } else if (status === 0) {
+                color = '#EF4444';
+                icon = 'bi-x-lg';
+            }
 
-            dotsHtml += `<div class="rounded-circle ${colorClass} text-white d-flex justify-content-center align-items-center me-1"
-    style="width: 20px; height: 20px; font-size: 10px;" title="${status === 1 ? 'Passed' : (status === 0 ? 'Failed' : 'N/A')}" >
-        <i class="bi ${iconClass}"></i>
-                         </div> `;
+            const glow = (isLatest && status === 0) ? 'box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); border: 2px solid white;' : '';
+            const passGlow = (isLatest && status === 1) ? 'box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); border: 2px solid white;' : '';
+
+            dotsHtml += `
+                <div class="rounded-circle d-flex justify-content-center align-items-center me-1 position-relative" 
+                     style="width: 24px; height: 24px; background-color: ${color}; color: white; font-size: 10px; ${glow || passGlow}" 
+                     title="${status === 1 ? 'Passed' : (status === 0 ? 'Failed' : 'N/A')}">
+                    <i class="bi ${icon}"></i>
+                    ${isLatest ? '<span class="position-absolute top-0 start-100 translate-middle p-1 bg-white border border-light rounded-circle" style="width: 6px; height: 6px;"></span>' : ''}
+                </div> `;
         });
         dotsHtml += '</div>';
         return dotsHtml;
     };
 
-    // 1. Failed Items
-    if (!failedItems || failedItems.length === 0) {
-        if (!fixedItems || fixedItems.length === 0) {
-            body.innerHTML = '<div class="p-4 text-center text-muted">No specific failed items found.<br><small>Score deduction might be due to partial points or N/A answers.</small></div>';
-        }
-    } else {
-        body.innerHTML += `<div class="px-2 text-danger fw-bold border-bottom pb-2 mb-2" > <i class="bi bi-exclamation-octagon-fill me-2"></i>Improvement Needed</div> `;
+    // Helper to render benchmark bar
+    const renderBenchmark = (item) => {
+        if (item.regAvg === null || item.regAvg === undefined || isNaN(item.regAvg)) return '';
+        const rPct = (item.regAvg * 100).toFixed(0);
+        const isCommon = item.regAvg < 0.6;
+        const badgeClass = isCommon ? 'bg-secondary bg-opacity-10 text-secondary border' : 'bg-danger bg-opacity-10 text-danger border';
 
-        failedItems.forEach(item => {
+        return `
+            <div class="mt-3 pt-3 border-top border-light" >
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="fw-bold text-muted xsmall" style="font-size:0.65rem; letter-spacing:0.8px; text-transform:uppercase;">Regional Benchmark</small>
+                    <span class="badge ${badgeClass} rounded-pill" style="font-size: 0.6rem;">Reg Avg: ${rPct}%</span>
+                </div>
+                <div class="progress rounded-pill overflow-hidden" style="height: 6px; background-color: #e2e8f0;">
+                    <div class="progress-bar ${isCommon ? 'bg-secondary' : 'bg-danger'} opacity-75" role="progressbar" style="width: ${rPct}%"></div>
+                </div>
+             </div>
+        `;
+    };
+
+    // Categorize failed items
+    const recurring = [];
+    const oneTime = [];
+
+    (failedItems || []).forEach(item => {
+        const history = item.history || [];
+        const isRecurring = history.length >= 2 && history[history.length - 1] === 0 && history[history.length - 2] === 0;
+        if (isRecurring) recurring.push(item);
+        else oneTime.push(item);
+    });
+
+    const hasNoIssues = recurring.length === 0 && oneTime.length === 0 && (!fixedItems || fixedItems.length === 0) && (!stableItems || stableItems.length === 0);
+
+    if (hasNoIssues) {
+        body.innerHTML = `
+            <div class="p-5 text-center bg-white m-4 rounded-4 shadow-sm border">
+                <div class="display-1 mb-3">✨</div>
+                <h5 class="fw-bold text-dark">Section Clean</h5>
+                <p class="text-muted small">All items in this section are performing as expected.</p>
+            </div>`;
+        var myModal = new bootstrap.Modal(document.getElementById('failureModal'));
+        myModal.show();
+        return;
+    }
+
+    // Render Group Helper
+    const renderCardGroup = (title, icon, colorHex, colorClass, items, badgeType) => {
+        if (!items || items.length === 0) return '';
+        let groupHtml = `<div class="p-4">
+            <div class="d-flex align-items-center mb-4">
+                <div class="p-2 rounded-3 me-3 bg-${colorClass} bg-opacity-10 text-${colorClass} border border-${colorClass} border-opacity-25 shadow-sm">
+                    <i class="bi ${icon} fs-5"></i>
+                </div>
+                <div>
+                   <h6 class="fw-bold mb-0 text-dark-emphasis" style="font-family: 'Outfit', sans-serif; letter-spacing: -0.2px;">${title}</h6>
+                   <div class="text-muted small" style="font-size: 0.75rem;">Detected in current Wave Analysis</div>
+                </div>
+                <div class="ms-auto h-50 border-bottom flex-grow-1 mx-3 opacity-25"></div>
+            </div>
+            <div class="row g-4">
+        `;
+
+        items.forEach(item => {
             const history = item.history || [];
-            // Check if recurring (last 2 failures) for simple badge
-            const isRecurring = history.length >= 2 && history[history.length - 1] === 0 && history[history.length - 2] === 0;
             const text = item.text || item;
 
-            // Benchmark UI
-            let benchmarkHtml = '';
-            // Only show benchmark if regAvg is a valid number
-            if (item.regAvg !== null && item.regAvg !== undefined && !isNaN(item.regAvg)) {
-                const rPct = (item.regAvg * 100).toFixed(0);
-                const isCommon = item.regAvg < 0.6; // If region avg < 60%, it's common.
-                const badge = isCommon
-                    ? `<span class="badge bg-light text-dark border" > <i class="bi bi-info-circle me-1"></i>Common Issue(Reg: ${rPct} %)</span> `
-                    : `<span class="badge bg-light text-danger border border-danger" > <i class="bi bi-exclamation-circle me-1"></i>Specific Deficit(Reg: ${rPct} %)</span> `;
+            let badgeConfig = {
+                label: 'Status',
+                icon: 'bi-info-circle',
+                bg: 'bg-secondary bg-opacity-10 text-secondary border',
+                accent: colorHex
+            };
 
-                // Progress Bar: Region Average Marker
-                // Since store failed (0%), we show Region Avg as a bar comparison
-                // Visual: [ Region Avg bar ]
-
-                benchmarkHtml = `
-        <div class="mt-2 pt-2 border-top border-light" >
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <small class="text-muted fw-bold" style="font-size:0.7rem; letter-spacing:0.5px;">VS REGIONAL AVG</small>
-                        ${badge}
-                    </div>
-                    <div class="progress" style="height: 6px;">
-                        <div class="progress-bar bg-secondary" role="progressbar" style="width: ${rPct}%" aria-valuenow="${rPct}" aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <div class="d-flex justify-content-end mt-1">
-                         <small class="text-muted" style="font-size: 0.7rem;">Region Avg: <strong>${rPct}%</strong></small>
-                    </div>
-                 </div> `;
+            if (badgeType === 'recurring') {
+                badgeConfig = { label: 'Recurring Issue', icon: 'bi-arrow-repeat', bg: 'bg-warning bg-opacity-25 text-warning-emphasis border-warning border-opacity-25' };
+            } else if (badgeType === 'onetime') {
+                badgeConfig = { label: 'New Deficit', icon: 'bi-lightning-fill', bg: 'bg-danger bg-opacity-10 text-danger border-danger border-opacity-25' };
+            } else if (badgeType === 'resolved') {
+                badgeConfig = { label: 'Improved', icon: 'bi-stars', bg: 'bg-success bg-opacity-10 text-success border-success border-opacity-25' };
+            } else if (badgeType === 'stable') {
+                badgeConfig = { label: 'Stable', icon: 'bi-shield-check', bg: 'bg-primary bg-opacity-10 text-primary border-primary border-opacity-25' };
             }
 
-            body.innerHTML += `<div class="list-group-item list-group-item-action py-3 border-start border-3 border-danger mb-2 shadow-sm rounded-end" >
-        <div class="d-flex w-100 justify-content-between align-items-start">
-            <div style="width: 100%;">
-                <div class="d-flex justify-content-between">
-                    <h6 class="mb-1 text-danger fw-bold">Issue Detected</h6>
-                    ${isRecurring ? '<span class="badge bg-warning text-dark"><i class="bi bi-arrow-repeat me-1"></i>Recurring</span>' : '<span class="badge bg-danger">Failed</span>'}
+            groupHtml += `
+            <div class="col-lg-6 col-xl-4 align-self-stretch d-flex flex-column">
+                <div class="card flex-grow-1 border-0 shadow-sm bg-white overflow-hidden p-0" 
+                     style="border-radius: 20px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-top: 5px solid ${colorHex} !important;" 
+                     onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 15px 35px -10px rgba(0,0,0,0.1)'" 
+                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="mb-3">
+                            <span class="badge rounded-pill ${badgeConfig.bg} px-3 py-2 fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px; text-transform: uppercase;">
+                                <i class="bi ${badgeConfig.icon} me-1"></i> ${badgeConfig.label}
+                            </span>
+                        </div>
+                        
+                        <p class="mb-4 text-dark-emphasis fw-bold" style="font-size: 1.1rem; line-height: 1.6; letter-spacing: -0.2px; font-family: 'Inter', sans-serif;">
+                            "${text}"
+                        </p>
+                        
+                        ${item.reason ? `
+                            <div class="mb-4 p-3 bg-light rounded-4 border-start border-4 border-${colorClass} shadow-inner">
+                                <small class="text-uppercase fw-bold text-muted d-block mb-1" style="font-size: 0.6rem; letter-spacing: 1px;">Retailer Observation</small>
+                                <p class="mb-0 text-secondary small fst-italic" style="line-height: 1.5;">"${item.reason}"</p>
+                            </div>` : ''}
+                        
+                        <div class="mt-auto">
+                            ${renderHistoryDots(history)}
+                            ${(badgeType === 'onetime' || badgeType === 'recurring') ? renderBenchmark(item) : ''}
+                        </div>
+                    </div>
                 </div>
-                <p class="mb-2 text-dark fw-medium" style="font-size: 0.95rem;">"${text}"</p>
-                ${item.reason ? `<div class="mb-2 ps-3" style="border-left: 3px solid #EF4444; font-style: italic; color: #6B7280; font-size: 0.85rem;"><i class="bi bi-chat-square-quote me-1 text-danger"></i>${item.reason}</div>` : ''}
-                ${renderHistoryDots(history)}
-                ${benchmarkHtml}
-            </div>
-        </div>
-            </div> `;
+            </div>`;
         });
-    }
 
-    // 2. Fixed Items (Improvements)
-    if (fixedItems && fixedItems.length > 0) {
-        body.innerHTML += `<div class="mt-4 mb-2 px-2 text-success fw-bold border-bottom pb-2" > <i class="bi bi-trophy-fill me-2"></i>Improvements(Fixed since last wave)</div> `;
-        fixedItems.forEach(item => {
-            const history = item.history || [];
-            const text = item.text || item;
+        groupHtml += `</div></div>`;
+        return groupHtml;
+    };
 
-            body.innerHTML += `<div class="list-group-item list-group-item-action py-3 border-start border-3 border-success bg-light mb-2 shadow-sm rounded-end" >
-        <div class="d-flex w-100 justify-content-between align-items-start">
-            <div style="width: 100%;">
-                <div class="d-flex justify-content-between">
-                    <h6 class="mb-1 text-success fw-bold">Fixed / Improved</h6>
-                    <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Resolved</span>
-                </div>
-                <p class="mb-2 text-dark fw-medium" style="font-size: 0.95rem;">"${text}"</p>
-                ${renderHistoryDots(history)}
-            </div>
-        </div>
-            </div> `;
-        });
-    }
+    body.innerHTML += renderCardGroup("Critical Issues - Recurring Events", "bi-arrow-repeat", "#D97706", "warning", recurring, "recurring");
+    body.innerHTML += renderCardGroup("Performance Deficits - New", "bi-exclamation-octagon-fill", "#DC2626", "danger", oneTime, "onetime");
+    body.innerHTML += renderCardGroup("Successful Improvements", "bi-trophy-fill", "#111827", "dark", fixedItems, "resolved");
+    body.innerHTML += renderCardGroup("Consistent Champions (Stable)", "bi-shield-fill-check", "#2563EB", "primary", stableItems, "stable");
 
     var myModal = new bootstrap.Modal(document.getElementById('failureModal'));
     myModal.show();
@@ -4949,4 +5020,230 @@ function createMiniFeedbackCard(item) {
             ${item.aiInsight && item.aiInsight !== 'N/A' ? `<div class="mt-2 p-2 bg-white rounded border border-light small text-primary"><i class="bi bi-stars me-1"></i> AI Note: ${item.aiInsight}</div>` : ''}
         </div>
     `;
+}
+
+
+
+// --- NEW FIX: DYNAMIC ACTION PLAN EXTRACTOR ---
+
+function generateStoreActionPlan(storeData, currentWaveKey, feedbackData) {
+    const res = storeData.results[currentWaveKey];
+    const container = document.getElementById("stActionPlanContainer");
+    if (!container) return;
+
+    if (!res) {
+        container.innerHTML = "<div class='text-center text-muted p-4 small'>Data kuantitatif tidak cukup untuk menghasilkan Action Plan pada gelombang ini.</div>";
+        return;
+    }
+
+    const planData = {
+        storeName: storeData.meta.name,
+        wave: currentWaveKey,
+        generatedAt: new Date().toLocaleDateString('en-GB'),
+        actions: []
+    };
+
+    // 1. EXTRACT ALL QUANTITATIVE ITEMS
+    let quantGaps = [];
+    if (res.sections && reportData.summary && reportData.summary[currentWaveKey] && reportData.summary[currentWaveKey].sections) {
+        const natSections = reportData.summary[currentWaveKey].sections;
+        for (const [sec, val] of Object.entries(res.sections)) {
+            const natVal = natSections[sec] ? (natSections[sec].sum / natSections[sec].count) : val;
+            const gap = val - natVal;
+            quantGaps.push({ section: sec, score: val, gap: gap });
+        }
+    }
+
+    // 2. EXTRACT QUALITATIVE (Themes) - strictly for the current wave
+    let negThemesArr = [];
+    if (feedbackData && feedbackData.length > 0) {
+        // Filter feedback by current wave AND negative sentiment
+        const negativeFb = feedbackData.filter(f => f.wave === currentWaveKey && f.sentiment === 'negative');
+        if (negativeFb.length > 0) {
+            let negThemes = {};
+            negativeFb.forEach(f => {
+                let topics = normalizeVocTopics(f);
+                topics.forEach(t => {
+                    if (!negThemes[t]) negThemes[t] = { count: 0, examples: [], insights: [] };
+                    negThemes[t].count++;
+                    if (negThemes[t].examples.length < 3) negThemes[t].examples.push(f.text);
+                    if (f.aiInsight && f.aiInsight !== 'N/A') negThemes[t].insights.push(f.aiInsight);
+                });
+            });
+            negThemesArr = Object.entries(negThemes).sort((a, b) => b[1].count - a[1].count);
+        }
+    }
+
+    // 3. COMPILE ACTION PLAN (Maximized, No Hard Limit)
+
+    // A. Priority 1: Critical Quantitative Gaps (Gap < 0)
+    const negativeGaps = quantGaps.filter(q => q.gap < -2.0).sort((a, b) => a.gap - b.gap); // Focus on significant gaps
+    negativeGaps.forEach(issue => {
+        planData.actions.push({
+            type: 'Evaluasi Kuantitatif',
+            source: `${issue.section} (Skor: ${issue.score.toFixed(1)}, Gap vs Nat: ${issue.gap.toFixed(1)})`,
+            action: `Fokus pada standardisasi prosedur untuk area ${issue.section}. Lakukan tinjauan ulang panduan operasional nasional bersama tim untuk menutup jarak performa yang kritis ini.`,
+            status: 'pending'
+        });
+    });
+
+    // B. Priority 2: Top Qualitative Complaints (Themes with >= 2 mentions, or top 3 if fewer)
+    let themesToAdd = negThemesArr.filter(t => t[1].count >= 2);
+    if (themesToAdd.length === 0 && negThemesArr.length > 0) themesToAdd = negThemesArr.slice(0, 3);
+
+    themesToAdd.forEach(theme => {
+        let referenceText = '';
+        if (theme[1].insights && theme[1].insights.length > 0) {
+            referenceText = `Analisa AI: "${theme[1].insights[0]}"`;
+        } else {
+            const rawText = theme[1].examples[0];
+            referenceText = `Contoh: "${rawText.length > 150 ? rawText.substring(0, 150) + '...' : rawText}"`;
+        }
+
+        planData.actions.push({
+            type: 'Suara Pelanggan (VOC)',
+            source: `Keluhan Berulang: ${theme[0]} (${theme[1].count} penyebutan)`,
+            action: `Tangani keluhan berulang mengenai ${theme[0]}. Perhatikan hal ini: ${referenceText}. Diskusikan segera dengan tim untuk evaluasi dan mencegah kejadian serupa.`,
+            status: 'pending'
+        });
+    });
+
+    // C. Priority 3: Pareto Items (Lowest Absolute Scores)
+    // Always provide the 3 lowest scoring areas to push for perfection, even if they are above national average
+    // FIX: Do not generate "Optimalisasi" tasks for items that are already 100%.
+    const lowestScores = [...quantGaps].filter(q => q.score < 100).sort((a, b) => a.score - b.score).slice(0, 3);
+    lowestScores.forEach(issue => {
+        // Only add if we haven't already added this section as a negative gap
+        const alreadyAdded = planData.actions.find(a => a.source && a.source.includes(issue.section));
+        if (!alreadyAdded) {
+            planData.actions.push({
+                type: 'Optimalisasi (Pareto)',
+                source: `${issue.section} (Skor: ${issue.score.toFixed(1)})`,
+                action: `Walaupun performa secara fungsional sudah baik, ${issue.section} adalah salah satu area dengan skor terbawah di toko ini. Terapkan roleplay atau evaluasi singkat untuk mendorong skor ini lebih mendekati nilai sempurna.`,
+                status: 'pending'
+            });
+        }
+    });
+
+    // D. FALLBACK/GENERAL ADVICE if somehow still less than 3
+    const genericAdvice = [
+        "Pertahankan tren positif yang ada saat ini. Lanjutkan sesi briefing reguler secara rutin dan berikan apresiasi kepada staf yang berprestasi untuk menjaga konsistensi toko.",
+        "Lakukan sinkronisasi selama 10 menit setiap hari sebelum toko buka untuk menyelaraskan target pelayanan pelanggan hari ini.",
+        "Minta tim untuk meninjau kembali modul product knowledge terbaru agar lebih percaya diri saat menangani pertanyaan seputar produk."
+    ];
+
+    let genericIndex = 0;
+    while (planData.actions.length < 3 && genericIndex < genericAdvice.length) {
+        planData.actions.push({
+            type: 'Saran Best Practice',
+            source: 'Perawatan Berkala Toko',
+            action: genericAdvice[genericIndex],
+            status: 'pending'
+        });
+        genericIndex++;
+    }
+
+    // Store globally for export
+    window._currentStoreActionPlan = planData;
+    renderActionPlan(planData.actions);
+}
+
+function renderActionPlan(actions) {
+    const container = document.getElementById("stActionPlanContainer");
+    if (!container) return;
+    container.innerHTML = "";
+
+    actions.forEach((item, idx) => {
+        let iconClass = 'bi-star-fill text-warning';
+        let bgClass = 'bg-warning';
+
+        if (item.type.includes('Kuantitatif')) {
+            iconClass = 'bi-bar-chart-line-fill text-danger';
+            bgClass = 'bg-danger';
+        } else if (item.type.includes('Suara Pelanggan')) {
+            iconClass = 'bi-chat-left-quote-fill text-purple';
+            bgClass = 'bg-dark';
+        } else if (item.type.includes('Optimalisasi')) {
+            iconClass = 'bi-arrow-up-right-circle-fill text-primary';
+            bgClass = 'bg-primary';
+        }
+
+        const html = `
+            <div class="d-flex align-items-start p-3 bg-white border border-${bgClass.replace('bg-', '')} border-opacity-25 rounded-3 shadow-sm hover-shadow mb-3" style="transition: all 0.2s;">
+                <div class="form-check mt-1 me-3">
+                    <input class="form-check-input border-secondary" type="checkbox" id="actionCb${idx}" style="cursor: pointer; width: 1.25rem; height: 1.25rem;">
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                        <span class="badge ${bgClass} fw-bold px-2 py-1 shadow-sm" style="font-size: 0.65rem; letter-spacing: 0.5px; border-radius: 6px;"><i class="bi ${iconClass} text-white me-1"></i>${item.type}</span>
+                        <span class="text-muted fw-bold d-inline-flex align-items-center rounded bg-light px-2 py-1 border" style="font-size: 0.70rem;"><i class="bi bi-bullseye me-1"></i>${item.source}</span>
+                    </div>
+                    <label class="form-check-label fw-medium text-dark mt-1" for="actionCb${idx}" style="cursor: pointer; line-height: 1.5; font-size: 0.95rem;">
+                        ${item.action}
+                    </label>
+                </div>
+            </div>
+        `;
+        container.innerHTML += html;
+    });
+}
+
+function copyActionPlanJSON() {
+    if (!window._currentStoreActionPlan) return alert("No action plan available.");
+    const jsonStr = JSON.stringify(window._currentStoreActionPlan, null, 2);
+    navigator.clipboard.writeText(jsonStr).then(() => {
+        alert("Action Plan API Payload copied to clipboard!");
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
+}
+
+function exportActionPlanPDF() {
+    if (!window._currentStoreActionPlan) return alert("No action plan available.");
+    const plan = window._currentStoreActionPlan;
+
+    // Simple print window for the action plan
+    const printWin = window.open('', '_blank');
+    let printHtml = `
+        <html>
+        <head>
+            <title>Action Plan - ${plan.storeName}</title>
+            <style>
+                body { font-family: sans-serif; padding: 20px; color: #333; line-height: 1.6; }
+                h2 { color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+                .item { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+                .meta { font-size: 0.85em; color: #666; font-weight: bold; margin-bottom: 5px; }
+                .action { font-size: 1.05em; margin-top: 5px; }
+                .header-meta { color: #777; margin-bottom: 30px; }
+            </style>
+        </head>
+        <body>
+            <h2>Store Action Plan & Monitoring</h2>
+            <div class="header-meta">
+                <strong>Store:</strong> ${plan.storeName} <br>
+                <strong>Wave:</strong> ${plan.wave} <br>
+                <strong>Generated On:</strong> ${plan.generatedAt}
+            </div>
+    `;
+
+    plan.actions.forEach(a => {
+        printHtml += `
+            <div class="item">
+                <div class="meta">[${a.type.toUpperCase()}] Source: ${a.source}</div>
+                <div class="action">${a.action}</div>
+                <br>
+                <div><i>Status: ______ Checked By: ______ Date: ______</i></div>
+            </div>
+        `;
+    });
+
+    printHtml += `
+        </body>
+        </html>
+    `;
+
+    printWin.document.write(printHtml);
+    printWin.document.close();
+    printWin.focus();
+    printWin.print();
 }

@@ -14,7 +14,7 @@ const { processAllFeedbackWithAI } = require('./modules/ai_voc'); // Import AI I
 const BASE_DIR = path.resolve(__dirname, '..');
 const TEMPLATE_DIR = path.join(__dirname, 'templates');
 const OUTPUT_FILE = path.join(__dirname, '../ESS Retail Analysis.html');
-
+const OUTPUT_FILE_AP = path.join(__dirname, '../ESS Action Plan Monitoring.html');
 async function loadTemplate(filename) {
     return await fs.readFile(path.join(TEMPLATE_DIR, filename), 'utf8');
 }
@@ -94,6 +94,9 @@ async function main() {
     const tplVoC = await loadTemplate('voc.html');
     const tplScripts = await loadTemplate('scripts.js');
 
+    const tplActionPlanDash = await loadTemplate('action_plan_dashboard.html');
+    const tplActionPlanApp = await loadTemplate('action_plan_app.js');
+    const tplActionPlanBase = await loadTemplate('action_plan.js');
     // Load Fflate Library from node_modules (UMD build is browser compatible)
     const fflateLib = await fs.readFile(path.join(BASE_DIR, 'node_modules/fflate/umd/index.js'), 'utf8');
 
@@ -117,6 +120,38 @@ async function main() {
     // 7. Write Output
     await fs.writeFile(OUTPUT_FILE, finalHTML);
     console.log(`✅ Build Complete using Compression! Output: ${OUTPUT_FILE}`);
+
+    // 8. Generate Action Plan Dashboard
+    console.log("   Assembling Action Plan HTML...");
+    const apSidebarHTML = `
+        <div class="sidebar-nav">
+            <a href="#" onclick="showDashboard(); return false;" id="nav-dashboard" class="active">
+                <i class="bi bi-grid-1x2-fill"></i> National Monitoring
+            </a>
+            <a href="#" onclick="showRegional(); return false;" id="nav-regional">
+                <i class="bi bi-map-fill"></i> Regional Overview
+            </a>
+            <a href="#" onclick="showBranch(); return false;" id="nav-branch">
+                <i class="bi bi-diagram-3-fill"></i> Branch Detail
+            </a>
+            <a href="#" onclick="showStoreList(); return false;" id="nav-store">
+                <i class="bi bi-shop-window"></i> Store Action Plan
+            </a>
+        </div>
+    `;
+
+    let finalApHTML = tplBase
+        .replace(/ESS Retail In Depth Analysis/g, "ESS Action Plan Monitoring")
+        .replace(/<div class="sidebar-nav">[\s\S]*?<\/div>/, () => apSidebarHTML)
+        .replace(/\{\s*\{\s*CONTENT\s*\}\s*\}/, () => tplActionPlanDash)
+        .replace(/\{\s*\{\s*REPORT_DATA_B64\s*\}\s*\}/, () => b64)
+        .replace(/\{\s*\{\s*FFLATE_LIB\s*\}\s*\}/, () => fflateLib)
+        .replace(/\{\s*\{\s*SCRIPTS\s*\}\s*\}/, () => tplActionPlanBase + '\n\n' + tplActionPlanApp)
+        .replace(/\{\s*\{\s*GENERATED_DATE\s*\}\s*\}/, () => new Date().toLocaleDateString('en-GB'))
+        .replace(/\{\s*\{\s*THRESHOLD\s*\}\s*\}/, () => THRESHOLD_SCORE);
+
+    await fs.writeFile(OUTPUT_FILE_AP, finalApHTML);
+    console.log(`✅ Action Plan Dashboard Build Complete! Output: ${OUTPUT_FILE_AP}`);
 }
 
 main().catch(err => {
