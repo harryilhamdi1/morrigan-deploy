@@ -1298,7 +1298,7 @@
         </div>
 
         <!-- Premium Culprit Modal (Strategic Briefing Design) -->
-        <div class="modal fade premium-modal" id="culpritModal" tabindex="-1" >
+        <div class="modal fade premium-modal" id="culpritModal" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
                 <div class="modal-content">
                     <div class="modal-header glass-header-dark py-4 px-4 align-items-start">
@@ -2161,7 +2161,7 @@
         </div>
 
         <!-- ACTION PLAN MODAL (Premium Strategic Briefing) -->
-        <div class="modal fade premium-modal" id="vocActionPlanModal" tabindex="-1" >
+        <div class="modal fade premium-modal" id="vocActionPlanModal" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered modal-xl">
                 <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; overflow: hidden;">
                     <!-- Glass Header -->
@@ -2267,8 +2267,7 @@
         </div>
 
         <!-- VOC DRILLDOWN MODAL (Ultimate Premium Upgrade) -->
-        <div class="modal fade premium-modal" id="vocDrilldownModal" tabindex="-1" 
-            style="z-index: 2050;">
+        <div class="modal fade premium-modal" id="vocDrilldownModal" tabindex="-1" style="z-index: 2050;">
             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content" style="border-radius: 24px; overflow: hidden;">
 
@@ -2429,10 +2428,15 @@
     </script>
     <!-- INDIVIDUAL SCRIPTS INJECTED HERE -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="../../js/config.js"></script>
-    <script src="app.js"></script>
+    <script src="../../js/auth.js?v=1.1"></script>
+    <!-- Master Data JSON Payload (Kept for meta config if any) -->
+    <script src="../../data.js?v=1.1"></script>
+    <script src="../../js/config.js?v=1.1"></script>
+
+    <!-- Application Logic (Connected to Supabase) -->
+    <script src="app.js?v=1.1"></script>
     <!-- Fullscreen Chart Modal (Premium Upgrade) -->
-    <div class="modal fade premium-modal" id="chartModal" tabindex="-1"  style="z-index: 2000;">
+    <div class="modal fade premium-modal" id="chartModal" tabindex="-1" style="z-index: 2000;">
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content border-0">
                 <div class="modal-header glass-header-dark py-4 px-5 align-items-center" style="border-radius: 0;">
@@ -2453,8 +2457,7 @@
         </div>
     </div>
     <!-- Regional Executive Modal -->
-    <div class="modal fade premium-modal" id="regionalExecModal" tabindex="-1" 
-        style="z-index: 1060;">
+    <div class="modal fade premium-modal" id="regionalExecModal" tabindex="-1" style="z-index: 1060;">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content border-0">
                 <div class="modal-header glass-header-dark py-3 px-4 align-items-center">

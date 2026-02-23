@@ -5448,7 +5448,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             let parsedSections = {};
             if (kpi.journey_scores && Array.isArray(kpi.journey_scores)) {
                 kpi.journey_scores.forEach(js => {
-                    parsedSections[js.section_name] = js.score;
+                    const sec = js.section_name ? js.section_name.trim() : '';
+                    if (sec) parsedSections[sec] = js.score;
                 });
             }
 
@@ -5470,8 +5471,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             let parsedDetails = {};
             if (kpi.granular_scores && Array.isArray(kpi.granular_scores)) {
                 kpi.granular_scores.forEach(gs => {
-                    if (!parsedDetails[gs.section_letter]) parsedDetails[gs.section_letter] = {};
-                    parsedDetails[gs.section_letter][gs.item_code] = {
+                    const secLet = gs.section_letter ? gs.section_letter.trim() : '';
+                    const itmCode = gs.item_code ? gs.item_code.toString().trim() : '';
+                    if (!secLet || !itmCode) return;
+
+                    if (!parsedDetails[secLet]) parsedDetails[secLet] = {};
+                    parsedDetails[secLet][itmCode] = {
                         t: gs.item_name,
                         r: gs.score,
                         reason: gs.failed_reason
