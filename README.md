@@ -102,6 +102,20 @@ This command executes `src/build.js`, which:
 3. Aggregates data for regions, branches, and stores.
 4. Generates the final `ESS Retail Analysis.html` using templates from `src/templates/`.
 
+### 🌐 Frontend Deployment (Vercel)
+The modernized frontend (Hub, Retail Analysis, Action Plan) reads realtime data from Supabase and is hosted on Vercel.
+
+**Automated Deployment via GitHub:**
+1. The Vercel project is linked to the `main` branch of this GitHub repository.
+2. Any changes pushed to `origin main` will automatically trigger a production deployment.
+```bash
+git add .
+git commit -m "Your update message"
+git push origin main
+```
+3. Vercel will build and publish the changes to `https://ess-retail.online` in 1-2 minutes.
+*Note: We no longer use FTP deployment scripts.*
+
 ### Manual Execution (Deprecated)
 The old monolithic scripts (`generate_report_v4.js`, etc.) have been archived (`.bak`) and replaced by the new modular system.
 
