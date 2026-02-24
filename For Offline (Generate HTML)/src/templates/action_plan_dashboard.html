@@ -1,0 +1,408 @@
+<!-- ACTION PLAN DASHBOARD WRAPPER -->
+<div>
+    <!-- 1. NATIONAL TAB -->
+    <div id="tab-dashboard" class="fade-in">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1"
+                    style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; color: var(--primary);">National
+                    Action Plan</h2>
+                <p class="text-muted m-0">Consolidated overview of execution across all regions.</p>
+            </div>
+            <div class="text-end">
+                <small class="text-muted d-block" style="letter-spacing: 1px;">Data Updated</small>
+                <div class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1 rounded-pill fw-bold shadow-sm"
+                    id="nationalLastUpdated" style="font-size: 0.85rem;"><i class="bi bi-clock-history me-1"></i>Just
+                    Now</div>
+            </div>
+        </div>
+
+        <!-- Disguised Countdown Timer (Phase 3) -->
+        <div class="card mb-4 border-0 shadow-sm rounded-4 overflow-hidden"
+            style="background: linear-gradient(135deg, var(--primary) 0%, #1E293B 100%);">
+            <div class="card-body p-4 d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="text-warning small fw-bold text-uppercase mb-2" style="letter-spacing: 1.5px;"><i
+                            class="bi bi-shield-check me-2"></i>Target Kesiapan Audit Operasional</div>
+                    <div class="d-flex align-items-end gap-3" id="nationalCountdownTimer">
+                        <div class="text-center"><span class="fs-2 fw-bolder text-white lh-1" id="cdDays">--</span>
+                            <div class="small text-white-50 mt-1" style="font-size:0.7rem;">HARI</div>
+                        </div>
+                        <div class="text-center fs-3 text-warning pb-2">:</div>
+                        <div class="text-center"><span class="fs-2 fw-bolder text-white lh-1" id="cdHours">--</span>
+                            <div class="small text-white-50 mt-1" style="font-size:0.7rem;">JAM</div>
+                        </div>
+                        <div class="text-center fs-3 text-warning pb-2">:</div>
+                        <div class="text-center"><span class="fs-2 fw-bolder text-white lh-1" id="cdMins">--</span>
+                            <div class="small text-white-50 mt-1" style="font-size:0.7rem;">MNT</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-none d-md-block opacity-50 pe-4">
+                    <i class="bi bi-stopwatch-fill text-white" style="font-size: 4rem;"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart.js CDN for Phase 3 Analytics -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="kpi-premium hover-lift border-0 shadow-sm accent-stripe-blue">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="text-muted small fw-bold text-uppercase">Total Plans</div>
+                        <div class="kpi-icon bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-card-checklist fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="metric-big text-dark" id="natTotalPlans">0</div>
+                    <div class="small text-muted mt-2"><i class="bi bi-graph-up-arrow text-success me-1"></i>Generated
+                        by AI</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-premium hover-lift border-0 shadow-sm accent-stripe-success">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="text-muted small fw-bold text-uppercase">Completed</div>
+                        <div class="kpi-icon bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-check-circle-fill fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="metric-big text-success" id="natCompleted">0</div>
+                    <div class="small text-muted mt-2">Fully Verified by HCBP</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-premium hover-lift border-0 shadow-sm accent-stripe-warning">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="text-muted small fw-bold text-uppercase">In Progress</div>
+                        <div class="kpi-icon bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-arrow-repeat fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="metric-big text-warning" id="natInProgress">0</div>
+                    <div class="small text-muted mt-2">Awaiting Management Review</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-premium hover-lift border-0 shadow-sm accent-stripe-danger">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="text-muted small fw-bold text-uppercase">Pending</div>
+                        <div class="kpi-icon bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-hourglass-top fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="metric-big text-danger" id="natPending">0</div>
+                    <div class="small text-muted mt-2">Needs Store Execution</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: National Analytics Dashboard (Phase 3) -->
+        <div class="row g-4 mb-4">
+            <!-- Compliance Doughnut Chart -->
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm rounded-4 h-100 luxury-card">
+                    <div class="card-body p-4 text-center">
+                        <h6 class="fw-bold text-dark text-uppercase mb-3" style="letter-spacing: 1px;">Compliance
+                            Overview</h6>
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="natComplianceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execution Leaderboard -->
+            <div class="col-md-8">
+                <div class="card border-0 shadow-sm rounded-4 h-100 luxury-card">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h6 class="fw-bold text-dark text-uppercase mb-0" style="letter-spacing: 1px;">Top Execution
+                                Leaderboard</h6>
+                            <span class="badge bg-primary rounded-pill px-3 py-2"><i
+                                    class="bi bi-trophy-fill text-warning me-1"></i> Fastest Regions</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table premium-table align-middle mb-0">
+                                <thead class="table-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th>Rank & Region</th>
+                                        <th class="text-end">Completion Rate</th>
+                                        <th class="text-center">Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="natLeaderboardTableBody">
+                                    <!-- Leaderboard JS Injected -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. REGIONAL TAB -->
+    <div id="tab-regional" class="fade-in" style="display:none;">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="bg-primary bg-opacity-10 p-3 rounded-4">
+                <i class="bi bi-map-fill text-primary fs-3"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-1"
+                    style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; color: var(--primary);">
+                    Regional
+                    Implementation Detail
+                </h2>
+                <p class="text-muted mb-0">Action plan execution progress aggregated across Regions.</p>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 16px;">
+                    <div class="table-responsive px-1 pb-2">
+                        <table class="table premium-table align-middle mb-0" id="apRegionalTable">
+                            <thead>
+                                <tr class="text-secondary small text-uppercase"
+                                    style="font-size: 0.7rem; letter-spacing: 0.5px; font-weight: 700;">
+                                    <th class="py-3 ps-4" style="width: 30%;">Region</th>
+                                    <th class="py-3 text-center">Total Stores</th>
+                                    <th class="py-3 text-center">Action Plans Generated</th>
+                                    <th class="py-3 text-center">Implementation Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody class="border-top-0" id="apRegionalBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Regional Approval Inbox -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm rounded-4 luxury-card">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h6 class="fw-bold text-dark text-uppercase mb-0" style="letter-spacing: 1px;"><i
+                                    class="bi bi-inbox-fill text-warning me-2"></i>Regional Approval Inbox</h6>
+                            <span class="badge bg-danger rounded-pill px-3 py-2" id="apRegionPendingCount">0 Pending
+                                Tasks</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table premium-table align-middle mb-0">
+                                <thead class="table-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th>Store</th>
+                                        <th>Task Type</th>
+                                        <th style="width: 40%;">Action Plan</th>
+                                        <th class="text-center">Current Status</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="apRegionInboxBody">
+                                    <!-- JS Injected -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. BRANCH TAB -->
+    <div id="tab-branch" class="fade-in" style="display:none;">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="bg-warning bg-opacity-10 p-3 rounded-4">
+                <i class="bi bi-diagram-3-fill text-warning fs-3"></i>
+            </div>
+            <div>
+                <h2 class="fw-bold mb-1"
+                    style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; color: var(--primary);">Branch
+                    Implementation Detail
+                </h2>
+                <p class="text-muted mb-0">Action plan execution progress aggregated across Branches.</p>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 16px;">
+                    <div class="table-responsive px-1 pb-2">
+                        <table class="table premium-table align-middle mb-0" id="apBranchTable">
+                            <thead>
+                                <tr class="text-secondary small text-uppercase"
+                                    style="font-size: 0.7rem; letter-spacing: 0.5px; font-weight: 700;">
+                                    <th class="py-3 ps-4" style="width: 30%;">Branch</th>
+                                    <th class="py-3" style="width: 20%;">Region</th>
+                                    <th class="py-3 text-center">Total Stores</th>
+                                    <th class="py-3 text-center">Implementation Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody class="border-top-0" id="apBranchBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Branch Approval Inbox -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm rounded-4 luxury-card">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h6 class="fw-bold text-dark text-uppercase mb-0" style="letter-spacing: 1px;"><i
+                                    class="bi bi-inbox-fill text-warning me-2"></i>Branch Approval Inbox</h6>
+                            <span class="badge bg-danger rounded-pill px-3 py-2" id="apBranchPendingCount">0 Pending
+                                Tasks</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table premium-table align-middle mb-0">
+                                <thead class="table-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th>Store</th>
+                                        <th>Task Type</th>
+                                        <th style="width: 40%;">Action Plan</th>
+                                        <th class="text-center">Current Status</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="apBranchInboxBody">
+                                    <!-- JS Injected -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. STORE MONITORING TAB (FLAGSHIP FEATURE) -->
+    <div id="tab-stores" class="fade-in" style="display:none;">
+
+        <!-- STORE MASTER LIST -->
+        <div id="storeListContainer" class="fade-in">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="bg-success bg-opacity-10 p-3 rounded-4">
+                        <i class="bi bi-shop-window text-success fs-3"></i>
+                    </div>
+                    <div>
+                        <h2 class="fw-bold mb-1"
+                            style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; color: var(--primary);">
+                            Store
+                            Action Plan Execution
+                        </h2>
+                        <p class="text-muted mb-0">Select a store to monitor, approve, and comment on their improvement
+                            tasks.</p>
+                    </div>
+                </div>
+
+                <!-- Search Box -->
+                <div class="position-relative" style="width: 100%; max-width: 350px;">
+                    <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                    <input type="text" class="form-control rounded-pill ps-5 py-2 bg-white shadow-sm border-0"
+                        placeholder="Search store, region, or branch..."
+                        oninput="renderActionPlanStoreTable(this.value)">
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm overflow-hidden bg-transparent">
+                <div class="table-responsive px-1 pb-2">
+                    <table class="table premium-table align-middle mb-0" id="apStoreMasterTable">
+                        <thead>
+                            <tr class="text-secondary small text-uppercase"
+                                style="font-size: 0.7rem; letter-spacing: 0.5px; font-weight: 700;">
+                                <th class="py-2 ps-4" style="width: 40%;">Store Profile</th>
+                                <th class="py-2" style="width: 25%;">Location</th>
+                                <th class="py-2 text-center" style="width: 20%;">Implementation Rate</th>
+                                <th class="py-2 text-center pe-4" style="width: 15%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="border-top-0" id="apStoreMasterBody" style="background:transparent;">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- STORE DETAIL VIEW -->
+        <div id="storeContent" style="display:none;" class="fade-in">
+            <!-- Hero Header -->
+            <div class="rounded-4 p-4 mb-4 text-white position-relative shadow-sm overflow-hidden"
+                style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);">
+                <!-- Decorative background element -->
+                <div
+                    style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(0,0,0,0) 70%); border-radius: 50%;">
+                </div>
+
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start position-relative"
+                    style="z-index: 2;">
+                    <div>
+                        <button class="btn btn-dark btn-sm rounded-pill px-3 mb-3 border-light border-opacity-25"
+                            style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);"
+                            onclick="showStoreList()"><i class="bi bi-arrow-left me-2"></i>Back to Store List</button>
+                        <div class="d-flex align-items-center gap-3 mb-1">
+                            <div class="bg-white bg-opacity-25 p-2 rounded-3 text-white backdrop-blur shadow-sm d-flex align-items-center justify-content-center"
+                                style="width: 48px; height: 48px;">
+                                <i class="bi bi-shop fs-4"></i>
+                            </div>
+                            <h2 class="fw-bold mb-0" id="apStoreName"
+                                style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px; font-size: 2rem;">
+                                Store Name</h2>
+                        </div>
+                        <div class="opacity-75 small text-uppercase fw-bold ms-5 ps-2" id="apStoreMeta"
+                            style="letter-spacing:1px;"><i class="bi bi-geo-alt me-1"></i>REGION • BRANCH</div>
+                    </div>
+                    <div class="text-end mt-3 mt-md-0">
+                        <div class="small fw-bold text-white-50 text-uppercase mb-1" style="letter-spacing: 1px;">
+                            Implementation
+                            Rate</div>
+                        <div class="display-5 fw-bold text-success text-shadow-sm" id="apStoreCompletion"
+                            style="font-family: 'Outfit', sans-serif;">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Weekly Sprint Tracker (Horizontal) -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 luxury-card overflow-hidden"
+                        style="background: linear-gradient(to right, #ffffff, #f8f9fa);">
+                        <div class="card-body p-4 p-md-5 border-bottom border-light">
+                            <h5 class="fw-bold text-dark mb-5 text-center"
+                                style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;"><i
+                                    class="bi bi-rocket-takeoff-fill text-primary me-2"></i>Weekly Sprint Execution
+                                Tracker</h5>
+
+                            <!-- Horizontal Timeline Container -->
+                            <div class="position-relative w-100 px-md-5" id="apWeeklySprintTracker">
+                                <!-- JS Injected Horizontal Timeline -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Plan Grid -->
+            <div class="row g-4 mb-4 justify-content-center">
+                <!-- Action Plan Checklist -->
+                <div class="col-lg-10 d-flex flex-column gap-4 mx-auto" id="apTaskListContainer">
+                    <!-- Tasks injected by JS -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>

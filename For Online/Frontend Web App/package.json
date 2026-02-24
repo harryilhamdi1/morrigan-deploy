@@ -1,0 +1,10 @@
+{
+    "name": "eiger-ess-frontend",
+    "version": "1.0.0",
+    "description": "Frontend App for EIGER ESS Retail",
+    "main": "index.html",
+    "scripts": {
+        "dev": "npx live-server --port=5000 --open"
+    },
+    "dependencies": {}
+}

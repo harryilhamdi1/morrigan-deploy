@@ -1,0 +1,5354 @@
+
+// UTILITY: Number Counter Animation
+function animateValue(id, start, end, duration, decimals = 0) {
+    var obj = document.getElementById(id);
+    if (!obj) return;
+    var range = end - start;
+    var current = start;
+    var increment = end > start ? 1 : -1;
+    var stepTime = Math.abs(Math.floor(duration / (range * 100))); // Adjust speed
+    if (stepTime < 5) stepTime = 5; // Cap speed
+
+    // Easier approach with requestAnimationFrame for smoothness
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        // Easing: easeOutQuad
+        const ease = 1 - (1 - progress) * (1 - progress);
+
+        const val = (ease * (end - start) + start);
+        obj.innerHTML = decimals === 0 ? Math.round(val) : val.toFixed(decimals);
+
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        } else {
+            obj.innerHTML = decimals === 0 ? Math.round(end) : end.toFixed(decimals);
+        }
+    };
+    window.requestAnimationFrame(step);
+}
+
+function initSummary() {
+    var w = sortedWaves, cur = w[w.length - 1], prev = w.length > 1 ? w[w.length - 2] : null;
+    var dat = reportData.summary[cur];
+
+    // 1. KPI Scores (Animated)
+    var s = dat.sum / dat.count;
+    var pS = prev ? reportData.summary[prev].sum / reportData.summary[prev].count : 0;
+    var diff = s - pS;
+
+    // Trigger Animation
+    animateValue("kpi-score", 0, s, 1000, 2);
+
+    document.getElementById("kpi-score-trend").innerHTML = (diff >= 0 ? "▲ +" : "▼ ") + Math.abs(diff).toFixed(2) + " vs last wave";
+    document.getElementById("kpi-score-trend").className = "animate-entry delay-200 kpi-trend " + (diff >= 0 ? "text-success" : "text-danger");
+
+    const activeNationalStores = Object.values(reportData.stores).filter(s => !s.meta.code.startsWith('9')).length;
+    animateValue("kpi-stores", 0, activeNationalStores, 1000, 0);
+
+    // Best Region
+    var bestR = "", bestS = -1;
+    Object.keys(reportData.regions).forEach(r => {
+        var d = reportData.regions[r][cur];
+        if (d && d.sum / d.count > bestS) { bestS = d.sum / d.count; bestR = r; }
+    });
+    document.getElementById("kpi-best-region").textContent = bestR || "N/A";
+    document.getElementById("kpi-best-region").className = "metric-big text-success animate-entry delay-300";
+    document.getElementById("kpi-best-region").style.fontSize = "1.8rem";
+
+    // 2. Critical Issues (Total Count)
+    var totActions = 0;
+    Object.values(reportData.stores).forEach(st => {
+        if (st.results[cur]) {
+            Object.values(st.results[cur].sections).forEach(v => {
+                if (v < reportData.threshold) totActions++;
+            });
+        }
+    });
+    animateValue("kpi-actions", 0, totActions, 1000, 0);
+
+    // Animate KPI score progress bar
+    setTimeout(() => {
+        var bar = document.getElementById("kpi-score-bar");
+        if (bar) bar.style.width = s + "%";
+    }, 200);
+
+    // 3. Chart with Deltas
+    var scores = w.map(k => reportData.summary[k].sum / reportData.summary[k].count);
+    var ann = [];
+    for (var i = 1; i < w.length; i++) {
+        var p = scores[i - 1], c = scores[i];
+        if (!isNaN(p) && !isNaN(c)) {
+            var d = c - p;
+            var color = d >= 0 ? "#059669" : "#DC2626";
+            ann.push({
+                x: w[i], y: (p + c) / 2,
+                text: "<b>" + (d >= 0 ? "+" : "") + d.toFixed(1) + "</b>",
+                showarrow: false,
+                font: { size: 10, color: color },
+                bgcolor: d >= 0 ? "rgba(5,150,105,0.1)" : "rgba(220,38,38,0.1)",
+                bordercolor: color, borderwidth: 1, borderpad: 2
+            });
+        }
+    }
+    ann.push({ xref: "paper", yref: "y", x: 1.02, y: reportData.threshold, text: "<b>" + reportData.threshold + "</b>", showarrow: false, font: { size: 9, color: "#EF4444" } });
+
+    Plotly.newPlot("summaryChart", [
+        {
+            x: w, y: scores, type: "scatter", mode: "lines+markers+text",
+            line: { color: "#002060", width: 3, shape: "spline", smoothing: 1.2 },
+            marker: { size: 10, color: "#002060", line: { color: "#FFF", width: 2 } },
+            text: scores.map(v => v.toFixed(2)), textposition: "top center"
+        },
+        {
+            x: w, y: w.map(() => reportData.threshold), mode: "lines",
+            line: { color: "#EF4444", width: 1, dash: "dot" }, hoverinfo: "none"
+        }
+    ], {
+        margin: { t: 40, l: 40, r: 40, b: 40 },
+        annotations: ann,
+        xaxis: { fixedrange: true },
+        yaxis: { fixedrange: true, gridcolor: "#F3F4F6" },
+        showlegend: false,
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(0,0,0,0)"
+    }, config);
+
+    // 4. Journey Analysis (Clickable - Sexy Tiles)
+    var grid = document.getElementById("sectionAnalysisGrid");
+    grid.innerHTML = "";
+    var iconMap = {
+        "A.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+        "B.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+        "C.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+        "D.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+        "E.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+        "F.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+        "G.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>',
+        "H.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>',
+        "I.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+        "J.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+        "K.": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'
+    };
+    Object.entries(dat.sections)
+        .sort((a, b) => (a[1].sum / a[1].count) - (b[1].sum / b[1].count))
+        .forEach(([k, v], i) => {
+            var sc = v.sum / v.count, cr = v.critical || 0, isC = sc < 86;
+            var prefix = k.split(" ")[0]; var icon = iconMap[prefix] || iconMap["A."];
+            var isTopLow = i < 3;
+            var col = document.createElement("div");
+            col.className = isTopLow ? "col-xl-4 col-md-6" : "col-xl-2 col-md-4 col-sm-6";
+
+            // ANIMATION: Add animate-entry and stagger delay
+            var delayClass = "delay-" + ((i * 100) % 500);
+
+            col.innerHTML = `<div class="${isTopLow ? 'mandate-card' : 'data-panel'} h-100 hover-lift ${isC ? 'accent-stripe-danger' : 'accent-stripe-blue'} animate-entry ${delayClass}" 
+            style="cursor:pointer; padding: ${isTopLow ? '24px' : '20px'};" 
+            onclick="openSectionDetail('${k}')">
+                ${isTopLow ? '<div class="position-absolute top-0 end-0 m-3"><span class="badge-premium bg-danger text-white shadow-sm">PRIORITY</span></div>' : ''}
+                <div class="section-icon-wrapper mb-2"><div style="width:24px; height:24px;">${icon}</div></div>
+                <div class="${isTopLow ? 'metric-big' : 'section-score'} fw-bold ${isC ? 'text-danger' : ''}" style="${isTopLow ? 'font-size:2rem;' : 'color: var(--primary);'}">${sc.toFixed(1)}</div>
+                <div class="progress-bar-premium mt-1 mb-2"><div class="fill ${isC ? 'fill-danger' : 'fill-blue'}" style="width: ${sc}%"></div></div>
+                <div class="${isTopLow ? 'h6 fw-bold' : 'section-label'} mb-3" title="${k}">${k}</div>
+                <div class="d-flex align-items-center justify-content-between mt-auto">
+                    <span class="badge-premium ${cr > 0 ? 'bg-danger text-white' : 'bg-success text-white'}">${cr > 0 ? cr + " Critical" : "All Clean"}</span>
+                    <svg style="width:16px; height:16px; opacity:0.3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+                </div></div> `;
+            grid.appendChild(col);
+        });
+
+    // 5. Store Rankings
+    var sList = Object.values(reportData.stores)
+        .filter(s => s.results[cur])
+        .map(s => ({ n: s.meta.name, s: s.results[cur].totalScore }))
+        .sort((a, b) => b.s - a.s);
+
+    var renderT = (l, id, top) => {
+        var h = "";
+        l.forEach((x, i) => {
+            var r = top ? i + 1 : sList.length - i;
+            var cls = top ? (i < 3 ? "rank-top-" + (i + 1) : "") : "";
+            h += `<tr ><td style="padding-left:20px"><span class="rank-badge ${cls}">${r}</span></td><td>${x.n}</td><td class="text-end fw-bold" style="padding-right:20px">${x.s.toFixed(2)}</td></tr> `;
+        });
+        document.getElementById(id).innerHTML = h;
+    };
+    renderT(sList.slice(0, 5), "topStoresList", true);
+    renderT(sList.slice(-5).reverse(), "bottomStoresList", false);
+
+    // 6. Hierarchy Rankings
+    const regList = Object.keys(reportData.regions).map(r => {
+        const regVoc = timeFilteredVocData ? timeFilteredVocData.filter(v => v.region === r) : [];
+        const total = regVoc.length;
+        const d = reportData.regions[r][cur];
+        return { n: r, s: d ? d.sum / d.count : 0, vocCount: total };
+    }).sort((a, b) => b.s - a.s);
+    var brList = Object.keys(reportData.branches).map(b => {
+        var d = reportData.branches[b][cur]; return { n: b, s: d ? d.sum / d.count : 0 };
+    }).sort((a, b) => b.s - a.s);
+
+    var renderH = (l, id) => {
+        var h = "";
+        l.slice(0, 5).forEach((x, i) => {
+            var cls = i < 3 ? "rank-top-" + (i + 1) : "";
+            h += `<tr ><td style="padding-left:20px"><span class="rank-badge ${cls}">${i + 1}</span></td><td>${x.n}</td><td class="text-end fw-bold" style="padding-right:20px">${x.s.toFixed(2)}</td></tr> `;
+        });
+        document.getElementById(id).innerHTML = h;
+    };
+    renderH(regList, "regionRankList");
+    renderH(brList, "branchRankList");
+
+    // 7. National Top Priorities (Lowest Scoring Items)
+    const natContainer = document.getElementById("natPrioritiesList");
+    if (natContainer && dat.details) {
+        let allNatItems = [];
+        Object.entries(dat.details).forEach(([sec, items]) => {
+            Object.values(items).forEach(item => {
+                if (item.count > 0) {
+                    allNatItems.push({ t: item.t, score: (item.sum / item.count) });
+                }
+            });
+        });
+
+        // Sort Ascending (Lowest First) -> Take 5
+        const topPriorities = allNatItems.sort((a, b) => a.score - b.score).slice(0, 5);
+
+        natContainer.innerHTML = topPriorities.map((item, idx) => `
+                <div class="col-md-6 col-lg-4" >
+                    <div class="mandate-card h-100 d-flex align-items-start gap-3 hover-lift">
+                        <div class="mandate-number">${idx + 1}</div>
+                        <div class="flex-grow-1">
+                            <div class="small fw-bold text-dark mb-1" style="line-height:1.3;">${item.t}</div>
+                            <div class="progress-bar-premium"><div class="fill fill-danger" style="width: ${(item.score * 100).toFixed(0)}%"></div></div>
+                        </div>
+                        <div class="ms-1 text-end">
+                            <span class="badge-premium bg-danger text-white">${(item.score * 100).toFixed(0)}%</span>
+                        </div>
+                    </div>
+            </div>
+                `).join('');
+    }
+}
+
+function initRegions() {
+    var regKeys = Object.keys(reportData.regions).sort();
+    var waves = sortedWaves;
+    var curWave = waves[waves.length - 1];
+
+    // 1. Heatmap Data Preparation
+    var secKeys = Object.keys(reportData.summary[curWave].sections).sort();
+    var z_cat = [], z_val = [], z_txt_col = [];
+
+    regKeys.forEach(r => {
+        var row_cat = [], row_val = [], row_col = [];
+        secKeys.forEach(s => {
+            var d = reportData.regions[r][curWave];
+            if (!d || !d.sections[s]) {
+                row_cat.push(null); row_val.push(""); row_col.push("black");
+            } else {
+                var sc = d.sections[s].sum / d.sections[s].count;
+                row_val.push(sc.toFixed(1));
+                if (sc < 86) { row_cat.push(0); row_col.push("#450A0A"); } // Deep Red text
+                else if (sc < 90) { row_cat.push(1); row_col.push("#451A03"); } // Deep Amber text
+                else if (sc < 95) { row_cat.push(2); row_col.push("#FFFFFF"); } // White text on Blue
+                else { row_cat.push(3); row_col.push("#FFFFFF"); } // White text on Indigo
+            }
+        });
+        z_cat.push(row_cat); z_val.push(row_val); z_txt_col.push(row_col);
+    });
+
+    var legendHTML = `
+                <div class="d-flex justify-content-center gap-4 small text-muted text-uppercase fw-bold" style="letter-spacing:1px; margin: 15px 0;" >
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FCA5A5;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Critical (<86)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#FBBF24;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Warning (86-90)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#60A5FA;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Good (90-95)</div>
+               <div class="d-flex align-items-center"><span style="width:14px;height:14px;background:#1E3A8A;border:1px solid rgba(0,0,0,0.1);border-radius:4px;margin-right:8px;"></span>Excellent (>95)</div>
+           </div> `;
+
+    var container = document.getElementById("regionSectionHeatmap").parentElement;
+    container.querySelectorAll(".hm-legend-custom").forEach(e => e.remove());
+    var topLeg = document.createElement("div");
+    topLeg.className = "hm-legend-custom";
+    topLeg.innerHTML = legendHTML;
+    container.insertBefore(topLeg, document.getElementById("regionSectionHeatmap"));
+
+    var colors = [[0, "#FCA5A5"], [0.25, "#FCA5A5"], [0.25, "#FBBF24"], [0.5, "#FBBF24"], [0.5, "#60A5FA"], [0.75, "#60A5FA"], [0.75, "#1E3A8A"], [1, "#1E3A8A"]];
+    var hmDiv = document.getElementById("regionSectionHeatmap");
+
+    Plotly.newPlot(hmDiv, [{
+        x: secKeys, y: regKeys, z: z_cat, text: z_val, customdata: z_val,
+        type: "heatmap", colorscale: colors, zmin: 0, zmax: 3, xgap: 5, ygap: 5,
+        texttemplate: "<b>%{text}</b>", textfont: { color: z_txt_col, family: "Inter", size: 11 },
+        hovertemplate: "<b>%{y}</b><br>%{x}<br>Score: <b>%{text}</b><extra></extra>", showscale: false
+    }], {
+        margin: { l: 120, b: 120, t: 10 },
+        xaxis: { side: "bottom", tickfont: { size: 10, color: "#4B5563", family: "Inter", weight: "600" }, tickangle: -25 },
+        yaxis: { tickfont: { size: 11, color: "#6B7280", family: "Inter", weight: "bold" } },
+        font: { family: "Inter, sans-serif" }, height: 600, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
+    }, config);
+
+    hmDiv.on("plotly_click", function (data) {
+        var pt = data.points[0];
+        var r = pt.y, fullSec = pt.x;
+        var d = reportData.regions[r][curWave], secData = d.sections[fullSec];
+        var score = secData.sum / secData.count;
+        var natData = reportData.summary[curWave].sections[fullSec], natScore = natData.sum / natData.count, diff = score - natScore;
+
+        if (!document.getElementById("heatmapModal")) {
+            var m = document.createElement("div");
+            m.innerHTML = `
+                <div class="modal fade" id="heatmapModal" tabindex="-1" > <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;overflow:hidden;">
+                    <div class="modal-header border-0 bg-white pb-0">
+                        <div><h5 class="modal-title fw-bold text-primary-custom" id="hmModalTitle">Analysis</h5><div class="text-muted small text-uppercase fw-bold" id="hmModalSubtitle" style="letter-spacing:1px;">Detail</div></div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4 bg-white"><div class="row g-4">
+                        <div class="col-md-5">
+                            <div class="p-4 bg-light rounded-3 h-100 text-center d-flex flex-column justify-content-center">
+                                <div class="text-uppercase text-muted small fw-bold mb-1">Score</div>
+                                <div class="display-3 fw-bold mb-2" id="hmScore" style="letter-spacing:-2px;">--</div>
+                                <div id="hmBadge"></div>
+                                <div class="mt-4 pt-3 border-top"><div class="small text-muted mb-1">vs National</div><div class="h5 fw-bold" id="hmVsNat">--</div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="h-100">
+                                <div class="d-flex align-items-center mb-3"><span class="me-2">📉</span><span class="fw-bold text-danger">Bottom Performing Stores</span></div>
+                                <div class="table-responsive"><table class="table table-sm table-borderless mb-0" style="font-size:0.9rem;"><thead class="text-muted small text-uppercase"><tr><th>Store</th><th class="text-end">Score</th></tr></thead><tbody id="hmCulprits"></tbody></table></div>
+                            </div>
+                        </div>
+                        <div class="col-12"><div class="p-3 bg-light rounded-3 border-start border-4 border-primary"><div class="d-flex"><div class="me-3 fs-4">💡</div><div><h6 class="fw-bold mb-1">Recommended Action</h6><p class="mb-0 text-muted small" id="hmAction">--</p></div></div></div></div>
+                        <div class="col-12"><div class="pt-3 border-top"><div class="small text-muted text-uppercase fw-bold mb-2">Historical Trend</div><div id="hmTrendChart" style="height:120px;"></div></div></div>
+                    </div></div>
+                </div></div></div> `;
+            document.body.insertAdjacentHTML('beforeend', m.innerHTML);
+        }
+
+        document.getElementById("hmModalTitle").textContent = r;
+        document.getElementById("hmModalSubtitle").textContent = fullSec;
+        var scEl = document.getElementById("hmScore"); scEl.textContent = score.toFixed(2);
+        scEl.className = "display-3 fw-bold mb-2 " + (score < 86 ? "text-danger" : "text-primary-custom");
+        document.getElementById("hmBadge").innerHTML = score < 86 ? `<span class="badge bg-danger px-3 py-2 rounded-pill" > CRITICAL</span> ` : (score < 90 ? ` <span class="badge bg-warning text-dark px-3 py-2 rounded-pill" > WARNING</span> ` : ` <span class="badge bg-success px-3 py-2 rounded-pill" > GOOD</span> `);
+        document.getElementById("hmVsNat").innerHTML = (diff >= 0 ? `<span class="text-success" >▲ +` : ` <span class="text-danger" >▼ `) + diff.toFixed(2) + "</span>";
+        document.getElementById("hmAction").textContent = reportData.actionPlanConfig[fullSec] || "Review operational standards and compliance.";
+
+        var culprits = Object.values(reportData.stores).filter(s => s.meta.region === r && s.results[curWave]).map(s => ({ n: s.meta.name, s: s.results[curWave].sections[fullSec] || 0 })).sort((a, b) => a.s - b.s).slice(0, 5);
+        document.getElementById("hmCulprits").innerHTML = culprits.map(c => `<tr ><td>${c.n}</td><td class="text-end fw-bold ${c.s < 86 ? "text-danger" : ""}" > ${c.s.toFixed(2)}</td></tr> `).join("");
+
+        var yTrend = waves.map(w => { var rd = reportData.regions[r][w]; return rd && rd.sections[fullSec] ? rd.sections[fullSec].sum / rd.sections[fullSec].count : null; });
+        Plotly.newPlot("hmTrendChart", [{ x: waves, y: yTrend, type: "scatter", mode: "lines+markers", line: { color: "#002060", width: 2, shape: "spline" }, marker: { color: "#002060", size: 6 } }], { margin: { t: 10, l: 30, r: 10, b: 20 }, height: 120, xaxis: { showgrid: false, tickfont: { size: 10 } }, yaxis: { showgrid: true, gridcolor: "#eee", tickfont: { size: 10 } } }, config);
+
+        var modalEl = document.getElementById("heatmapModal");
+        var modal = bootstrap.Modal.getInstance(modalEl);
+        if (!modal) modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    });
+
+    // 2. Performance Trends
+    var traces = regKeys.map(r => {
+        var y = waves.map(w => { var d = reportData.regions[r][w]; return d ? d.sum / d.count : null; });
+        return { x: waves, y: y, mode: "lines+markers", name: r, line: { shape: "spline", width: 3 }, marker: { size: 8 }, visible: true };
+    });
+    Plotly.newPlot("regionTrendChart", traces, {
+        margin: { t: 20, l: 40, r: 20, b: 40 },
+        showlegend: true, legend: { orientation: "h", y: -0.15 },
+        xaxis: { showgrid: false }, yaxis: { gridcolor: "#F3F4F6", showgrid: true }
+    }, config);
+
+    // 3. Leaderboard
+    var cont = document.getElementById("regionDetailCards");
+    if (cont) {
+        cont.innerHTML = "";
+        var sortedRegsMain = regKeys.map(r => {
+            var d = reportData.regions[r][curWave]; return { n: r, s: d ? d.sum / d.count : 0, d: d };
+        }).sort((a, b) => b.s - a.s);
+
+        sortedRegsMain.forEach((item, idx) => {
+            var d = item.d; if (!d) return;
+            var score = item.s;
+            var waves = sortedWaves;
+            var prevW = waves.length > 1 ? waves[waves.length - 2] : null;
+            var prevD = prevW ? reportData.regions[item.n][prevW] : null;
+            var prevS = prevD ? prevD.sum / prevD.count : 0;
+            var diff = score - prevS;
+
+            var secs = Object.entries(d.sections).map(([k, v]) => ({ k: k, v: v.sum / v.count })).sort((a, b) => a.v - b.v).slice(0, 3);
+            var weakHTML = secs.map(x => `
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
+                    <span class="text-truncate text-muted pe-2" style="max-width: 200px;"><i class="bi bi-record-circle text-danger me-1 opacity-50" style="font-size: 0.7rem;"></i> ${x.k}</span>
+                    <strong class="${x.v < 86 ? 'text-danger' : 'text-dark'}">${x.v.toFixed(1)}</strong>
+                </div>
+            `).join("");
+
+            var borderColor = score < 86 ? 'var(--bs-danger)' : 'var(--bs-primary)';
+            var scoreColor = score < 86 ? 'var(--bs-danger)' : '#0F172A';
+            var bgGradient = score < 86 ? 'linear-gradient(180deg, #FEF2F2 0%, #FFFFFF 20%)' : 'linear-gradient(180deg, #F0F9FF 0%, #FFFFFF 20%)';
+            var momColor = diff >= 0 ? '#059669' : '#DC2626';
+            var momBg = diff >= 0 ? '#D1FAE5' : '#FEE2E2';
+
+            var rankBadgeHTML = idx < 3
+                ? `<div class="regional-rank glass-rank rank-${idx + 1}">${idx + 1}</div>`
+                : `<div class="regional-rank text-muted border bg-white shadow-sm" style="font-size: 0.9rem;">#${idx + 1}</div>`;
+
+            var col = document.createElement("div");
+            col.className = "col-lg-4 col-md-6";
+            col.innerHTML = `
+                   <div class="card h-100 regional-card-premium border-0" style="background: ${bgGradient}; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.08); transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 16px; overflow: hidden; position: relative;">
+                       <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: ${borderColor};"></div>
+                       
+                       <div class="card-body p-4 d-flex flex-column">
+                           <div class="d-flex justify-content-between align-items-start mb-3">
+                               <div>
+                                   <h4 class="fw-bold mb-1" style="color: #0F172A; font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">${item.n}</h4>
+                                   <span class="badge bg-light text-secondary border px-2 py-1 fw-medium" style="font-size: 0.65rem; letter-spacing: 0.5px;">${Object.values(reportData.stores).filter(s => s.meta.region === item.n && !s.meta.code.startsWith('9')).length} OUTLET ACTIVE</span>
+                               </div>
+                               ${rankBadgeHTML}
+                           </div>
+
+                           <div class="d-flex align-items-center gap-3 mb-4">
+                               <div class="fw-black" style="font-size: 2.75rem; line-height: 1; color: ${scoreColor}; font-family: 'Outfit', sans-serif; letter-spacing: -1px;">
+                                   ${score.toFixed(2)}
+                               </div>
+                               <div class="px-2 py-1 rounded-pill d-flex align-items-center gap-1 shadow-sm" style="background: ${momBg}; color: ${momColor}; font-size: 0.85rem; font-weight: 700;">
+                                   ${diff >= 0 ? '<i class="bi bi-arrow-up-short"></i>' : '<i class="bi bi-arrow-down-short"></i>'} ${Math.abs(diff).toFixed(2)}
+                               </div>
+                           </div>
+
+                           <div class="mb-4">
+                               <div class="d-flex justify-content-between text-muted small mb-1 fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                   <span>PERFORMANCE PROGRESS</span>
+                                   <span>TARGET: 86.00</span>
+                               </div>
+                               <div class="progress" style="height: 6px; border-radius: 50px; background-color: #E2E8F0; overflow: visible;">
+                                   <div class="progress-bar rounded-pill position-relative" role="progressbar" style="width: ${Math.min(score, 100)}%; background: ${borderColor}; transition: width 1s ease-in-out;">
+                                       <div style="position: absolute; right: 0; top: 50%; transform: translate(50%, -50%); width: 12px; height: 12px; background: white; border: 3px solid ${borderColor}; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.5);"></div>
+                                   </div>
+                               </div>
+                           </div>
+
+                           <div class="mt-auto p-3 rounded-4 mb-4" style="background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(239, 68, 68, 0.2); backdrop-filter: blur(10px);">
+                               <div class="text-uppercase text-danger fw-bold mb-3 d-flex align-items-center gap-2" style="font-size: 0.68rem; letter-spacing: 0.8px;">
+                                   <i class="bi bi-exclamation-triangle-fill"></i> Strategic Priority Areas
+                               </div>
+                               <div class="d-flex flex-column gap-1">
+                                    ${weakHTML}
+                               </div>
+                           </div>
+
+                           <button class="btn w-100 rounded-3 py-2 fw-semibold btn-regional-action" onclick="openRegionalDetail('${item.n}')" style="background: white; border: 1px solid #E2E8F0; color: #3B82F6; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s;">
+                               Deep Dive Analysis <i class="bi bi-arrow-right ms-1"></i>
+                           </button>
+                       </div>
+                   </div>
+            `;
+            cont.appendChild(col);
+        });
+    }
+
+    // 4. Populate Region Selector and Set Default
+    const selector = document.getElementById("regionSelector");
+    if (selector) {
+        selector.innerHTML = regKeys.map(r => `<option value="${r}">${r}</option>`).join('');
+        const sortedRegs = regKeys.map(r => {
+            var d = reportData.regions[r][curWave]; return { n: r, s: d ? d.sum / d.count : 0 };
+        }).sort((a, b) => a.s - b.s);
+        const lowestRegion = sortedRegs[0];
+        selector.value = lowestRegion.n;
+        updateRegionalPriorities(lowestRegion.n);
+    }
+}
+
+function updateRegionalPriorities(regionName) {
+    const curWave = sortedWaves[sortedWaves.length - 1];
+    const regData = reportData.regions[regionName] ? reportData.regions[regionName][curWave] : null;
+    const container = document.getElementById("regPrioritiesList");
+
+    if (!container || !regData || !regData.details) return;
+
+    // Update Header Display
+    const nameDisplay = document.getElementById("selectedRegionNameDisplay");
+    if (nameDisplay) nameDisplay.textContent = regionName;
+
+    let allItems = [];
+    Object.entries(regData.details).forEach(([sec, items]) => {
+        Object.values(items).forEach(item => {
+            if (item.count > 0) {
+                allItems.push({ t: item.t, score: (item.sum / item.count) });
+            }
+        });
+    });
+
+    const topPriorities = allItems.sort((a, b) => a.score - b.score).slice(0, 5);
+
+    container.innerHTML = topPriorities.map((item, idx) => `
+        <div class="col-md-6 col-lg-4">
+            <div class="mandate-card h-100 d-flex align-items-start gap-3 hover-lift">
+                <div class="mandate-number">${idx + 1}</div>
+                <div class="flex-grow-1">
+                    <div class="small fw-bold text-dark mb-1" style="line-height:1.3;">${item.t}</div>
+                    <div class="progress-bar-premium"><div class="fill fill-danger" style="width: ${(item.score * 100).toFixed(0)}%"></div></div>
+                </div>
+                <div class="ms-1 text-end">
+                    <span class="badge-premium bg-danger text-white">${(item.score * 100).toFixed(0)}%</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// --- Branch Strategy Module ---
+
+function initBranches() {
+    var bKeys = Object.keys(reportData.branches).sort();
+    var waves = sortedWaves;
+    var cur = waves[waves.length - 1];
+    var prev = waves.length > 1 ? waves[waves.length - 2] : null;
+
+    // 1. Data Processing
+    var brData = bKeys.map(br => {
+        var d = reportData.branches[br][cur];
+        var dPrev = prev ? reportData.branches[br][prev] : null;
+        var score = d ? d.sum / d.count : 0;
+        var pScore = dPrev ? dPrev.sum / dPrev.count : 0;
+        var momentum = score - pScore;
+        var outletCount = Object.values(reportData.stores).filter(s => s.meta.branch === br && !s.meta.code.startsWith('9')).length;
+        return { n: br, s: score, mom: momentum, count: outletCount, d: d };
+    }); // Sorting happens in specific charts
+
+    document.getElementById("branchCountDisplay").textContent = bKeys.length + " Units - " + brData.reduce((a, b) => a + b.count, 0) + " Outlets";
+
+    // 2. Compute Statistics
+    var topPerf = [...brData].sort((a, b) => b.s - a.s)[0];
+    var fastImp = [...brData].sort((a, b) => b.mom - a.mom)[0];
+    var scores = brData.map(b => b.s);
+    var gap = Math.max(...scores) - Math.min(...scores);
+    var hExc = scores.filter(s => s >= 95).length;
+    var hWarn = scores.filter(s => s >= 86 && s < 95).length;
+    var hCrit = scores.filter(s => s < 86).length;
+
+    // 3. Render Components
+    renderBranchKPIs(topPerf, fastImp, gap, hExc, hWarn, hCrit);
+    renderBranchMomentumChart(brData);
+    renderBranchMatrixChart(brData);
+    renderBranchInsights(topPerf, fastImp, hCrit, brData);
+    renderBranchCards(brData, waves);
+
+    // 4. Branch Priorities (Focus on Lowest Ranked Branch)
+    const lowestBranch = [...brData].sort((a, b) => a.s - b.s)[0];
+    const brPriContainer = document.getElementById("branchPrioritiesList");
+
+    if (brPriContainer && lowestBranch && lowestBranch.d && lowestBranch.d.details) {
+        // Update Title
+        const header = brPriContainer.closest('.card').querySelector('.glass-header-dark h6');
+        if (header) header.innerHTML = `<i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Priority Focus: ${lowestBranch.n} (Lowest Performing Branch)`;
+
+        let allBrItems = [];
+        Object.entries(lowestBranch.d.details).forEach(([sec, items]) => {
+            Object.values(items).forEach(item => {
+                if (item.count > 0) {
+                    allBrItems.push({ t: item.t, score: (item.sum / item.count) });
+                }
+            });
+        });
+
+        const topBrPriorities = allBrItems.sort((a, b) => a.score - b.score).slice(0, 5);
+
+        brPriContainer.innerHTML = topBrPriorities.map((item, idx) => `
+                <div class= "col-md-6 col-lg-4" >
+                <div class="mandate-card h-100 d-flex align-items-start gap-3 hover-lift">
+                    <div class="mandate-number">${idx + 1}</div>
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-dark mb-1" style="line-height:1.3;">${item.t}</div>
+                        <div class="progress-bar-premium"><div class="fill fill-danger" style="width: ${(item.score * 100).toFixed(0)}%"></div></div>
+                    </div>
+                    <div class="ms-1 text-end">
+                        <span class="badge-premium bg-danger text-white">${(item.score * 100).toFixed(0)}%</span>
+                    </div>
+                </div>
+            </div>
+                `).join('');
+    }
+}
+
+function renderBranchKPIs(top, fast, gap, hExc, hWarn, hCrit) {
+    var html = `
+                <div class="col-xl-3 col-md-6" >
+                    <div class="kpi-premium h-100 hover-lift">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="kpi-icon" style="background: linear-gradient(135deg, #EFF6FF, #DBEAFE); color: #2563EB;"><i class="bi bi-trophy"></i></div>
+                            <div class="metric-label">Top Performer</div>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-1 text-truncate animate-entry delay-100" style="font-family: 'Outfit', sans-serif;">${top.n}</h5>
+                        <div class="small text-muted"><span id="br-kpi-top-val">0</span> pts</div>
+                        <div class="progress-bar-premium mt-2"><div class="fill fill-blue" style="width: ${top.s}%"></div></div>
+                    </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-premium h-100 hover-lift accent-stripe-success">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #F0FDF4, #DCFCE7); color: #16A34A;"><i class="bi bi-rocket-takeoff"></i></div>
+                <div class="metric-label">Momentum Leader</div>
+            </div>
+            <h5 class="fw-bold text-dark mb-1 text-truncate" style="font-family: 'Outfit', sans-serif;">${fast.n}</h5>
+            <div class="small text-muted"><span id="br-kpi-mom-val">0</span> pts (Fastest Growth)</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-premium h-100 hover-lift accent-stripe-amber">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #FFFBEB, #FEF3C7); color: #D97706;"><i class="bi bi-arrows-expand"></i></div>
+                <div class="metric-label">Gap Analysis</div>
+            </div>
+            <h5 class="fw-bold text-dark mb-1"><span id="br-kpi-gap-val">0</span> pts</h5>
+            <div class="small text-muted">Spread: High vs Low</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-premium h-100 hover-lift">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #FAF5FF, #F3E8FF); color: #7C3AED;"><i class="bi bi-heart-pulse"></i></div>
+                <div class="metric-label">Health Index</div>
+            </div>
+             <h5 class="fw-bold text-dark mb-1">${hExc} <span class="text-muted fw-light mx-1">/</span> ${hWarn} <span class="text-muted fw-light mx-1">/</span> ${hCrit}</h5>
+             <div class="small text-muted">Exc / Warn / Crit</div>
+        </div>
+    </div>`;
+    document.getElementById("branchKPIs").innerHTML = html;
+
+    // Trigger Animations
+    animateValue("br-kpi-top-val", 0, top.s, 1000, 2);
+    // Momentum can be negative, need to handle start value? Assuming 0 start is fine.
+    // Actually momentum is displayed with +/-, animateValue handles number only.
+    // Let's just animate the number part.
+    // Wait, my animateValue replaces innerHTML.
+    // So for momentum: "+5.2" -> "0" -> "5.2"
+    // I need to add the "+" or "-" manually in HTML or wrapper.
+    // Modified above HTML to simple span id.
+
+    // Logic for Momentum Formatting handling in animateValue?
+    // animateValue just output number.
+    // I'll manually handle the text around it in HTML above?
+    // "id='br-kpi-mom-val'>0</span> pts"
+    // The previous code had:  `<div class="small text-muted">+${fast.mom.toFixed(2)} pts ...</div>`
+    // I will change it to: `<div class="small text-muted">${fast.mom >= 0 ? '+' : ''}<span id="br-kpi-mom-val">0</span> pts ...</div>`
+
+    // Re-adjust HTML for momentum sign
+    // See ReplacementChunk modification below for correct logic.
+
+    animateValue("br-kpi-mom-val", 0, fast.mom, 1000, 2);
+    animateValue("br-kpi-gap-val", 0, gap, 1000, 2);
+}
+
+function renderBranchMomentumChart(brData) {
+    // Consultant-grade Lollipop Chart: Final Polish with Outlet Count
+    var sorted = [...brData].sort((a, b) => a.s - b.s);
+    var yNames = sorted.map(d => d.n);
+    var xScores = sorted.map(d => d.s);
+
+    // Color logic: Green (>=95), Amber (>=86), Red (<86)
+    var dotColors = xScores.map(s => s >= 95 ? '#059669' : (s >= 86 ? '#D97706' : '#DC2626'));
+
+    // Dynamic Height
+    var dynamicHeight = Math.max(550, yNames.length * 50);
+
+    // Calculate Average
+    var avgScore = xScores.length > 0 ? xScores.reduce((a, b) => a + b, 0) / xScores.length : 0;
+
+    // --- Trace 1: Lollipop Stems ---
+    var baselineScore = 70;
+    var stemTrace = {
+        y: yNames,
+        x: xScores.map(s => s - baselineScore),
+        base: Array(yNames.length).fill(baselineScore),
+        type: 'bar',
+        orientation: 'h',
+        marker: { color: dotColors.map(c => c + '25'), line: { width: 0 } },
+        width: 0.15,
+        hoverinfo: 'skip',
+        showlegend: false
+    };
+
+    // --- Trace 2: Lollipop Heads (Dots) ---
+    var dotTrace = {
+        y: yNames,
+        x: xScores,
+        type: 'scatter',
+        mode: 'markers',
+        marker: {
+            color: dotColors,
+            size: 16,
+            line: { color: 'white', width: 2 },
+            symbol: 'circle'
+        },
+        hovertemplate: '<b>%{y}</b><br>Score: %{x:.2f}<extra></extra>',
+        showlegend: false
+    };
+
+    // --- Annotations ---
+    var annotations = [];
+
+    // 1. Data Labels (Scores, Momentum, Outlet Count)
+    sorted.forEach((d, i) => {
+        // Score Label
+        annotations.push({
+            x: d.s + 1.2,
+            y: d.n,
+            text: '<b>' + d.s.toFixed(1) + '</b>',
+            showarrow: false,
+            font: { size: 12, family: 'Inter', color: '#111827', weight: '700' },
+            xanchor: 'left',
+            bgcolor: 'white',
+            borderpad: 2
+        });
+
+        // Momentum Badge
+        var momColor = d.mom >= 0 ? '#059669' : '#DC2626';
+        var momIcon = d.mom >= 0 ? '▲' : '▼';
+        annotations.push({
+            x: d.s + 6.0,
+            y: d.n,
+            text: momIcon + ' ' + Math.abs(d.mom).toFixed(1),
+            showarrow: false,
+            font: { size: 10, family: 'Inter', color: momColor, weight: '600' },
+            xanchor: 'left'
+        });
+
+        // Outlet Count (Context Column on Right)
+        annotations.push({
+            x: 108, // Fixed far right position
+            y: d.n,
+            text: d.count + ' Stores',
+            showarrow: false,
+            font: { size: 11, family: 'Inter', color: '#6B7280', weight: '500' },
+            xanchor: 'right'
+        });
+    });
+
+    // 2. Reference Lines
+    var shapes = [
+        {
+            type: 'line',
+            x0: 86, x1: 86,
+            y0: -0.5, y1: yNames.length - 0.5,
+            line: { color: '#EF4444', width: 1.5, dash: 'dash' },
+            layer: 'below'
+        },
+        {
+            type: 'line',
+            x0: avgScore, x1: avgScore,
+            y0: -0.5, y1: yNames.length - 0.5,
+            line: { color: '#4472C4', width: 1.5, dash: 'dot' },
+            layer: 'below'
+        }
+    ];
+
+    // 3. Reference Labels
+
+    // Average Label (Top)
+    annotations.push({
+        x: avgScore,
+        y: yNames.length - 0.5,
+        text: '<b>AVG:' + avgScore.toFixed(1) + '</b>',
+        showarrow: false,
+        font: { size: 10, color: '#4472C4', family: 'Inter', weight: 'bold' },
+        yanchor: 'bottom',
+        xanchor: 'center',
+        bgcolor: '#FFFFFF',
+        yshift: 5
+    });
+
+    // Threshold Label (Bottom)
+    annotations.push({
+        x: 86,
+        y: -0.5, // Bottom
+        text: '<b>TARGET: 86</b>',
+        showarrow: false,
+        font: { size: 10, color: '#EF4444', family: 'Inter', weight: 'bold' },
+        yanchor: 'top',
+        xanchor: 'center',
+        bgcolor: '#FFFFFF',
+        yshift: -5
+    });
+
+    // Outlet Count Header (Top Right)
+    annotations.push({
+        x: 108,
+        y: yNames.length - 0.5,
+        text: 'SIZE',
+        showarrow: false,
+        font: { size: 9, color: '#9CA3AF', family: 'Inter', weight: '700' },
+        yanchor: 'bottom',
+        xanchor: 'right',
+        yshift: 5
+    });
+
+    Plotly.newPlot("branchMomentumChart", [stemTrace, dotTrace], {
+        xaxis: {
+            title: { text: '', font: { size: 11 } },
+            range: [baselineScore, 110], // Increased range to fit Outlet Count
+            showgrid: true,
+            gridcolor: '#F3F4F6',
+            zeroline: false,
+            tickfont: { size: 11, color: '#9CA3AF', family: 'Inter' },
+            dtick: 5,
+            side: 'top'
+        },
+        yaxis: {
+            automargin: true,
+            tickfont: { size: 12, family: 'Inter', weight: '600', color: '#1F2937' },
+            showgrid: false
+        },
+        shapes: shapes,
+        annotations: annotations,
+        margin: { l: 180, r: 60, t: 60, b: 40 },
+        showlegend: false,
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        height: dynamicHeight,
+        font: { family: 'Inter' },
+        hovermode: 'closest',
+        bargap: 0.5
+    }, config);
+}
+function renderBranchMatrixChart(brData) {
+    var x = brData.map(d => d.s);
+    var y = brData.map(d => d.mom);
+    // Smart Labels: Only show extreme outliers to avoid label pile-ups
+    var sortedByScore = [...brData].sort((a, b) => b.s - a.s);
+    var outliers = new Set([
+        ...sortedByScore.slice(0, 2).map(d => d.n),  // Top 2 by score
+        ...sortedByScore.slice(-2).map(d => d.n)      // Bottom 2 by score
+    ]);
+
+    var text = brData.map(d => outliers.has(d.n) ? d.n : "");
+    var hoverText = brData.map(d => d.n);
+
+    // Visuals: White background for text labels to improve readability over gridlines
+    var size = brData.map(d => Math.max(12, Math.min(35, Math.sqrt(d.count) * 7))); // Slightly larger bubbles
+    var colors = x.map(s => s >= 86 ? '#002060' : '#DC2626');
+
+    // Shapes: Q1 (Stars), Q2 (Rising), Q3 (Watch), Q4 (Critical)
+    var shapes = [
+        { type: 'rect', x0: 86, y0: 0, x1: 105, y1: 20, fillcolor: '#ECFDF5', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Stars
+        { type: 'rect', x0: 50, y0: 0, x1: 86, y1: 20, fillcolor: '#EFF6FF', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Rising
+        { type: 'rect', x0: 86, y0: -20, x1: 105, y1: 0, fillcolor: '#FFFBEB', opacity: 0.4, line: { width: 0 }, layer: 'below' }, // Watch
+        { type: 'rect', x0: 50, y0: -20, x1: 86, y1: 0, fillcolor: '#FEF2F2', opacity: 0.4, line: { width: 0 }, layer: 'below' }  // Critical
+    ];
+
+    var divId = "branchMatrixChart";
+    var chart = document.getElementById(divId);
+
+    Plotly.newPlot(divId, [{
+        x: x, y: y, text: text, hovertext: hoverText, mode: 'markers+text',
+        marker: { size: size, color: colors, opacity: 0.85, line: { color: 'white', width: 2 }, sizemode: 'diameter' },
+        textposition: 'top center',
+        textfont: { size: 10, family: 'Inter', weight: 'bold', color: '#1F2937', bgcolor: 'rgba(255,255,255,0.8)' }, // Masking
+        hovertemplate: '<b>%{hovertext}</b><br>Score: %{x:.2f}<br>Momentum: %{y:.2f}<br>Outlets: %{marker.size}<extra></extra>'
+    }], {
+        xaxis: { title: 'Current Score →', range: [75, 100], showgrid: true, gridcolor: 'white', zeroline: false }, // Zoomed in range?
+        yaxis: { title: 'Momentum ↑', range: [-20, 22], showgrid: true, gridcolor: 'white', zeroline: true, zerolinecolor: '#9CA3AF' },
+        shapes: [
+            ...shapes,
+            { type: 'line', x0: 86, x1: 86, y0: -20, y1: 20, line: { color: '#EF4444', width: 2, dash: 'dash' } },
+            { type: 'line', x0: 50, x1: 105, y0: 0, y1: 0, line: { color: '#9CA3AF', width: 1 } }
+        ],
+        annotations: [
+            { x: 99, y: 18, text: '⭐ STARS', showarrow: false, font: { color: '#059669', size: 14, weight: '900' }, bgcolor: 'white', opacity: 0.8 },
+            { x: 76, y: 18, text: '⚡ RISING', showarrow: false, font: { color: '#2563EB', size: 14, weight: '900' }, bgcolor: 'white', opacity: 0.8 },
+            { x: 99, y: -18, text: '👀 WATCH', showarrow: false, font: { color: '#D97706', size: 14, weight: '900' }, bgcolor: 'white', opacity: 0.8 },
+            { x: 76, y: -18, text: '🛑 CRITICAL', showarrow: false, font: { color: '#DC2626', size: 14, weight: '900' }, bgcolor: 'white', opacity: 0.8 }
+        ],
+        margin: { t: 80, b: 40, l: 50, r: 20 },
+        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { family: 'Inter' }, hovermode: 'closest',
+        height: 400
+    }, config);
+
+    // Interaction
+    chart.on('plotly_click', function (data) {
+        var name = data.points[0].hovertext || data.points[0].text;
+        if (name) {
+            var inp = document.getElementById("branchSearch");
+            inp.value = name;
+            filterBranchCards();
+            document.getElementById("branchContainer").scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+
+    // Render Scale Efficiency Chart
+    renderBranchScaleChart(brData);
+}
+
+function renderBranchScaleChart(brData) {
+    // Advanced Scale Analysis V4: Granular breakdown (5 Categories)
+    var groups = {
+        '1-5': { min: 1, max: 5, count: 0, scoreSum: 0, momSum: 0, networks: 0, critical: 0, scores: [], names: [] },
+        '6-10': { min: 6, max: 10, count: 0, scoreSum: 0, momSum: 0, networks: 0, critical: 0, scores: [], names: [] },
+        '11-15': { min: 11, max: 15, count: 0, scoreSum: 0, momSum: 0, networks: 0, critical: 0, scores: [], names: [] },
+        '16-20': { min: 16, max: 20, count: 0, scoreSum: 0, momSum: 0, networks: 0, critical: 0, scores: [], names: [] },
+        '21+': { min: 21, max: 999, count: 0, scoreSum: 0, momSum: 0, networks: 0, critical: 0, scores: [], names: [] }
+    };
+
+    brData.forEach(d => {
+        var k = '21+';
+        if (d.count <= 5) k = '1-5';
+        else if (d.count <= 10) k = '6-10';
+        else if (d.count <= 15) k = '11-15';
+        else if (d.count <= 20) k = '16-20';
+
+        groups[k].networks++;
+        groups[k].scoreSum += d.s;
+        groups[k].momSum += d.mom;
+        groups[k].count += d.count;
+        if (d.s < 86) groups[k].critical++;
+        groups[k].scores.push(d.s);
+        groups[k].names.push({ n: d.n, s: d.s });
+    });
+
+    var labels = Object.keys(groups);
+    // Calculations
+    var avgScores = labels.map(k => groups[k].networks > 0 ? groups[k].scoreSum / groups[k].networks : 0);
+    var avgMoms = labels.map(k => groups[k].networks > 0 ? groups[k].momSum / groups[k].networks : 0);
+
+    // Stats
+    var minScores = labels.map(k => groups[k].scores.length > 0 ? Math.min(...groups[k].scores) : 0);
+    var maxScores = labels.map(k => groups[k].scores.length > 0 ? Math.max(...groups[k].scores) : 0);
+    var bestPerformers = labels.map(k => {
+        if (groups[k].names.length === 0) return "N/A";
+        var best = groups[k].names.reduce((prev, curr) => (prev.s > curr.s) ? prev : curr);
+        return `${best.n} (${best.s.toFixed(1)})`;
+    });
+    var worstPerformers = labels.map(k => {
+        if (groups[k].names.length === 0) return "N/A";
+        var worst = groups[k].names.reduce((prev, curr) => (prev.s < curr.s) ? prev : curr);
+        return `${worst.n} (${worst.s.toFixed(1)})`;
+    });
+
+    // Error Bars (Range) - Thinner and Lighter for Readability
+    var errorY = {
+        type: 'data',
+        symmetric: false,
+        array: maxScores.map((max, i) => max - avgScores[i]),
+        arrayminus: avgScores.map((avg, i) => avg - minScores[i]),
+        color: '#9CA3AF', thickness: 1, width: 2, visible: true // Gray, thin
+    };
+
+    // Colors: 5-Step Blue Gradient
+    var barColors = ['#BFDBFE', '#93C5FD', '#60A5FA', '#3B82F6', '#1E40AF'];
+
+    // Contrast Text Colors for Bars
+    var textColors = ['#1F2937', '#1F2937', '#1F2937', '#FFFFFF', '#FFFFFF']; // Dark for light bars
+
+    // Trace 1: Bar Chart — NO text labels to avoid overlap with line
+    var trace1 = {
+        x: labels, y: avgScores, type: 'bar', name: 'Avg Score',
+        marker: { color: barColors, line: { width: 0 }, opacity: 0.9 },
+        error_y: errorY,
+        text: avgScores.map(v => v > 0 ? v.toFixed(1) : ""),
+        textposition: 'none', // Hide bar text — values shown via annotations below
+        hovertemplate:
+            '<b>%{x} Outlets</b><br>' +
+            'Avg Score: %{y:.2f}<br>' +
+            'Range: %{customdata[2]:.1f} - %{customdata[3]:.1f}<br>' +
+            '🏆 Best: %{customdata[4]}<br>' +
+            '⚠️ Lowest: %{customdata[5]}<br>' +
+            'Networks: %{customdata[0]}<br>' +
+            'Critical: %{customdata[1]}<extra></extra>',
+        customdata: labels.map((l, i) => [
+            groups[l].networks,
+            groups[l].critical,
+            minScores[i],
+            maxScores[i],
+            bestPerformers[i],
+            worstPerformers[i]
+        ])
+    };
+
+    // Trace 2: Line Chart (Momentum)
+    var trace2 = {
+        x: labels, y: avgMoms, type: 'scatter', mode: 'lines+markers+text', name: 'Momentum',
+        yaxis: 'y2',
+        line: { color: '#F97316', width: 3, shape: 'spline' },
+        marker: { size: 9, color: 'white', line: { color: '#F97316', width: 2 } },
+        text: avgMoms.map(v => (v > 0 ? "+" : "") + v.toFixed(1) + "<br>"), textposition: 'top center',
+        textfont: { color: '#C2410C', weight: 'bold', size: 12 }, // Darker orange, larger text
+        hovertemplate: 'Avg Momentum: %{y:.2f}<extra></extra>'
+    };
+
+    // Score annotations placed below the x-axis for each bar
+    var scoreAnnotations = labels.map((l, i) => ({
+        x: l, y: avgScores[i], xref: 'x', yref: 'y',
+        text: '<b>' + avgScores[i].toFixed(1) + '</b>',
+        showarrow: false,
+        font: { color: textColors[i], size: 13, family: 'Inter' },
+        yshift: -15 // Push inside the bar, below the top edge
+    }));
+
+    Plotly.newPlot('branchScaleChart', [trace1, trace2], {
+        margin: { t: 30, b: 30, l: 40, r: 40 },
+        yaxis: { range: [65, 100], title: { text: 'Avg Score', font: { size: 10, color: '#6B7280' } } },
+        yaxis2: {
+            title: { text: 'Avg Momentum', font: { size: 10, color: '#EA580C' } },
+            overlaying: 'y', side: 'right', showgrid: false, zeroline: false,
+            range: [-10, 20]
+        },
+        xaxis: { title: 'Number of Outlets', titlefont: { size: 10, color: '#9CA3AF' }, tickfont: { size: 11, weight: 'bold' } },
+        showlegend: false,
+        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+        height: 350, font: { family: 'Inter' },
+        annotations: scoreAnnotations
+    }, config);
+}
+function renderBranchInsights(top, fast, hCrit, brData) {
+    var insights = [];
+    insights.push(`<div >📌 <strong>${top.n}</strong> leads with <strong>${top.s.toFixed(2)}</strong>.`);
+    if (hCrit > 0) {
+        var names = brData.filter(b => b.s < 86).map(b => b.n).join(", ");
+        insights.push(`<div >🚨 <strong>${hCrit} Critical Branches</strong> (< 86): <span class="text-danger">${names}</span>.</div> `);
+    }
+    insights.push(`<div >📈 <strong>${fast.n}</strong> has the strongest momentum(<span class="text-success">+${fast.mom.toFixed(2)}</span>).</div> `);
+
+    var stars = brData.filter(b => b.s >= 86 && b.mom > 0).length;
+    var rising = brData.filter(b => b.s < 86 && b.mom > 0).length;
+    insights.push(`<div >💡 <strong>Strategic Mix</strong>: ${stars} Stars(High / Growing), ${rising} Rising(Low / Growing).</div> `);
+
+    document.getElementById("branchInsights").innerHTML = insights.join("");
+}
+
+// Variables for Culprit Pagination
+// (Declarations moved below to avoid duplicates)
+
+// Expose functions globally
+window.changeCulpritPage = function (delta) {
+    currentCulpritPage += delta;
+    renderCulpritList();
+};
+
+// Global variables to store current modal context
+var currentCulpritData = [];
+var currentCulpritPage = 1;
+const CULPRIT_PAGE_SIZE = 6; // Increased from 5 for dense view
+var currentCulpritSection = null; // Track if we are viewing a specific section
+
+function showCulpritModal(branchName, sectionName = null) {
+    // Use global sortedWaves to get the latest wave
+    var targetWave = (typeof sortedWaves !== 'undefined') ? sortedWaves[sortedWaves.length - 1] : "Wave 1";
+    currentCulpritSection = sectionName ? sectionName.trim() : null;
+
+    var titleEl = document.getElementById("culpritModalTitle");
+    var descEl = document.getElementById("culpritModalDesc");
+    var kpiCont = document.getElementById("culpritKpiContainer");
+
+    if (currentCulpritSection) {
+        titleEl.innerHTML = `<i class="bi bi-box-arrow-in-right opacity-50 me-2"></i>Section Deep Dive`;
+        descEl.innerHTML = `Analyzing <span class="text-warning fw-bold">${currentCulpritSection}</span> across <strong>${branchName}</strong>`;
+        kpiCont.style.display = 'none';
+        kpiCont.innerHTML = '';
+    } else {
+        titleEl.innerHTML = `<i class="bi bi-building opacity-50 me-2"></i>Branch Performance Deep Dive`;
+        descEl.innerHTML = `Comprehensive view of all stores in <span class="text-warning fw-bold">${branchName}</span>`;
+        kpiCont.style.display = 'flex';
+    }
+
+    // Helper: get section score from store-level data
+    // Store sections are flat numbers { sectionName: score }
+    // Branch/Region sections are { sectionName: { sum, count } }
+    function getStoreSecScore(sections, secName) {
+        // Try exact match first
+        if (sections[secName] !== undefined) {
+            var v = sections[secName];
+            return (typeof v === 'object' && v.sum !== undefined) ? (v.sum / v.count) : v;
+        }
+        // Try trimmed match
+        var key = Object.keys(sections).find(k => k.trim() === secName.trim());
+        if (key !== undefined) {
+            var v = sections[key];
+            return (typeof v === 'object' && v.sum !== undefined) ? (v.sum / v.count) : v;
+        }
+        return null;
+    }
+
+    // Get Stores < 86
+    // Find all raw stores belonging to this branch
+    var storesInBranch = [];
+    Object.values(reportData.regions).forEach(region => {
+        Object.values(region).forEach(waveData => {
+            if (waveData && waveData.branches && waveData.branches[branchName] && waveData.branches[branchName].stores) {
+                // To avoid duplicates if iterating multiple waves incorrectly, just grab stores from the target wave scope if possible
+                // Actually, reportData structure: regions -> [regionName] -> [wave] -> branches -> [branchName] -> stores
+            }
+        });
+    });
+
+    // Filter reportData.stores directly since rawStoreData is not available on frontend
+    var storesInBranch = Object.values(reportData.stores).filter(s => s.meta.branch === branchName && s.results[targetWave]);
+
+    // Calculate Branch KPIs if no section is targeted
+    if (!currentCulpritSection) {
+        var totalStores = storesInBranch.length;
+        var avgScore = totalStores > 0 ? storesInBranch.reduce((sum, s) => sum + s.results[targetWave].totalScore, 0) / totalStores : 0;
+        var critCount = storesInBranch.filter(s => s.results[targetWave].totalScore < 86).length;
+
+        var prevWave = sortedWaves[sortedWaves.length - 2];
+        var avgMom = 0;
+        if (prevWave) {
+            var prevStores = storesInBranch.filter(s => s.results[prevWave]);
+            var prevAvg = prevStores.length > 0 ? prevStores.reduce((sum, s) => sum + s.results[prevWave].totalScore, 0) / prevStores.length : 0;
+            avgMom = avgScore - prevAvg;
+        }
+
+        kpiCont.innerHTML = `
+            <div class="col-md-3">
+                <div class="p-3 rounded border bg-light h-100 position-relative overflow-hidden">
+                    <div class="text-muted small fw-bold mb-1">TOTAL STORES</div>
+                    <h3 class="fw-bold mb-0">${totalStores}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border bg-light h-100 position-relative overflow-hidden ${avgScore < 86 ? 'border-danger' : 'border-success'}">
+                    <div class="text-muted small fw-bold mb-1">AVG SCORE</div>
+                    <h3 class="fw-bold mb-0 ${avgScore < 86 ? 'text-danger' : 'text-success'}">${avgScore.toFixed(1)}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border bg-light h-100 position-relative overflow-hidden">
+                    <div class="text-muted small fw-bold mb-1">MOMENTUM</div>
+                    <h3 class="fw-bold mb-0 ${avgMom >= 0 ? 'text-success' : 'text-danger'}">${avgMom >= 0 ? '▲' : '▼'} ${Math.abs(avgMom).toFixed(1)}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border bg-light h-100 position-relative overflow-hidden bg-danger-subtle border-danger">
+                    <div class="text-danger small fw-bold mb-1">CRITICAL STORES</div>
+                    <h3 class="fw-bold text-danger mb-0">${critCount}</h3>
+                </div>
+            </div>
+        `;
+    }
+
+    currentCulpritData = storesInBranch
+        .map(s => {
+            var d = s.results[targetWave];
+            var prevWave = sortedWaves[sortedWaves.length - 2];
+            var prevScore = prevWave && s.results[prevWave] ? s.results[prevWave].totalScore : null;
+
+            // Calculate Branch Average for comparison
+            var brScore = reportData.branches && reportData.branches[branchName] && reportData.branches[branchName][targetWave]
+                ? reportData.branches[branchName][targetWave].sum / reportData.branches[branchName][targetWave].count
+                : (currentCulpritSection ? 0 : avgScore);
+
+            return {
+                n: s.meta.name,
+                c: s.meta.code,
+                s: d.totalScore,
+                mom: prevScore !== null ? d.totalScore - prevScore : 0,
+                region: s.meta.region,
+                brAvg: brScore || 0,
+                secScore: currentCulpritSection ? getStoreSecScore(d.sections, currentCulpritSection) : null,
+                sect: d.sections,
+                liga: s.liga
+            };
+        })
+        .filter(s => {
+            if (currentCulpritSection) return s.secScore !== null;
+            return true; // Return all stores for branch deep dive
+        })
+        .sort((a, b) => {
+            if (currentCulpritSection) return a.secScore - b.secScore;
+            return a.s - b.s; // Lowest first
+        });
+
+    currentCulpritPage = 1;
+    renderCulpritList();
+
+    var myModal = new bootstrap.Modal(document.getElementById('culpritModal'));
+    myModal.show();
+}
+
+function renderCulpritList() {
+    var container = document.getElementById("culpritList");
+    container.innerHTML = "";
+
+    var start = (currentCulpritPage - 1) * CULPRIT_PAGE_SIZE;
+    var end = start + CULPRIT_PAGE_SIZE;
+    var pageData = currentCulpritData.slice(start, end);
+
+    if (pageData.length === 0) {
+        container.innerHTML = '<div class="text-center p-4 text-muted">No stores found below threshold.</div>';
+        return;
+    }
+
+    pageData.forEach(s => {
+        // Find worst 3 sections for context
+        // Store sections can be flat numbers OR {sum, count} objects
+        var worstSecs = Object.entries(s.sect)
+            .map(([k, v]) => ({ k: k, s: (typeof v === 'object' && v.sum !== undefined) ? (v.sum / v.count) : v }))
+            .filter(ws => !isNaN(ws.s))
+            .sort((a, b) => a.s - b.s) // Lowest first
+            .slice(0, 3); // Top 3
+
+        var worstHTML = worstSecs.map(ws =>
+            `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-1 px-1 me-1 mb-1" style="font-size: 0.75rem;" >
+        ${ws.k}: ${ws.s.toFixed(1)}
+             </span> `
+        ).join("");
+
+        // Determine what score to show prominently
+        var displayScore = currentCulpritSection ? s.secScore : s.s;
+
+        // Make container a div instead of an anchor
+        var item = document.createElement("div");
+        item.className = "list-group-item p-4 border-light";
+        item.style.transition = "all 0.2s ease";
+
+        var badgeColor = displayScore < 70 ? 'bg-danger' : (displayScore < 86 ? 'bg-warning text-dark' : 'bg-success');
+        var momColor = s.mom >= 0 ? "text-success" : "text-danger";
+        var momIcon = s.mom >= 0 ? "▲ +" : "▼ ";
+
+        var devColor = displayScore >= s.brAvg ? "text-success" : "text-danger";
+        var devAmount = (displayScore - s.brAvg).toFixed(1);
+        var devStr = displayScore >= s.brAvg ? "+" + devAmount : devAmount;
+
+        // Liga ESS Badge (Culprit Modal)
+        var ligaTier = s.liga ? s.liga.tier_2025 : 'UNKNOWN';
+        var ligaHTML = '';
+        if (ligaTier === 'GOLD') ligaHTML = '<span class="badge rounded-pill liga-badge-gold ms-2 mb-1" style="font-size: 0.6rem;"><i class="bi bi-award-fill me-1"></i>GOLD</span>';
+        else if (ligaTier === 'SILVER') ligaHTML = '<span class="badge rounded-pill liga-badge-silver ms-2 mb-1" style="font-size: 0.6rem;"><i class="bi bi-shield-fill me-1"></i>SILVER</span>';
+        else if (ligaTier === 'BRONZE') ligaHTML = '<span class="badge rounded-pill liga-badge-bronze ms-2 mb-1" style="font-size: 0.6rem;"><i class="bi bi-star-fill me-1"></i>BRONZE</span>';
+        else if (ligaTier === 'RISING STAR') ligaHTML = '<span class="badge rounded-pill liga-badge-rising ms-2 mb-1" style="font-size: 0.6rem;"><i class="bi bi-stars me-1"></i>RISING STAR</span>';
+
+        item.innerHTML = `
+        <div class="row align-items-center g-3">
+            <div class="col-md-7 border-end border-light">
+                <div class="d-flex justify-content-between align-items-center mb-1" >
+                    <div><span class="fw-bold text-dark" style="font-size: 1.05rem; letter-spacing: -0.2px;">${s.n}</span>${ligaHTML}</div>
+                    <span class="badge ${badgeColor} rounded-pill fs-6 fw-bold ms-2 shadow-sm">${displayScore.toFixed(1)}</span>
+                </div>
+                <div class="text-muted small mb-3"><i class="bi bi-geo-alt-fill me-1 opacity-50"></i>${s.region}</div>
+                
+                <div>
+                    <div class="text-muted small fw-bold mb-2 text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Priority Intervention Areas:</div>
+                    <div class="d-flex flex-wrap gap-1">
+                        ${worstHTML}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-5 ps-md-4 d-flex flex-column h-100 justify-content-center">
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-light">
+                    <span class="text-muted fw-medium" style="font-size: 0.75rem;">Momentum (vs Prev)</span>
+                    <span class="fw-bold ${momColor} px-2 py-1 rounded" style="background: var(--bs-${momColor === 'text-success' ? 'success' : 'danger'}-bg-subtle); font-size: 0.75rem;">
+                        ${momIcon}${Math.abs(s.mom).toFixed(1)}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted fw-medium" style="font-size: 0.75rem;">Div vs Branch Avg</span>
+                    <span class="fw-bold ${devColor} px-2 py-1 rounded" style="background: var(--bs-${devColor === 'text-success' ? 'success' : 'danger'}-bg-subtle); font-size: 0.75rem;">
+                        ${devStr} pts
+                    </span>
+                </div>
+                
+                <div class="d-flex align-items-center justify-content-between mt-auto pt-2">
+                    ${currentCulpritSection
+                ? `<span class="text-muted small">Total Store Score: <strong class="text-dark">${s.s.toFixed(1)}</strong></span>`
+                : (displayScore < 86
+                    ? `<span class="text-danger small fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> Immediate Action</span>`
+                    : `<span class="text-success small fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Performance Stable</span>`)
+            }
+                    <button class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm hover-shadow" style="font-size: 0.75rem;" onclick="window.open('?mode=standalone&store=${encodeURIComponent(s.n)}', '_blank')">Deep Dive <i class="bi bi-arrow-right ms-1"></i></button>
+                </div>
+            </div>
+        </div>
+        `;
+        container.appendChild(item);
+    });
+
+    // Pagination Controls
+    var totalPages = Math.ceil(currentCulpritData.length / CULPRIT_PAGE_SIZE);
+    document.getElementById("culpritPageIndicator").innerText = `Page ${currentCulpritPage} of ${totalPages || 1} `;
+    document.getElementById("btnCulpritPrev").disabled = currentCulpritPage === 1;
+    document.getElementById("btnCulpritNext").disabled = (end >= currentCulpritData.length) || (totalPages <= 1);
+}
+
+// --- Premium Sparkline Generator ---
+function generatePremiumSparkline(data, labels) {
+    if (!data || data.length < 2) return '';
+
+    const width = 200;
+    const height = 60;
+    const padding = 5;
+
+    // Scale
+    const max = Math.max(...data);
+    const min = Math.min(...data);
+    const range = max - min || 1;
+
+    // Points
+    const points = data.map((val, i) => {
+        const x = (i / (data.length - 1)) * (width - 2 * padding) + padding;
+        const y = height - ((val - min) / range) * (height - 2 * padding) - padding;
+        return `${x},${y}`;
+    });
+
+    const linePath = `M ${points[0]} L ${points.slice(1).join(' L ')}`;
+    const areaPath = `${linePath} L ${width - padding},${height} L ${padding},${height} Z`;
+
+    // Determine color based on trend (Last vs First)
+    const isPositive = data[data.length - 1] >= data[0];
+    const color = isPositive ? '#10B981' : '#EF4444'; // Emerald or Red
+    const uniqueId = 'grad-' + Math.random().toString(36).substr(2, 9);
+
+    return `
+    <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="overflow: visible;">
+        <defs>
+            <linearGradient id="${uniqueId}" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:${color};stop-opacity:0.2" />
+                <stop offset="100%" style="stop-color:${color};stop-opacity:0" />
+            </linearGradient>
+        </defs>
+        <path d="${areaPath}" fill="url(#${uniqueId})" stroke="none" />
+        <path d="${linePath}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+        ${points.map((p, i) => `<circle cx="${p.split(',')[0]}" cy="${p.split(',')[1]}" r="${i === points.length - 1 ? 4 : 2}" fill="${color}" />`).join('')}
+    </svg>
+    `;
+}
+
+function renderBranchCards(data, waves) {
+    var cont = document.getElementById("branchContainer");
+    cont.innerHTML = "";
+
+    // Sort by Score Descending
+    var viewData = [...data].sort((a, b) => b.s - a.s);
+
+    viewData.forEach((d, i) => {
+        var rank = i + 1;
+        var badge = d.s >= 95 ? '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1 rounded-pill fw-bold small">EXCELLENT</span>' :
+            (d.s >= 86 ? '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-1 rounded-pill fw-bold small">WARNING</span>' :
+                '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-1 rounded-pill fw-bold small">CRITICAL</span>');
+
+        var yTrend = waves.map(w => { var bd = reportData.branches[d.n][w]; return bd ? bd.sum / bd.count : null; });
+        var sparkHTML = generatePremiumSparkline(yTrend, waves);
+
+        // Data for Lists
+        var branchStores = Object.values(reportData.stores).filter(s => s.meta.branch === d.n && s.results[waves[waves.length - 1]]);
+        var criticalCount = branchStores.filter(s => s.results[waves[waves.length - 1]].totalScore < 86).length;
+
+        var lowestStores = [...branchStores]
+            .map(s => ({ n: s.meta.name, s: s.results[waves[waves.length - 1]].totalScore }))
+            .sort((a, b) => a.s - b.s) // Lowest first
+            .slice(0, 3);
+
+        var lowestHTML = lowestStores.map(s => `
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle" >
+                <span class="fw-medium text-dark small text-wrap lh-sm" style="max-width: 70%;">${s.n}</span>
+                <span class="fw-bold ${s.s < 86 ? 'text-danger' : 'text-dark'} small bg-white border px-2 py-1 rounded">${s.s.toFixed(1)}</span>
+            </div> `).join("");
+
+        // Critical Stores Button
+        var criticalBtnHTML = "";
+        if (criticalCount > 0) {
+            criticalBtnHTML = `
+        <div class="mt-3 text-center" >
+            <button onclick="showCulpritModal('${d.n}')" class="btn btn-sm btn-outline-danger shadow-sm w-100 py-2 fw-medium" style="border-radius: 8px; border-width: 1px;">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> View ${criticalCount} Critical Stores
+            </button>
+            </div> `;
+        }
+
+        var prioritySecs = Object.entries(d.d.sections)
+            .map(([k, v]) => ({ k: k, s: v.sum / v.count }))
+            .sort((a, b) => a.s - b.s)
+            .slice(0, 3);
+
+        var priorityHTML = prioritySecs.map(s => {
+            // Count problematic stores for this section
+            var probCount = branchStores.filter(store => {
+                var res = store.results[waves[waves.length - 1]];
+                if (!res || res.sections[s.k] === undefined) return false;
+                var sv = res.sections[s.k];
+                var score = (typeof sv === 'object' && sv.sum !== undefined) ? (sv.sum / sv.count) : sv;
+                return !isNaN(score) && score < 86;
+            }).length;
+
+            return `
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle hover-bg-light"
+    style="cursor: pointer; transition: background 0.2s;"
+    onclick="showCulpritModal('${d.n}', '${s.k}')"
+    title="Click to view problematic stores in ${s.k}" >
+                
+                <div class="d-flex align-items-center gap-2" style="max-width: 75%;">
+                    <i class="bi bi-caret-right-fill text-muted" style="font-size: 0.6rem;"></i>
+                    <div class="text-wrap lh-sm">
+                        <div class="fw-medium text-dark small text-decoration-underline-hover">${s.k}</div>
+                        ${probCount > 0 ? `<div class="mt-1"><span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.6rem; padding: 1px 6px;">${probCount} Issues</span></div>` : ''}
+                    </div>
+                </div>
+                <span class="fw-bold ${s.s < 86 ? 'text-danger' : 'text-dark'} small bg-white border px-2 py-1 rounded">${s.s.toFixed(1)}</span>
+            </div> `;
+        }).join("");
+
+        var col = document.createElement("div");
+        col.className = "col-xxl-6 col-md-6 branch-card-item"; // GRID LAYOUT (2 per row)
+        col.dataset.name = d.n.toLowerCase();
+
+        col.innerHTML = `
+        <div class="card border-0 shadow-sm hover-shadow-lg mb-4 h-100 overflow-hidden text-start" style="border-radius: 16px; transition: all 0.3s ease; background: #fff;" >
+            <div class="card-header border-0 p-4" style="background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width:48px;height:48px;font-size:1.1rem; border: 1px solid #DBEAFE;">${rank}</div>
+                        <div>
+                            <h4 class="fw-bold text-dark mb-0" style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">${d.n}</h4>
+                            <div class="text-muted small mt-1 fw-bold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">${d.count} Outlets</div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="display-6 fw-bold ${d.s < 86 ? 'text-danger' : 'text-primary'}" style="font-family: 'Outfit', sans-serif;">${d.s.toFixed(1)}</div>
+                        ${badge}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body p-0 d-flex flex-column">
+                <div class="row g-0 flex-grow-1">
+                    <!-- Col 1: Trend -->
+                    <div class="col-lg-4 border-end border-light-subtle p-4 d-flex flex-column justify-content-center bg-white">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h6 class="text-uppercase fw-bold text-muted small mb-0 fs-7">Momentum</h6>
+                            <span class="badge ${d.mom >= 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} rounded-pill fw-bold">
+                                ${d.mom >= 0 ? '▲ +' : '▼ '}${d.mom.toFixed(2)}
+                            </span>
+                        </div>
+                        <div style="height: 80px; width: 100%;">${sparkHTML}</div>
+                        <p class="small text-muted mt-2 mb-0 lh-sm text-center fst-italic">5-Wave Trend</p>
+                    </div>
+
+                    <!-- Col 2: Lowest Performing Stores (Middle) -->
+                    <div class="col-lg-4 border-end border-light-subtle p-4 bg-light bg-opacity-25">
+                        <h6 class="text-uppercase fw-bold text-muted small mb-3 fs-7">
+                            <i class="bi bi-graph-down-arrow me-1"></i> Lowest Stores
+                        </h6>
+                        <div class="d-flex flex-column gap-1">
+                            ${lowestHTML}
+                        </div>
+                        ${criticalBtnHTML}
+                    </div>
+
+                    <!-- Col 3: Priority Focus Areas -->
+                    <div class="col-lg-4 p-4 bg-white">
+                        <h6 class="text-uppercase fw-bold text-warning small mb-3 fs-7">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Priorities
+                        </h6>
+                        <div class="d-flex flex-column gap-1">
+                            ${priorityHTML}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> `;
+        cont.appendChild(col);
+    });
+}
+function filterBranchCards() {
+    var term = document.getElementById("branchSearch").value.toLowerCase();
+    var cards = document.querySelectorAll(".branch-card-item");
+    cards.forEach(c => {
+        c.style.display = c.dataset.name.includes(term) ? "block" : "none";
+    });
+}
+
+// --- Master Store List Logic ---
+var storeListState = { page: 1, limit: 15, total: 0, filteredData: [] };
+
+function initStoreTable() {
+    // Populate Region Filter
+    var regSel = document.getElementById("storeListRegion");
+    if (!regSel) return;
+
+    // Clear existing options to prevent duplicates if called multiple times
+    regSel.innerHTML = '<option value="">All Regions</option>';
+
+    var regs = Object.keys(reportData.regions).sort();
+    regs.forEach(r => { var opt = document.createElement("option"); opt.value = r; opt.textContent = r; regSel.appendChild(opt); });
+
+    // Force render on init
+    renderStoreTable();
+}
+
+function updateBranchFilter() {
+    var reg = document.getElementById("storeListRegion").value;
+    var brSel = document.getElementById("storeListBranch");
+    brSel.innerHTML = "<option value=''>All Branches</option>";
+    brSel.disabled = !reg;
+
+    if (reg) {
+        var branches = Object.keys(reportData.branches).filter(b => {
+            // Find a store in this branch and check its region (approximation, or check branch map)
+            // Better: Iterate all stores to map branch -> region
+            return Object.values(reportData.stores).some(s => s.meta.region === reg && s.meta.branch === b);
+        }).sort();
+
+        branches.forEach(b => { var opt = document.createElement("option"); opt.value = b; opt.textContent = b; brSel.appendChild(opt); });
+    }
+}
+
+function resetStoreFilters() {
+    document.getElementById("storeListSearch").value = "";
+    document.getElementById("storeListRegion").value = "";
+    var leagueEl = document.getElementById("storeListLeague");
+    if (leagueEl) leagueEl.value = "";
+    updateBranchFilter();
+    renderStoreTable();
+}
+
+// Global sort state
+let currentSort = { column: 'score', dir: 'desc' };
+
+function renderStoreTable() {
+    const listBody = document.getElementById('storeMasterBody');
+    const search = document.getElementById('storeListSearch').value.toLowerCase();
+    const regionFilter = document.getElementById('storeListRegion').value;
+    const branchFilter = document.getElementById('storeListBranch').value;
+    const leagueFilter = document.getElementById('storeListLeague') ? document.getElementById('storeListLeague').value : "";
+    const cur = sortedWaves[sortedWaves.length - 1];
+
+    if (!window._storeData) {
+        window._storeData = Object.values(reportData.stores);
+    }
+
+    // 1. Pre-calculate Global Ranks if not exists (for default sort)
+    if (!reportData.hasCalculatedRanks) {
+        window._storeData.sort((a, b) => {
+            var sa = a.results[cur] ? a.results[cur].totalScore : 0;
+            var sb = b.results[cur] ? b.results[cur].totalScore : 0;
+            return sb - sa;
+        });
+        window._storeData.forEach((s, i) => s.meta.globalRank = i + 1);
+        reportData.hasCalculatedRanks = true;
+    }
+
+    let filtered = window._storeData.filter(s => {
+        const matchSearch = (s.meta.name.toLowerCase().includes(search) || s.meta.code.includes(search));
+        const matchRegion = regionFilter === "" || s.meta.region === regionFilter;
+        const matchBranch = branchFilter === "" || s.meta.branch === branchFilter;
+
+        let isUnassessed = !s.results || !s.results[cur] || Object.keys(s.results[cur]).length === 0;
+        let sLeague = s.meta.liga && s.meta.liga.tier_2025 && s.meta.liga.tier_2025 !== 'UNKNOWN' ? s.meta.liga.tier_2025 : (isUnassessed ? 'RISING STAR' : 'UNRATED');
+        const matchLeague = leagueFilter === "" || sLeague.toUpperCase() === leagueFilter.toUpperCase();
+
+        return matchSearch && matchRegion && matchBranch && matchLeague;
+    });
+
+    // Apply Sorting
+    filtered.sort((a, b) => {
+        let valA, valB;
+        if (currentSort.column === 'score') {
+            // Get latest total score
+            const lastWaveA = Object.keys(a.results).sort().pop();
+            const lastWaveB = Object.keys(b.results).sort().pop();
+            valA = (a.results[lastWaveA] ? a.results[lastWaveA].totalScore : 0) || 0;
+            valB = (b.results[lastWaveB] ? b.results[lastWaveB].totalScore : 0) || 0;
+        } else if (currentSort.column === 'name') {
+            valA = a.meta.name.toLowerCase();
+            valB = b.meta.name.toLowerCase();
+        } else if (currentSort.column === 'rank') {
+            valA = a.meta.globalRank || 999999;
+            valB = b.meta.globalRank || 999999;
+        }
+
+        if (valA < valB) return currentSort.dir === 'asc' ? -1 : 1;
+        if (valA > valB) return currentSort.dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+
+    document.getElementById('storeListCount').textContent = `Showing ${filtered.length} stores`;
+
+    // Update top badge count
+    const topCountBadge = document.getElementById('topStoreCount');
+    if (topCountBadge) {
+        topCountBadge.textContent = filtered.length;
+    }
+
+    if (filtered.length === 0) {
+        listBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No stores found.</td></tr>`;
+        return;
+    }
+
+    // Pagination (Simple 100 items for now)
+    const pageData = filtered.slice(0, 100);
+
+    let html = "";
+    pageData.forEach((s, idx) => {
+        const sortedWaves = Object.keys(s.results).sort();
+        const lastWave = sortedWaves[sortedWaves.length - 1];
+        const lastScore = s.results[lastWave] ? s.results[lastWave].totalScore : 0;
+
+        // Momentum
+        const prevWave = sortedWaves[sortedWaves.length - 2];
+        const prevScore = prevWave && s.results[prevWave] ? s.results[prevWave].totalScore : 0;
+        const mom = prevScore ? lastScore - prevScore : 0;
+        const momHtml = mom !== 0 ? `<div class="small fw-bold mt-1 ${mom > 0 ? 'text-success' : 'text-danger'}" style="font-size: 0.75rem;">${mom > 0 ? '▲ +' : '▼ '}${Math.abs(mom).toFixed(1)}</div>` : '';
+
+        // Liga Badge
+        const isUnassessedS = !s.results || !s.results[lastWave] || Object.keys(s.results[lastWave]).length === 0;
+        const ligaTier = s.meta.liga && s.meta.liga.tier_2025 && s.meta.liga.tier_2025 !== 'UNKNOWN' ? s.meta.liga.tier_2025 : (isUnassessedS ? 'RISING STAR' : 'UNKNOWN');
+        let ligaHTML = '';
+        if (ligaTier === 'GOLD') ligaHTML = '<span class="badge rounded-pill liga-badge-gold ms-2 align-text-bottom" style="font-size: 0.6rem;"><i class="bi bi-award-fill"></i> GOLD</span>';
+        else if (ligaTier === 'SILVER') ligaHTML = '<span class="badge rounded-pill liga-badge-silver ms-2 align-text-bottom" style="font-size: 0.6rem;"><i class="bi bi-shield-fill"></i> SILVER</span>';
+        else if (ligaTier === 'BRONZE') ligaHTML = '<span class="badge rounded-pill liga-badge-bronze ms-2 align-text-bottom" style="font-size: 0.6rem;"><i class="bi bi-star-fill"></i> BRONZE</span>';
+        else if (ligaTier === 'RISING STAR') ligaHTML = '<span class="badge rounded-pill liga-badge-rising ms-2 align-text-bottom" style="font-size: 0.6rem; color: #D97706; background-color: rgba(253, 230, 138, 0.4);"><i class="bi bi-stars"></i> RISING STAR</span>';
+
+        const dRank = s.meta.globalRank || '-';
+
+        html += `
+        <tr class="premium-row" onclick="viewStore('${s.meta.code}')" style="cursor:pointer;">
+            <td class="ps-4 fw-bold text-muted align-middle">#${dRank}</td>
+            <td class="align-middle py-3">
+                <div class="d-flex align-items-center mb-1">
+                    <span class="fw-bold text-dark" style="font-size: 1.05rem; letter-spacing: -0.3px;">${s.meta.name}</span>
+                    ${ligaHTML}
+                </div>
+                <div class="small font-monospace text-muted py-1 px-2 bg-light d-inline-block rounded-1" style="font-size: 0.7rem; border: 1px solid #E5E7EB;">${s.meta.code}</div>
+            </td>
+            <td class="align-middle">
+                <div class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">${s.meta.branch}</div>
+                <div class="text-muted" style="font-size: 0.75rem;"><i class="bi bi-geo-alt-fill opacity-50 me-1"></i>${s.meta.region}</div>
+            </td>
+            <td class="text-end pe-4 align-middle">
+                <div class="d-flex flex-column align-items-end justify-content-center">
+                    <span class="fw-bold lh-1 ${lastScore < 86 ? 'text-danger' : 'text-primary-custom'}" style="font-size:1.25rem;">${lastScore.toFixed(2)}</span>
+                    ${momHtml}
+                </div>
+            </td>
+            <td class="text-center align-middle">
+                <button class="btn btn-sm btn-dark rounded-pill px-4 shadow-sm hover-shadow" style="font-size: 0.8rem; letter-spacing: 0.3px;" onclick="viewStore('${s.meta.code}'); event.stopPropagation();">Deep Dive <i class="bi bi-arrow-right ms-1"></i></button>
+            </td>
+        </tr>`;
+    });
+    listBody.innerHTML = html;
+}
+
+function sortStoreTable(col) {
+    if (currentSort.column === col) {
+        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = col;
+        currentSort.dir = 'desc'; // Default new sort to desc (usually better for scores)
+    }
+    renderStoreTable();
+}
+
+function changePage(dir) {
+    var max = Math.ceil(storeListState.filteredData.length / storeListState.limit);
+    var next = storeListState.page + dir;
+    if (next > 0 && next <= max) {
+        storeListState.page = next;
+        renderStoreTable();
+    }
+}
+
+function viewStore(id) {
+    // Ensure tab is active (critical for deep links)
+    if (typeof showTab === 'function') showTab('stores');
+
+    // Switch Views
+    document.getElementById("storeListContainer").style.display = "none";
+    document.getElementById("storeContent").style.display = "block";
+
+    // Set Global State
+    window.currentStoreId = id;
+
+    // Populate dropdown for compatibility (hidden but functional) - OPTIONAL
+    var sel = document.getElementById("storeSelect");
+    if (sel) sel.value = id;
+
+    loadStoreDetail(id);
+    window.scrollTo(0, 0);
+}
+
+function showStoreList() {
+    document.getElementById("storeContent").style.display = "none";
+    document.getElementById("storeListContainer").style.display = "block";
+}
+
+
+var deviationMode = 'national'; // Unified benchark mode
+
+function toggleDeviationMode(mode) {
+    deviationMode = mode;
+    ['National', 'Region', 'Branch'].forEach(m => {
+        const btn = document.getElementById('btnDev' + m);
+        if (btn) {
+            if (m.toLowerCase() === mode) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+
+    // Re-load detail to refresh all charts with the new benchmark
+    loadStoreDetail();
+}
+
+
+function generateSparkline(data, waves) {
+    if (!data || data.length < 2) return "";
+    var w = 120, h = 40;
+
+    // Dynamic Scale
+    var valid = data.filter(d => d !== null);
+    if (valid.length === 0) return "";
+    var dMin = Math.min(...valid), dMax = Math.max(...valid);
+    var range = dMax - dMin;
+    var min = Math.max(0, dMin - (range * 0.2 || 5));
+    var max = Math.min(100, dMax + (range * 0.2 || 5));
+    if (min === max) { min -= 5; max += 5; }
+
+    var step = w / (data.length - 1);
+    var points = [];
+
+    data.forEach((val, i) => {
+        if (val === null) return;
+        var x = i * step;
+        var y = h - ((val - min) / (max - min) * h);
+        points.push({ x: x, y: y, val: val, wave: waves ? waves[i] : (i + 1) });
+    });
+
+    if (points.length < 2) return "";
+
+    var linePath = points.map((p, i) => (i === 0 ? "M" : "L") + " " + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
+
+    // Closed path for fill area
+    var fillPath = linePath + ` L ${points[points.length - 1].x.toFixed(1)} ${h} L ${points[0].x.toFixed(1)} ${h} Z`;
+
+    var last = points[points.length - 1], first = points[0];
+    var isUp = last.val >= first.val;
+    var color = isUp ? "#10B981" : "#EF4444";
+    var fillColor = isUp ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)";
+
+    var markers = points.map(p =>
+        `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#fff" stroke="${color}" stroke - width="1.5" class="spark-dot" >
+        <title>${p.wave}: ${p.val.toFixed(2)}</title>
+        </circle> `
+    ).join("");
+
+    return `<svg width="${w}" height="${h}" viewBox="-20 -10 ${w + 40} ${h + 20}" fill="none" style="overflow:visible; vertical-align:middle;" >
+        <path d="${fillPath}" fill="${fillColor}" stroke="none"/>
+        <path d="${linePath}" stroke="${color}" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+        ${markers}
+        <text x="-5" y="${first.y}" fill="#6B7280" text-anchor="end" font-family="Inter, sans-serif" font-size="10" font-weight="600" dy="3">${first.val.toFixed(0)}</text>
+        <text x="${w + 5}" y="${last.y}" fill="${color}" text-anchor="start" font-family="Inter, sans-serif" font-size="11" font-weight="700" dy="3">${last.val.toFixed(0)}</text>
+    </svg> `;
+}
+
+function loadStoreDetail(idOverride) {
+    var c = idOverride || window.currentStoreId || (document.getElementById("storeSelect") ? document.getElementById("storeSelect").value : null);
+
+    if (!c) return;
+
+    var s = reportData.stores[c];
+    var currentWaveKey = sortedWaves[sortedWaves.length - 1];
+    var cur = s.results ? s.results[currentWaveKey] : null;
+
+    // --- RISING STAR PROTOCOL (Unassessed/Blank Stores) ---
+    var isUnassessed = !cur;
+
+    // 1. Basic Info & Rank Calculation
+    var ligaTier = s.meta.liga ? s.meta.liga.tier_2025 : (isUnassessed ? 'RISING STAR' : 'UNKNOWN');
+    var ligaHTML = '';
+    if (ligaTier === 'GOLD') ligaHTML = '<span class="badge rounded-pill liga-badge-gold ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-award-fill me-1"></i>GOLD</span>';
+    else if (ligaTier === 'SILVER') ligaHTML = '<span class="badge rounded-pill liga-badge-silver ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-shield-fill me-1"></i>SILVER</span>';
+    else if (ligaTier === 'BRONZE') ligaHTML = '<span class="badge rounded-pill liga-badge-bronze ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-star-fill me-1"></i>BRONZE</span>';
+    else if (ligaTier === 'RISING STAR') ligaHTML = '<span class="badge rounded-pill liga-badge-rising ms-3 align-text-bottom" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;"><i class="bi bi-stars me-1 text-warning"></i>RISING STAR</span>';
+
+    document.getElementById("stName").innerHTML = s.meta.name + ligaHTML;
+    document.getElementById("stMeta").textContent = s.meta.region + " | " + s.meta.branch;
+
+    if (isUnassessed) {
+        document.getElementById("stScore").textContent = "N/A";
+        document.getElementById("stScore").className = "display-3 fw-bold text-muted";
+        document.getElementById("stRankBadge").textContent = "Pending Audit";
+        document.getElementById("stMomentum").innerHTML = `<span class="opacity-75 small fw-bold text-warning"><i class="bi bi-info-circle me-1"></i>No Historical Data. Awaiting Initial Assessment.</span>`;
+    } else {
+        var stScore = cur.totalScore;
+        document.getElementById("stScore").className = "display-3 fw-bold " + (stScore < 86 ? "text-danger" : "text-white");
+        animateValue("stScore", 0, stScore, 1500, 2);
+
+        // Calculate Rank
+        var allStores = Object.values(reportData.stores);
+        allStores.sort((a, b) => {
+            var sa = a.results && a.results[currentWaveKey] ? a.results[currentWaveKey].totalScore : 0;
+            var sb = b.results && b.results[currentWaveKey] ? b.results[currentWaveKey].totalScore : 0;
+            return sb - sa;
+        });
+        var rank = allStores.findIndex(x => x.meta.code === c) + 1;
+        document.getElementById("stRankBadge").textContent = "Rank #" + rank;
+
+        // Calculate Momentum
+        var prevWaveKey = sortedWaves[sortedWaves.length - 2];
+        var momHTML = "";
+        if (prevWaveKey && s.results[prevWaveKey]) {
+            var prevScore = s.results[prevWaveKey].totalScore;
+            var diff = stScore - prevScore;
+            var icon = diff >= 0 ? "▲" : "▼";
+            var colorStyle = diff >= 0 ? "#4ADE80" : "#F87171";
+            momHTML = `<span style="color:${colorStyle}"> ${icon} ${Math.abs(diff).toFixed(2)}</span> <span class="opacity-75 small fw-normal text-white">vs last wave</span>`;
+        } else {
+            momHTML = `<span class="opacity-50 small"> No previous data</span>`;
+        }
+        document.getElementById("stMomentum").innerHTML = momHTML;
+    }
+
+    // 2. Trend Line (Main Chart) - Luxury Style
+    if (isUnassessed) {
+        document.getElementById("stTrendChart").innerHTML = '<div class="d-flex align-items-center justify-content-center h-100 text-muted fst-italic"><i class="bi bi-clock-history me-2"></i>Awaiting 1st Wave Data</div>';
+    } else {
+        var y = sortedWaves.map(w => s.results[w] ? s.results[w].totalScore : null);
+
+        // Calculate Averages
+        var yNat = sortedWaves.map(w => {
+            var d = reportData.summary[w];
+            return d ? d.sum / d.count : null;
+        });
+
+        var yReg = sortedWaves.map(w => {
+            var d = reportData.regions[s.meta.region][w];
+            return d ? d.sum / d.count : null;
+        });
+
+        // Target Line (Constant 86)
+        var yTarget = sortedWaves.map(() => 86);
+
+        Plotly.newPlot("stTrendChart", [
+            // 1. Main Store Trace (Area)
+            {
+                x: sortedWaves, y: y, name: s.meta.name, type: "scatter", mode: "lines+markers",
+                line: { color: "#1E3A8A", width: 4, shape: 'spline', smoothing: 1.3 },
+                marker: { size: 10, color: "#1E3A8A", line: { color: "white", width: 2 } },
+                fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)'
+            },
+            // 2. National Avg (Dotted)
+            {
+                x: sortedWaves, y: yNat, name: "National Avg", type: "scatter", mode: "lines",
+                line: { color: "#9CA3AF", width: 2, dash: 'dot', shape: 'spline' },
+                marker: { size: 0 }, hovertemplate: 'Nat Avg: %{y:.2f}<extra></extra>'
+            },
+            // 3. Regional Avg (Dashed)
+            {
+                x: sortedWaves, y: yReg, name: "Region Avg", type: "scatter", mode: "lines",
+                line: { color: "#8B5CF6", width: 2, dash: 'dash', shape: 'spline' },
+                marker: { size: 0 }, hovertemplate: 'Reg Avg: %{y:.2f}<extra></extra>'
+            },
+            // 4. Target (Red Dash)
+            {
+                x: sortedWaves, y: yTarget, name: "Target (86)", type: "scatter", mode: "lines",
+                line: { color: "#EF4444", width: 1.5, dash: 'longdashdot' },
+                marker: { size: 0 }, hovertemplate: 'Target: 86<extra></extra>'
+            }
+        ], {
+            margin: { t: 20, l: 30, r: 20, b: 0 }, // Increased bottom for legend
+            yaxis: { gridcolor: "#F3F4F6", range: [60, 105], zeroline: false },
+            xaxis: { showgrid: false, zeroline: false },
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+            hoverlabel: { bgcolor: "#1E3A8A", font: { color: "white", family: "Inter" } },
+            showlegend: true,
+            legend: { orientation: "h", y: -0.2, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' }
+        }, config);
+    }
+
+
+    // 3. Radar Chart with Unified Toggle Logic - Luxury Style
+    if (isUnassessed) {
+        document.getElementById("stRadarChart").innerHTML = '<div class="d-flex align-items-center justify-content-center h-100 text-muted fst-italic"><i class="bi bi-radar me-2"></i>No Section Data Available</div>';
+    } else {
+        var secKeys = Object.keys(cur.sections).sort();
+        var stVals = secKeys.map(k => cur.sections[k]);
+        var radarKeys = [...secKeys, secKeys[0]];
+        var rSt = [...stVals, stVals[0]];
+
+        var natData = reportData.summary[currentWaveKey];
+        var regData = reportData.regions[s.meta.region][currentWaveKey];
+        var brData = reportData.branches[s.meta.branch][currentWaveKey];
+
+        var compVals = [];
+        var compName = "";
+        var compColor = "";
+
+        if (deviationMode === 'national') {
+            compVals = secKeys.map(k => natData && natData.sections[k] ? natData.sections[k].sum / natData.sections[k].count : 0);
+            compName = "National Avg";
+            compColor = "#3B82F6"; // Blue
+        } else if (deviationMode === 'region') {
+            compVals = secKeys.map(k => regData && regData.sections[k] ? regData.sections[k].sum / regData.sections[k].count : 0);
+            compName = "Region Avg";
+            compColor = "#9CA3AF"; // Gray
+        } else if (deviationMode === 'branch') {
+            compVals = secKeys.map(k => brData && brData.sections[k] ? brData.sections[k].sum / brData.sections[k].count : 0);
+            compName = "Branch Avg";
+            compColor = "#F59E0B"; // Orange
+        }
+        var rComp = [...compVals, compVals[0]];
+
+        Plotly.newPlot("stRadarChart", [
+            {
+                type: 'scatterpolar', r: rSt, theta: radarKeys.map(k => k.split(' ')[0]),
+                fill: 'toself', fillcolor: 'rgba(30, 58, 138, 0.2)', // Darker blue fill
+                name: 'Store', line: { color: '#1E3A8A', width: 3 }, marker: { size: 1 }
+            },
+            {
+                type: 'scatterpolar', r: rComp, theta: radarKeys.map(k => k.split(' ')[0]),
+                name: compName, line: { color: compColor, dash: 'dot', width: 2 }, marker: { size: 1 }, hoverinfo: 'skip'
+            }
+        ], {
+            polar: {
+                radialaxis: { visible: true, range: [0, 100], tickfont: { size: 9, color: "#9CA3AF" }, gridcolor: "#E5E7EB", linecolor: "rgba(0,0,0,0)" },
+                angularaxis: { tickfont: { size: 10, family: "Inter, sans-serif", weight: "bold" }, gridcolor: "#E5E7EB", linecolor: "#E5E7EB" },
+                bgcolor: 'rgba(0,0,0,0)'
+            },
+            showlegend: true, legend: { orientation: "h", y: -0.15, font: { family: "Inter", size: 11 } },
+            margin: { t: 20, l: 40, r: 40, b: 20 },
+            font: { family: "Inter, sans-serif" },
+            paper_bgcolor: 'rgba(0,0,0,0)'
+        }, config);
+    }
+
+    // 4. Journey Table with Sparklines
+    var tb = document.querySelector("#stSectionTable tbody");
+    tb.innerHTML = "";
+
+    if (isUnassessed) {
+        tb.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-muted fst-italic"><i class="bi bi-info-circle me-1"></i>Toko ini berstatus Rising Star dan belum memiliki rekam jejak penilaian Journey.</td></tr>`;
+
+        // Clear out other dynamic UI elements
+        const recapContainer = document.getElementById("stRecapTiles");
+        if (recapContainer) recapContainer.innerHTML = '';
+        document.getElementById('stFeedbackCount').textContent = '0';
+        document.getElementById('stPriorityThemes').innerHTML = '<span class="text-muted small">No themes detected.</span>';
+        var fbList = document.getElementById("stFeedback");
+        if (fbList) fbList.innerHTML = "<div class='text-center text-muted py-4 small col-12'>No feedback recorded</div>";
+        var imprList = document.getElementById('stImprovementList');
+        if (imprList) imprList.innerHTML = "<div class='text-center text-muted py-4 w-100'><i class='bi bi-info-circle me-2'></i>Belum ada data area kritis untuk toko Rising Star.</div>";
+        var dialogueSection = document.getElementById('stDialogueSection');
+        if (dialogueSection) dialogueSection.style.display = 'none';
+
+        // CRITICAL: Call action plan generator to clear loading spinner
+        generateStoreActionPlan(s, currentWaveKey, []);
+        return; // Safe to exit early now
+    }
+
+    // Data for Insights
+    const insightData = [];
+
+    Object.entries(cur.sections).forEach(([k, v]) => {
+        var isBad = v < 86;
+
+        // Calculate Gap for Table
+        var tableAvg = 0;
+        if (deviationMode === 'national') tableAvg = (natData && natData.sections[k]) ? natData.sections[k].sum / natData.sections[k].count : 0;
+        else if (deviationMode === 'region') tableAvg = (regData && regData.sections[k]) ? regData.sections[k].sum / regData.sections[k].count : 0;
+        else tableAvg = (brData && brData.sections[k]) ? brData.sections[k].sum / brData.sections[k].count : 0;
+
+        var tableGap = v - tableAvg;
+        var gapHTML = `<span class="small fw-bold ${tableGap >= 0 ? 'text-success' : 'text-danger'}"> ${tableGap >= 0 ? '+' : ''}${tableGap.toFixed(1)}</span>`;
+
+        // Multi-level Gaps for Deviation Chart
+        var natData = reportData.summary[currentWaveKey];
+        var natAvg = (natData && natData.sections[k]) ? natData.sections[k].sum / natData.sections[k].count : 0;
+        var rAvg = (regData && regData.sections[k]) ? regData.sections[k].sum / regData.sections[k].count : 0;
+        var bAvg = (brData && brData.sections[k]) ? brData.sections[k].sum / brData.sections[k].count : 0;
+
+        var gaps = {
+            national: v - natAvg,
+            region: v - rAvg,
+            branch: v - bAvg
+        };
+
+        // Store for Insights
+        // Store for Insights
+        const failedItems = [];
+        const fixedItems = [];
+        const stableItems = [];
+
+        // Extract section code (e.g., "A" from "A. Tampilan...")
+        const sectionCode = k.split('.')[0].trim();
+
+        // 5-Wave History Logic
+        // Get last 5 waves (including current)
+        const relevantWaves = sortedWaves.slice(-5);
+
+        // Get Previous Wave Data for comparison (for Fixed Items logic)
+        const prevWaveDetails = (prevWaveKey && s.results[prevWaveKey] && s.results[prevWaveKey].details)
+            ? s.results[prevWaveKey].details[sectionCode] : null;
+
+        if (cur.details && cur.details[sectionCode]) {
+            Object.entries(cur.details[sectionCode]).forEach(([code, item]) => {
+
+                // Helper to get history for this item code across last 5 waves
+                const getHistory = () => {
+                    return relevantWaves.map(w => {
+                        if (!s.results[w] || !s.results[w].details || !s.results[w].details[sectionCode] || !s.results[w].details[sectionCode][code]) return null;
+                        const hItem = s.results[w].details[sectionCode][code];
+                        // Return 1 (Pass), 0 (Fail), or null (N/A)
+                        if (hItem.r === 1 || hItem.r === "1" || hItem.r === true) return 1;
+                        if (hItem.r === 0 || hItem.r === "0" || hItem.r === false) return 0;
+                        return null;
+                    });
+                };
+
+                const history = getHistory();
+
+                // Get Regional Benchmark
+                let regAvg = null;
+                // regData is defined in outer scope of loadStoreDetail
+                if (regData && regData.details && regData.details[sectionCode] && regData.details[sectionCode][code]) {
+                    const rItem = regData.details[sectionCode][code];
+                    if (rItem.count > 0) regAvg = rItem.sum / rItem.count;
+                }
+
+                // Check if Failed
+                if (item.r === 0 || item.r === "0" || item.r === false) {
+                    failedItems.push({ text: item.t, history: history, regAvg: regAvg, reason: item.reason });
+                }
+                // Check if Passed
+                else if (item.r === 1 || item.r === "1" || item.r === true) {
+                    // Check if Fixed (Passed now, Failed in previous wave)
+                    let isFixed = false;
+                    if (prevWaveDetails && prevWaveDetails[code]) {
+                        const prevItem = prevWaveDetails[code];
+                        if (prevItem.r === 0 || prevItem.r === "0" || prevItem.r === false) {
+                            isFixed = true;
+                        }
+                    }
+
+                    if (isFixed) {
+                        fixedItems.push({ text: item.t, history: history, regAvg: regAvg });
+                    } else {
+                        stableItems.push({ text: item.t, history: history, regAvg: regAvg });
+                    }
+                }
+            });
+        }
+        insightData.push({ sec: k, score: v, gap: gaps[deviationMode], gaps: gaps, failed: failedItems, fixed: fixedItems, stable: stableItems });
+
+
+        // Generate Sparkline Data
+        var sparkData = sortedWaves.map(w => s.results[w] && s.results[w].sections[k] !== undefined ? s.results[w].sections[k] : null);
+        var sparkHTML = generateSparkline(sparkData, sortedWaves);
+
+        tb.innerHTML += `<tr >
+            <td class="fw-bold text-dark" style="font-size:0.9rem;">${k}</td>
+            <td>${sparkHTML}</td>
+            <td class="text-end fw-bold ${isBad ? "text-danger" : "text - dark"}" > ${v.toFixed(2)}</td>
+            <td class="text-center">${gapHTML}</td>
+            <td class="text-center">${isBad ? "<span class='badge bg-soft-danger text-danger'>⚠️ CRITICAL</span>" : "<span class='badge bg-soft-success text-success'>OK</span>"}</td>
+        </tr> `;
+    });
+
+    // 5. Render Performance Insights (New)
+    renderPerformanceInsights(insightData);
+
+    // 6. Qualitative Feedback (All Waves)
+    var fbList = document.getElementById("stFeedback"); fbList.innerHTML = "";
+    window._currentFeedbackData = []; // Store for filtering
+
+    // Aggregate feedback from ALL waves (most recent first)
+    let feedbackData = [];
+    const feedbackWaves = [...sortedWaves].reverse(); // Most recent first
+    feedbackWaves.forEach(waveKey => {
+        if (s.results[waveKey] && s.results[waveKey].qualitative) {
+            const waveFeedback = s.results[waveKey].qualitative.map(q => ({ ...q, wave: waveKey }));
+            feedbackData = feedbackData.concat(waveFeedback);
+        }
+    });
+
+    if (feedbackData.length > 0) {
+        let posCount = 0, negCount = 0, neuCount = 0;
+        const themeCounts = {};
+
+        window._currentFeedbackData = feedbackData;
+
+        feedbackData.forEach(q => {
+            if (q.sentiment === 'positive') posCount++;
+            else if (q.sentiment === 'negative') negCount++;
+            else neuCount++;
+
+            // Collect themes
+            normalizeVocTopics(q).forEach(t => themeCounts[t] = (themeCounts[t] || 0) + 1);
+        });
+
+        const total = feedbackData.length;
+        document.getElementById('stFeedbackCount').textContent = total;
+
+        // 1. Priority Themes
+        const sortedThemes = Object.entries(themeCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+        const themesEl = document.getElementById("stPriorityThemes");
+        if (themesEl) {
+            if (sortedThemes.length > 0) {
+                themesEl.innerHTML = `
+                    <div class="d-flex gap-2 overflow-auto pb-2" style="scrollbar-width: thin;">
+                        ${sortedThemes.map(([t, c]) => `
+                            <span class="badge bg-white text-dark shadow-sm border px-3 py-2 fw-normal d-inline-flex align-items-center flex-shrink-0">
+                                ${t} <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-2">${c}</span>
+                            </span>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                themesEl.innerHTML = '<span class="badge bg-light text-muted border">No Data</span>';
+            }
+        }
+
+        // 2. AI Recap Summary Tiles
+        const sortedCats = Object.entries(themeCounts).sort((a, b) => b[1] - a[1]);
+        const mostCat = sortedCats[0] || ['N/A', 0];
+        const leastCat = sortedCats[sortedCats.length - 1] || ['N/A', 0];
+
+        // Find most active staff or recent period
+        const staffCounts = {};
+        feedbackData.forEach(v => {
+            if (v.staffName && v.staffName !== "N/A" && v.staffName !== "Unknown") {
+                staffCounts[v.staffName] = (staffCounts[v.staffName] || 0) + 1;
+            }
+        });
+        const topStaff = Object.entries(staffCounts).sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
+
+        const recapCards = [
+            { label: 'Total Feedback', value: total.toLocaleString(), icon: 'bi-chat-right-text', color: '#3B82F6' },
+            { label: 'Most Commented Category', value: mostCat[0], icon: 'bi-arrow-up-circle', color: '#EF4444' },
+            { label: 'Least Commented Category', value: leastCat[0], icon: 'bi-arrow-down-circle', color: '#10B981' },
+            { label: 'Most Mentioned Staff', value: topStaff[0], icon: 'bi-person-badge', color: '#8B5CF6' }
+        ];
+
+        const recapTilesHtml = recapCards.map(c =>
+            '<div class="col-md-3 col-6">' +
+            '<div class="card border-0 shadow-sm p-3 h-100" style="border-radius: 12px; background: white;">' +
+            '<div class="d-flex align-items-center">' +
+            '<div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; background: ' + c.color + '15; color: ' + c.color + '; flex-shrink: 0;">' +
+            '<i class="bi ' + c.icon + '"></i></div>' +
+            '<div style="min-width: 0;"><div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">' + c.label + '</div>' +
+            '<div class="fw-bold text-dark text-truncate" style="font-size: 1.1rem; max-width: 100%;" title="' + c.value + '">' + c.value + '</div></div>' +
+            '</div></div></div>'
+        ).join('');
+
+        const recapContainer = document.getElementById("stRecapTiles");
+        if (recapContainer) recapContainer.innerHTML = recapTilesHtml;
+
+        // Populate Theme Filter Dropdown
+        const themeFilterEl = document.getElementById("vocThemeFilter");
+        if (themeFilterEl) {
+            themeFilterEl.innerHTML = '<option value="all">All Categories</option>' +
+                sortedCats.map(([t, c]) => `<option value="${t}">${t} (${c})</option>`).join('');
+        }
+
+        // Initialize state and render first page
+        window._currentFeedbackData = feedbackData || [];
+        window._vocCurrentPage = 1;
+        window._vocItemsPerPage = 6;
+        if (themeFilterEl) themeFilterEl.value = 'all';
+        window._vocCurrentTheme = 'all';
+
+        applyVocFilters();
+    } else {
+        document.getElementById('stFeedbackCount').textContent = '0';
+        document.getElementById('stPriorityThemes').innerHTML = '<span class="text-muted small">No themes detected.</span>';
+        document.getElementById('stRecapTiles').innerHTML = '';
+        fbList.innerHTML = "<div class='text-center text-muted py-4 small col-12'>No feedback recorded</div>";
+    }
+
+    // Render Action Plan regardless of qualitative feedback presence
+    generateStoreActionPlan(s, currentWaveKey, feedbackData);
+
+    // 7. Customer Interaction Replay (Dialogue)
+    var dialogueSection = document.getElementById('stDialogueSection');
+    var dialogueContent = document.getElementById('stDialogueContent');
+    if (dialogueContent) dialogueContent.innerHTML = '';
+
+    if (cur.dialogue && (cur.dialogue.customerQuestion || cur.dialogue.raAnswer)) {
+        dialogueSection.style.display = 'block';
+
+        if (cur.dialogue.customerQuestion) {
+            dialogueContent.innerHTML += `
+                <div class="d-flex gap-3 align-items-start">
+                    <div class="rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center"
+                        style="width: 36px; height: 36px; background: linear-gradient(135deg, #6366F1, #8B5CF6); font-size: 0.85rem; color: white;">🧑</div>
+                    <div class="flex-grow-1">
+                        <small class="fw-bold text-muted d-block mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">CUSTOMER</small>
+                        <div class="p-3 rounded-3" style="background: #F1F5F9; border-radius: 4px 16px 16px 16px !important; font-size: 0.9rem; color: #334155; line-height: 1.5;">
+                            "${cur.dialogue.customerQuestion}"
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        if (cur.dialogue.raAnswer) {
+            dialogueContent.innerHTML += `
+                <div class="d-flex gap-3 align-items-start flex-row-reverse">
+                    <div class="rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center"
+                        style="width: 36px; height: 36px; background: linear-gradient(135deg, #10B981, #059669); font-size: 0.85rem; color: white;">👤</div>
+                    <div class="flex-grow-1 text-end">
+                        <small class="fw-bold text-muted d-block mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">RETAIL ASSISTANT</small>
+                        <div class="p-3 rounded-3 text-start" style="background: linear-gradient(135deg, #ECFDF5, #D1FAE5); border-radius: 16px 4px 16px 16px !important; font-size: 0.9rem; color: #065F46; line-height: 1.5;">
+                            "${cur.dialogue.raAnswer}"
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        if (cur.dialogue.memberBenefits) {
+            dialogueContent.innerHTML += `
+                <div class="card border-0 mt-2" style="background: linear-gradient(135deg, #EFF6FF, #DBEAFE); border-radius: 12px !important;">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-award-fill me-2" style="color: #2563EB;"></i>
+                            <small class="fw-bold" style="color: #1E40AF; font-size: 0.75rem; letter-spacing: 0.5px;">MEMBER BENEFITS EXPLAINED</small>
+                        </div>
+                        <p class="mb-0" style="font-size: 0.85rem; color: #1E3A5F; line-height: 1.5;">${cur.dialogue.memberBenefits}</p>
+                    </div>
+                </div>`;
+        }
+    } else {
+        if (dialogueSection) dialogueSection.style.display = 'none';
+    }
+}
+
+// --- QUALITATIVE FEEDBACK HELPERS ---
+
+function renderFeedbackCards(feedbackList) {
+    var fbList = document.getElementById("stFeedback");
+    fbList.innerHTML = "";
+
+    if (!feedbackList || feedbackList.length === 0) {
+        fbList.innerHTML = "<div class='text-center text-muted py-5 col-12'>No feedback matches your filter.</div>";
+        return;
+    }
+
+    // Sort: Has Manager Note > Length > Recent
+    const sortedList = feedbackList.sort((a, b) => {
+        const aNote = a.aiInsight && a.aiInsight !== 'N/A' ? 1 : 0;
+        const bNote = b.aiInsight && b.aiInsight !== 'N/A' ? 1 : 0;
+        if (aNote !== bNote) return bNote - aNote;
+        return (b.text || "").length - (a.text || "").length;
+    });
+
+    const html = sortedList.map(item => createFeedbackCard(item)).join('');
+    fbList.innerHTML = html;
+}
+
+function createFeedbackCard(item) {
+    const hasNote = item.aiInsight && item.aiInsight !== 'N/A';
+    const noteText = hasNote ? (item.aiInsight.includes(':') ? item.aiInsight.split(':')[0].trim() : 'Action Required') : '';
+    const cat = item.category || (item.themes && item.themes.length > 0 ? item.themes[0] : 'General');
+    const text = item.text ? item.text.replace(/^"|"$/g, '') : "";
+    const storeHint = item.wave || "Store Detail";
+
+    return `
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100 border-0 shadow-sm feedback-tile" style="background: #F8FAFC; transition: all 0.2s;" 
+             onclick="this.classList.toggle('expanded');">
+            <div class="card-body p-3 d-flex flex-column">
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-white border text-dark shadow-sm">${cat}</span>
+                    <span class="text-muted xsmall fw-bold" style="white-space: normal; word-break: break-word; text-align: right; max-width: 180px;">${storeHint}</span>
+                </div>
+                
+                <!-- Manager Action Highlight -->
+                ${hasNote ? `
+                <div class="mb-2">
+                     <div class="d-flex align-items-center text-primary mb-1">
+                        <i class="bi bi-lightning-charge-fill me-1 small"></i>
+                        <span class="fw-bold xsmall text-uppercase ls-1">Priority Action</span>
+                     </div>
+                     <div class="fw-bold text-dark small" style="line-height: 1.3;">${noteText}</div>
+                </div>
+                ` : ''}
+
+                <!-- Truncated Feedback -->
+                <div class="feedback-text mt-auto">
+                    <p class="mb-0 text-secondary small fst-italic text-truncate-multiline" style="line-height: 1.5;">"${text}"</p>
+                </div>
+                
+                <!-- Footer Staff Context -->
+                ${item.staffName && item.staffName !== 'N/A' && item.staffName !== 'Unknown' ? `
+                <div class="mt-2 pt-2 border-top border-light text-end">
+                    <small class="text-muted" style="font-size: 0.65rem;">Served by <strong class="text-dark">${item.staffName}</strong></small>
+                </div>
+                ` : ''}
+
+                <!-- Toggle Hint -->
+                <div class="text-center mt-2 pt-2 border-top border-light d-none expand-hint">
+                    <span class="text-primary xsmall fw-bold">Click to Collapse</span>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+// --- NEW VOC FILTER & PAGINATION LOGIC ---
+
+function applyVocFilters() {
+    let data = window._currentFeedbackData || [];
+
+    // 1. Filter by Theme
+    if (window._vocCurrentTheme !== 'all') {
+        data = data.filter(q => {
+            let topics = normalizeVocTopics(q);
+            return topics.includes(window._vocCurrentTheme) || (q.category && q.category === window._vocCurrentTheme);
+        });
+    }
+
+    // 3. Pagination Math
+    const totalItems = data.length;
+    const totalPages = Math.ceil(totalItems / window._vocItemsPerPage) || 1;
+
+    if (window._vocCurrentPage > totalPages) window._vocCurrentPage = totalPages;
+    if (window._vocCurrentPage < 1) window._vocCurrentPage = 1;
+
+    const startIdx = (window._vocCurrentPage - 1) * window._vocItemsPerPage;
+    const endIdx = startIdx + window._vocItemsPerPage;
+    const paginatedData = data.slice(startIdx, endIdx);
+
+    // 4. Render output
+    renderFeedbackCards(paginatedData);
+
+    // 5. Update Pagination UI
+    const pagContainer = document.getElementById("stFeedbackPaginationContainer");
+    if (pagContainer) {
+        if (totalItems > window._vocItemsPerPage) {
+            pagContainer.style.setProperty('display', 'flex', 'important');
+
+            // Update info text
+            const infoText = totalItems === 0 ? 'Showing 0 insights' :
+                `Showing ${startIdx + 1}-${Math.min(endIdx, totalItems)} of ${totalItems} insights`;
+            document.getElementById("vocPageInfo").textContent = infoText;
+
+            // Update buttons
+            const btnPrev = document.getElementById("vocBtnPrev");
+            const btnNext = document.getElementById("vocBtnNext");
+
+            vBtnUpdate(btnPrev, window._vocCurrentPage > 1);
+            vBtnUpdate(btnNext, window._vocCurrentPage < totalPages);
+
+        } else {
+            pagContainer.style.setProperty('display', 'none', 'important');
+        }
+    }
+}
+
+function vBtnUpdate(btn, enabled) {
+    if (!btn) return;
+    if (enabled) {
+        btn.classList.remove("disabled", "text-muted");
+        btn.removeAttribute("disabled");
+    } else {
+        btn.classList.add("disabled", "text-muted");
+        btn.setAttribute("disabled", "true");
+    }
+}
+
+function changeStoreVocPage(dir) {
+    window._vocCurrentPage += dir;
+    applyVocFilters();
+}
+
+// Sentiment filter has been removed
+
+function filterVocTheme(themeValue) {
+    window._vocCurrentTheme = themeValue;
+    window._vocCurrentPage = 1;
+    applyVocFilters();
+}
+
+// --- BATTLE MODE LOGIC ---
+
+function toggleBattleMode(isActive) {
+    const stdMode = document.getElementById("stStandardMode");
+    const battleMode = document.getElementById("stBattleMode");
+
+    if (isActive) {
+        if (!window.currentStoreId) {
+            alert("No store selected!");
+            return;
+        }
+
+        stdMode.style.display = "none";
+        battleMode.style.display = "block";
+
+        // Initialize Opponent Selector if empty
+        const oppSelect = document.getElementById("battleOpponentSelect");
+        if (oppSelect.options.length <= 1) {
+            initOpponentSelector();
+        }
+
+        // Set Player 1 Info
+        const s = reportData.stores[window.currentStoreId];
+        const curWave = sortedWaves[sortedWaves.length - 1];
+        const res = s.results[curWave];
+
+        document.getElementById("battleP1Name").textContent = s.meta.name;
+        document.getElementById("battleP1Score").textContent = "Score: " + (res ? res.totalScore.toFixed(2) : "N/A");
+
+    } else {
+        stdMode.style.display = "flex"; // Restore flex layout
+        battleMode.style.display = "none";
+    }
+}
+
+function initOpponentSelector() {
+    const oppSelect = document.getElementById("battleOpponentSelect");
+    const currentId = window.currentStoreId;
+    const curWave = sortedWaves[sortedWaves.length - 1];
+
+    // Group by Region
+    const regions = {};
+    Object.values(reportData.stores).forEach(s => {
+        if (s.meta.code === currentId) return; // Exclude self
+        if (!regions[s.meta.region]) regions[s.meta.region] = [];
+        regions[s.meta.region].push(s);
+    });
+
+    // Populate Dropdown
+    Object.keys(regions).sort().forEach(r => {
+        const group = document.createElement("optgroup");
+        group.label = r;
+        regions[r].sort((a, b) => a.meta.name.localeCompare(b.meta.name));
+
+        regions[r].forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s.meta.code;
+            opt.textContent = s.meta.name;
+            group.appendChild(opt);
+        });
+        oppSelect.appendChild(group);
+    });
+}
+
+function renderBattleAnalysis() {
+    const p1Id = window.currentStoreId;
+    const p2Id = document.getElementById("battleOpponentSelect").value;
+
+    if (!p2Id) return;
+
+    const curWave = sortedWaves[sortedWaves.length - 1];
+    const s1 = reportData.stores[p1Id];
+    const s2 = reportData.stores[p2Id];
+
+    const res1 = s1.results[curWave];
+    const res2 = s2.results[curWave];
+
+    if (!res1 || !res2) return;
+
+    // 1. Radar Comparison
+    const secKeys = Object.keys(res1.sections).sort();
+    const v1 = secKeys.map(k => res1.sections[k]);
+    const v2 = secKeys.map(k => res2.sections[k] || 0); // Handle missing sections safely
+
+    const radarKeys = [...secKeys, secKeys[0]].map(k => k.split(' ')[0]); // Shortened labels
+    const r1 = [...v1, v1[0]];
+    const r2 = [...v2, v2[0]];
+
+    Plotly.newPlot("battleRadarChart", [
+        {
+            type: 'scatterpolar', r: r1, theta: radarKeys,
+            fill: 'toself', name: s1.meta.name,
+            line: { color: '#2563EB' }, marker: { size: 4 }
+        },
+        {
+            type: 'scatterpolar', r: r2, theta: radarKeys,
+            fill: 'toself', name: s2.meta.name,
+            line: { color: '#DC2626' }, marker: { size: 4 }, opacity: 0.7
+        }
+    ], {
+        polar: {
+            radialaxis: { visible: true, range: [0, 100] },
+        },
+        showlegend: true, legend: { orientation: "h", y: -0.2 },
+        margin: { t: 30, l: 40, r: 40, b: 20 },
+        height: 350
+    }, config);
+
+    // 2. Gap Analysis (Tale of the Tape)
+    const wins = [];
+    const losses = [];
+
+    // Iterate all sections and items using details object
+    if (res1.details && res2.details) {
+        Object.keys(res1.details).forEach(sec => {
+            const secItems1 = res1.details[sec];
+            const secItems2 = res2.details[sec] || {};
+
+            Object.keys(secItems1).forEach(code => {
+                const item1 = secItems1[code];
+                const item2 = secItems2[code];
+
+                if (!item2) return;
+
+                // Win: We Passed (1), They Failed (0)
+                if (item1.r === 1 && item2.r === 0) {
+                    wins.push({ sec: sec, text: item1.t });
+                }
+                // Loss: We Failed (0), They Passed (1)
+                else if (item1.r === 0 && item2.r === 1) {
+                    losses.push({ sec: sec, text: item1.t });
+                }
+            });
+        });
+    }
+
+    // Render Functions (Grouped by Section)
+    const renderList = (list, containerId, emptyMsg) => {
+        const cont = document.getElementById(containerId);
+        if (list.length === 0) {
+            cont.innerHTML = `<div class="text-center text-muted mt-5" > ${emptyMsg}</div> `;
+            return;
+        }
+
+        // Group items by Journey
+        const grouped = {};
+        list.forEach(item => {
+            if (!grouped[item.sec]) grouped[item.sec] = [];
+            grouped[item.sec].push(item.text);
+        });
+
+        let html = '<div class="px-2">';
+        Object.keys(grouped).sort().forEach(sec => {
+            html += `<div class="mb-3" >
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge bg-dark rounded-pill me-2">${sec}</span>
+                    <h6 class="mb-0 fw-bold border-bottom flex-grow-1 pb-1 text-secondary" style="font-size:0.85rem">Journey ${sec}</h6>
+                </div>
+                <ul class="list-unstyled mb-0 ps-2">`;
+
+            grouped[sec].forEach(text => {
+                html += `<li class="mb-2 d-flex align-items-start text-dark small" style="line-height:1.4;">
+                    <i class="bi bi-caret-right-fill me-2 opacity-50 mt-1" style="font-size:0.7rem;"></i>
+                    <span>${text}</span>
+                </li>`;
+            });
+            html += `</ul></div> `;
+        });
+        html += '</div>';
+        cont.innerHTML = html;
+    };
+
+    renderList(wins, "tabWins", "No distinct wins found. You matched or trailed everywhere.");
+    renderList(losses, "tabLosses", "No losses found! You matched or beat them everywhere.");
+}
+
+function renderPerformanceInsights(data) {
+    if (!data || data.length === 0) return;
+
+    // 1. Deviation Chart (Horizontal Bar)
+    // Sort by Journey Name for consistent order (reversed for TOP-down view in horz bar)
+    const sortedData = [...data].sort((a, b) => b.sec.localeCompare(a.sec));
+
+    // Shorten Labels (First 3 words)
+    const labels = sortedData.map(d => {
+        const parts = d.sec.split(' ');
+        return parts.length > 3 ? parts.slice(0, 3).join(' ') + '...' : d.sec;
+    });
+
+    const values = sortedData.map(d => d.gaps[deviationMode]);
+    const colors = values.map(v => v >= 0 ? '#10B981' : '#EF4444'); // Green / Red
+
+    const xAxisTitle = "Diff vs " + deviationMode.charAt(0).toUpperCase() + deviationMode.slice(1) + " Avg";
+
+    Plotly.newPlot("stDeviationChart", [{
+        type: 'bar',
+        x: values,
+        y: labels,
+        orientation: 'h',
+        marker: { color: colors, opacity: 0.8 },
+        text: values.map(v => (v > 0 ? '+' : '') + v.toFixed(1)),
+        textposition: 'auto',
+        hoverinfo: 'x+y'
+    }], {
+        margin: { t: 20, l: 150, r: 20, b: 30 },
+        xaxis: { title: xAxisTitle, zeroline: true, zerolinecolor: '#374151' },
+        yaxis: { automargin: true },
+        height: 300,
+        font: { family: "Inter, sans-serif", size: 11 }
+    }, config);
+
+    // 2. Top Priorities (Lowest Scoring Journeys) - TILES UI
+    // Sort by Score Ascending (Worst first)
+    const worstSections = [...data].sort((a, b) => a.score - b.score);
+    const impList = document.getElementById("stImprovementList");
+    impList.innerHTML = "";
+
+    worstSections.forEach((item, index) => {
+        const isTop3 = index < 3;
+        // Top 3 get full width, others get half width
+        const colClass = isTop3 ? "col-12" : "col-6";
+        // Top 3 get Danger Border, others get clean look
+        const cardStyle = isTop3 ? "border-start border-4 border-danger" : "border-0";
+        const bgClass = isTop3 ? "bg-white" : "bg-light";
+
+        // Data for Modal
+        const failedJson = JSON.stringify(item.failed || []).replace(/"/g, '&quot;');
+        const fixedJson = JSON.stringify(item.fixed || []).replace(/"/g, '&quot;');
+        const stableJson = JSON.stringify(item.stable || []).replace(/"/g, '&quot;');
+
+        impList.innerHTML += `
+        <div class="${colClass}" >
+            <div class="card h-100 shadow-sm ${bgClass} ${cardStyle}"
+                style="cursor: pointer; transition: all 0.2s ease-in-out;"
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0)'"
+                onclick='showFailureDetails("${item.sec}", ${failedJson}, ${fixedJson}, ${stableJson})'>
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div style="max-width: 75%;">
+                        <h6 class="fw-bold text-dark mb-1 ${!isTop3 ? 'small' : ''}" style="line-height:1.2;">${item.sec}</h6>
+                        <div class="small text-muted" style="font-size: 0.75rem;">vs ${deviationMode.charAt(0).toUpperCase() + deviationMode.slice(1)}: <span class="${item.gap >= 0 ? 'text-success' : 'text-danger'} fw-bold">${item.gap > 0 ? '+' : ''}${item.gap.toFixed(1)}</span></div>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge ${item.score < 86 ? 'bg-danger' : 'bg-success'} rounded-pill" style="font-size: ${isTop3 ? '0.9rem' : '0.75rem'}">${item.score.toFixed(1)}</span>
+                    </div>
+                </div>
+            </div>
+        </div> `;
+    });
+}
+
+function showFailureDetails(section, failedItems, fixedItems, stableItems) {
+    document.getElementById("failureModalTitle").textContent = section;
+    const body = document.getElementById("failureModalBody");
+    body.style.backgroundColor = "#f8fafc"; // Soft premium background
+    body.innerHTML = "";
+
+    // Helper to render history dots (Polished Status Indicators)
+    const renderHistoryDots = (history) => {
+        if (!history || history.length === 0) return '';
+        let dotsHtml = '<div class="d-flex align-items-center mt-3 p-2 bg-light rounded-pill d-inline-flex border">';
+        dotsHtml += '<span class="text-muted fw-bold xsmall me-2 ms-2" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;">History</span>';
+
+        history.forEach((status, idx) => {
+            let color = '#CBD5E1'; // N/A
+            let icon = 'bi-dash';
+            const isLatest = idx === history.length - 1;
+
+            if (status === 1) {
+                color = '#10B981';
+                icon = 'bi-check-lg';
+            } else if (status === 0) {
+                color = '#EF4444';
+                icon = 'bi-x-lg';
+            }
+
+            const glow = (isLatest && status === 0) ? 'box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); border: 2px solid white;' : '';
+            const passGlow = (isLatest && status === 1) ? 'box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); border: 2px solid white;' : '';
+
+            dotsHtml += `
+                <div class="rounded-circle d-flex justify-content-center align-items-center me-1 position-relative" 
+                     style="width: 24px; height: 24px; background-color: ${color}; color: white; font-size: 10px; ${glow || passGlow}" 
+                     title="${status === 1 ? 'Passed' : (status === 0 ? 'Failed' : 'N/A')}">
+                    <i class="bi ${icon}"></i>
+                    ${isLatest ? '<span class="position-absolute top-0 start-100 translate-middle p-1 bg-white border border-light rounded-circle" style="width: 6px; height: 6px;"></span>' : ''}
+                </div> `;
+        });
+        dotsHtml += '</div>';
+        return dotsHtml;
+    };
+
+    // Helper to render benchmark bar
+    const renderBenchmark = (item) => {
+        if (item.regAvg === null || item.regAvg === undefined || isNaN(item.regAvg)) return '';
+        const rPct = (item.regAvg * 100).toFixed(0);
+        const isCommon = item.regAvg < 0.6;
+        const badgeClass = isCommon ? 'bg-secondary bg-opacity-10 text-secondary border' : 'bg-danger bg-opacity-10 text-danger border';
+
+        return `
+            <div class="mt-3 pt-3 border-top border-light" >
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="fw-bold text-muted xsmall" style="font-size:0.65rem; letter-spacing:0.8px; text-transform:uppercase;">Regional Benchmark</small>
+                    <span class="badge ${badgeClass} rounded-pill" style="font-size: 0.6rem;">Reg Avg: ${rPct}%</span>
+                </div>
+                <div class="progress rounded-pill overflow-hidden" style="height: 6px; background-color: #e2e8f0;">
+                    <div class="progress-bar ${isCommon ? 'bg-secondary' : 'bg-danger'} opacity-75" role="progressbar" style="width: ${rPct}%"></div>
+                </div>
+             </div>
+        `;
+    };
+
+    // Categorize failed items
+    const recurring = [];
+    const oneTime = [];
+
+    (failedItems || []).forEach(item => {
+        const history = item.history || [];
+        const isRecurring = history.length >= 2 && history[history.length - 1] === 0 && history[history.length - 2] === 0;
+        if (isRecurring) recurring.push(item);
+        else oneTime.push(item);
+    });
+
+    const hasNoIssues = recurring.length === 0 && oneTime.length === 0 && (!fixedItems || fixedItems.length === 0) && (!stableItems || stableItems.length === 0);
+
+    if (hasNoIssues) {
+        body.innerHTML = `
+            <div class="p-5 text-center bg-white m-4 rounded-4 shadow-sm border">
+                <div class="display-1 mb-3">✨</div>
+                <h5 class="fw-bold text-dark">Section Clean</h5>
+                <p class="text-muted small">All items in this section are performing as expected.</p>
+            </div>`;
+        var myModal = new bootstrap.Modal(document.getElementById('failureModal'));
+        myModal.show();
+        return;
+    }
+
+    // Render Group Helper
+    const renderCardGroup = (title, icon, colorHex, colorClass, items, badgeType) => {
+        if (!items || items.length === 0) return '';
+        let groupHtml = `<div class="p-4">
+            <div class="d-flex align-items-center mb-4">
+                <div class="p-2 rounded-3 me-3 bg-${colorClass} bg-opacity-10 text-${colorClass} border border-${colorClass} border-opacity-25 shadow-sm">
+                    <i class="bi ${icon} fs-5"></i>
+                </div>
+                <div>
+                   <h6 class="fw-bold mb-0 text-dark-emphasis" style="font-family: 'Outfit', sans-serif; letter-spacing: -0.2px;">${title}</h6>
+                   <div class="text-muted small" style="font-size: 0.75rem;">Detected in current Wave Analysis</div>
+                </div>
+                <div class="ms-auto h-50 border-bottom flex-grow-1 mx-3 opacity-25"></div>
+            </div>
+            <div class="row g-4">
+        `;
+
+        items.forEach(item => {
+            const history = item.history || [];
+            const text = item.text || item;
+
+            let badgeConfig = {
+                label: 'Status',
+                icon: 'bi-info-circle',
+                bg: 'bg-secondary bg-opacity-10 text-secondary border',
+                accent: colorHex
+            };
+
+            if (badgeType === 'recurring') {
+                badgeConfig = { label: 'Recurring Issue', icon: 'bi-arrow-repeat', bg: 'bg-warning bg-opacity-25 text-warning-emphasis border-warning border-opacity-25' };
+            } else if (badgeType === 'onetime') {
+                badgeConfig = { label: 'New Deficit', icon: 'bi-lightning-fill', bg: 'bg-danger bg-opacity-10 text-danger border-danger border-opacity-25' };
+            } else if (badgeType === 'resolved') {
+                badgeConfig = { label: 'Improved', icon: 'bi-stars', bg: 'bg-success bg-opacity-10 text-success border-success border-opacity-25' };
+            } else if (badgeType === 'stable') {
+                badgeConfig = { label: 'Stable', icon: 'bi-shield-check', bg: 'bg-primary bg-opacity-10 text-primary border-primary border-opacity-25' };
+            }
+
+            groupHtml += `
+            <div class="col-lg-6 col-xl-4 align-self-stretch d-flex flex-column">
+                <div class="card flex-grow-1 border-0 shadow-sm bg-white overflow-hidden p-0" 
+                     style="border-radius: 20px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-top: 5px solid ${colorHex} !important;" 
+                     onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 15px 35px -10px rgba(0,0,0,0.1)'" 
+                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="mb-3">
+                            <span class="badge rounded-pill ${badgeConfig.bg} px-3 py-2 fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px; text-transform: uppercase;">
+                                <i class="bi ${badgeConfig.icon} me-1"></i> ${badgeConfig.label}
+                            </span>
+                        </div>
+                        
+                        <p class="mb-4 text-dark-emphasis fw-bold" style="font-size: 1.1rem; line-height: 1.6; letter-spacing: -0.2px; font-family: 'Inter', sans-serif;">
+                            "${text}"
+                        </p>
+                        
+                        ${item.reason ? `
+                            <div class="mb-4 p-3 bg-light rounded-4 border-start border-4 border-${colorClass} shadow-inner">
+                                <small class="text-uppercase fw-bold text-muted d-block mb-1" style="font-size: 0.6rem; letter-spacing: 1px;">Retailer Observation</small>
+                                <p class="mb-0 text-secondary small fst-italic" style="line-height: 1.5;">"${item.reason}"</p>
+                            </div>` : ''}
+                        
+                        <div class="mt-auto">
+                            ${renderHistoryDots(history)}
+                            ${(badgeType === 'onetime' || badgeType === 'recurring') ? renderBenchmark(item) : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        groupHtml += `</div></div>`;
+        return groupHtml;
+    };
+
+    body.innerHTML += renderCardGroup("Critical Issues - Recurring Events", "bi-arrow-repeat", "#D97706", "warning", recurring, "recurring");
+    body.innerHTML += renderCardGroup("Performance Deficits - New", "bi-exclamation-octagon-fill", "#DC2626", "danger", oneTime, "onetime");
+    body.innerHTML += renderCardGroup("Successful Improvements", "bi-trophy-fill", "#111827", "dark", fixedItems, "resolved");
+    body.innerHTML += renderCardGroup("Consistent Champions (Stable)", "bi-shield-fill-check", "#2563EB", "primary", stableItems, "stable");
+
+    var myModal = new bootstrap.Modal(document.getElementById('failureModal'));
+    myModal.show();
+}
+
+
+// --- VoC Tab (Legacy initVoC removed — see new initVoc() in VOC REVAMP MODULE below) ---
+
+
+
+
+
+
+// --- Helper for Theme Modal ---
+// --- Helper for Theme Modal ---
+function showThemeAnalysis(theme) {
+    if (!window._vocThemeData || !window._vocThemeData[theme]) return;
+
+    const data = window._vocThemeData[theme];
+    const feedbacks = data.feedback || [];
+
+    // 1. Calculate Statistics
+    const total = feedbacks.length;
+    const positives = feedbacks.filter(f => f.score > 0).sort((a, b) => b.score - a.score);
+    const negatives = feedbacks.filter(f => f.score < 0).sort((a, b) => a.score - b.score);
+    const posPct = total > 0 ? (positives.length / total) * 100 : 0;
+    const negPct = total > 0 ? (negatives.length / total) * 100 : 0;
+
+    // 2. Identify Top Locations for this theme
+    const locCounts = {};
+    feedbacks.forEach(f => {
+        locCounts[f.site] = (locCounts[f.site] || 0) + 1;
+    });
+    const topLocs = Object.entries(locCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+    // 3. Update Header & KPI
+    document.getElementById('vocThemeModalTitle').innerText = `${theme}`;
+
+    // Sentiment Bar
+    document.getElementById('barPos').style.width = `${posPct}%`;
+    document.getElementById('barNeg').style.width = `${negPct}%`;
+    document.getElementById('valPos').innerText = `${Math.round(posPct)}% Positive`;
+    document.getElementById('valNeg').innerText = `${Math.round(negPct)}% Negative`;
+
+    // Insight Text
+    let insight = "Mixed sentiment.";
+    if (posPct > 70) insight = "Overwhelmingly positive feedback.";
+    else if (negPct > 40) insight = "Significant area of concern.";
+    else if (posPct > 50) insight = "Generally positive, but room for improvement.";
+    document.getElementById('vocThemeInsight').innerText = insight;
+
+    // Keywords (Use pre-calculated from voc.js)
+    const keywordsEl = document.getElementById('vocThemeKeywords');
+    if (data.topWords && data.topWords.length > 0) {
+        keywordsEl.innerHTML = data.topWords.slice(0, 8).map(w =>
+            `<span class="badge bg-light text-dark border fw-normal px-2 py-1">${w.text}</span>`
+        ).join('');
+    } else {
+        keywordsEl.innerText = "No specific keywords found.";
+    }
+
+    // Top Locations
+    const locEl = document.getElementById('vocThemeLocations');
+    locEl.innerHTML = topLocs.map(([site, count], i) =>
+        `<li class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-dark fw-medium">${site}</span>
+            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill small">${count}</span>
+        </li>`
+    ).join('');
+
+    // 4. Render Feedback Streams (Chat Bubble Style)
+    const renderList = (list, type) => {
+        if (list.length === 0) return `<div class="text-center text-muted py-5 small"><i>No ${type} feedback available.</i></div>`;
+        const color = type === 'positive' ? 'success' : 'danger';
+        return list.slice(0, 15).map(item => `
+            <div class="d-flex mb-3">
+                <div class="flex-shrink-0">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" 
+                        style="width: 32px; height: 32px; background-color: var(--bs-${color}); font-size: 12px;">
+                        ${item.score > 0 ? '+' + item.score : item.score}
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <div class="bg-white p-3 rounded-4 shadow-sm border border-${color}-subtle" style="border-top-left-radius: 4px !important;">
+                        <p class="mb-1 text-dark small" style="line-height: 1.5;">"${item.text}"</p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="badge bg-light text-muted border fw-normal" style="font-size: 0.65rem;">
+                                <i class="bi bi-geo-alt-fill me-1"></i>${item.site || 'Unknown'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    document.getElementById('vocThemePositive').innerHTML = renderList(positives, 'positive');
+    document.getElementById('vocThemeNegative').innerHTML = renderList(negatives, 'negative');
+
+    // 5. Generate Executive Summary (Narrative Style)
+
+    // 1. Topic Mapping Dictionary (Map raw keywords to readable concepts)
+    const topicMap = {
+        'ramah': 'staff friendliness', 'sopan': 'staff courtesy', 'senyum': 'staff attitude', 'sapa': 'greeting standard',
+        'cepat': 'service speed', 'sigap': 'responsiveness', 'lambat': 'waiting times', 'lama': 'waiting times', 'antri': 'queue management',
+        'panas': 'store temperature', 'gerah': 'store temperature', 'dingin': 'store temperature', 'ac': 'air conditioning',
+        'luas': 'store ambiance', 'nyaman': 'comfort', 'bersih': 'cleanliness', 'rapi': 'display organization', 'bau': 'store ambiance',
+        'lengkap': 'product variety', 'banyak': 'product choices', 'size': 'size availability', 'ukuran': 'size availability', 'stok': 'stock levels', 'kosong': 'stock availability',
+        'mahal': 'pricing', 'murah': 'value for money', 'diskon': 'promotions', 'promo': 'promotions',
+        'parkir': 'parking facility', 'toilet': 'restroom cleanliness', 'musholla': 'prayer room'
+    };
+
+    // Generic stopwords just in case
+    const stopWords = new Set(['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'untuk', 'pada', 'adalah', 'dengan', 'saya', 'tidak', 'juga', 'bisa', 'karena', 'akan', 'atau', 'sudah', 'telah', 'bagi', 'para', 'namun', 'apa', 'kami', 'kita', 'mereka', 'dia', 'ia', 'anda', 'kamu', 'aku', 'lagi', 'saat', 'ketika', 'seperti', 'tersebut', 'sangat', 'agar', 'bila', 'jika', 'sebagai', 'oleh', 'saja', 'perlu', 'harus', 'dapat', 'tentang', 'serta', 'menjadi', 'dalam', 'antara', 'pelayanan', 'produk', 'store', 'eiger', 'retail', 'assistant', 'staff', 'karyawan', 'pramuniaga', 'toko', 'outlet', 'pelanggan', 'customer', 'baju', 'barang', 'kasir', 'trainee', 'leader', 'security', 'satpam']);
+
+    const getTopTopics = (list, excludeTopics = []) => {
+        const counts = {};
+        list.forEach(item => {
+            const words = item.text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+            words.forEach(w => {
+                if (w.length > 2 && !stopWords.has(w) && !theme.toLowerCase().includes(w)) {
+                    // Check if word maps to a topic
+                    const topic = topicMap[w]; // Use mapped topic if exists
+                    const key = topic ? topic : w; // Fallback to word if meaningful
+
+                    // Only count if it's a known topic OR a common non-stopword > 4 chars
+                    if (topic || (w.length > 4)) {
+                        counts[key] = (counts[key] || 0) + 1;
+                    }
+                }
+            });
+        });
+        // Sort by frequency
+        return Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .filter(e => !excludeTopics.includes(e[0]))
+            .slice(0, 3)
+            .map(e => e[0]);
+    };
+
+    const topPosTopics = getTopTopics(positives);
+    const topNegTopics = getTopTopics(negatives, topPosTopics);
+
+    let summaryHtml = "";
+    // Construct Narrative Paragraph
+    if (positives.length === 0 && negatives.length === 0) {
+        summaryHtml = "No sufficient feedback data available to generate a narrative summary.";
+    } else {
+        // Positive Sentence
+        if (topPosTopics.length > 0) {
+            const concepts = topPosTopics.map(t => `<b>${t}</b>`).join(', ');
+            summaryHtml += `Based on recent feedback, customers have expressed high satisfaction regarding ${concepts}. `;
+            if (topLocs.length > 0 && posPct > 60) {
+                summaryHtml += `This positive sentiment is particularly strong at <b>${topLocs[0][0]}</b>, which serves as a benchmark for ${topPosTopics[0]}. `;
+            }
+        } else if (posPct > 50) {
+            summaryHtml += "Overall sentiment is positive, though specific drivers of satisfaction vary across different locations. ";
+        }
+
+        // Negative Sentence
+        if (topNegTopics.length > 0) {
+            const issues = topNegTopics.map(t => `<b>${t}</b>`).join(' and ');
+            if (summaryHtml) summaryHtml += "<br><br>"; // Paragraph break
+            summaryHtml += `However, there are recurring concerns regarding ${issues}. Addressing these specific pain points could significantly improve the overall customer experience`;
+            if (topLocs.length > 0 && negatives.length > positives.length) {
+                summaryHtml += `, with immediate attention recommended for <b>${topLocs[0][0]}</b> due to a higher volume of such reports.`;
+            } else {
+                summaryHtml += ".";
+            }
+        }
+
+        if (!summaryHtml) summaryHtml = "Insufficient data to generate a detailed summary.";
+
+        const summaryEl = document.getElementById('vocThemeSummary');
+        if (summaryEl) summaryEl.innerHTML = summaryHtml;
+
+        const modal = new bootstrap.Modal(document.getElementById('vocThemeModal'));
+        modal.show();
+    }
+}
+
+window.onload = function () {
+    initSummary();
+    initRegions();
+    initBranches();
+    initStoreTable();
+    initVoC();
+
+    // Deep Link Logic
+    var urlParams = new URLSearchParams(window.location.search);
+    var storeId = urlParams.get('store');
+    if (storeId) {
+        setTimeout(function () { viewStore(storeId); }, 100);
+    }
+};
+
+// Fullscreen Chart Logic
+function openChartModal(sourceId, title) {
+    var sourceDiv = document.getElementById(sourceId);
+    if (!sourceDiv) return;
+
+    var modalTitle = document.getElementById("chartModalTitle");
+    modalTitle.textContent = title || "Chart Analysis";
+
+    // Get source data and layout
+    var data = sourceDiv.data;
+    var layout = sourceDiv.layout;
+
+    if (!data || !layout) {
+        console.error("No Plotly data found in " + sourceId);
+        return;
+    }
+
+    // Clone and adjust layout for fullscreen
+    var newLayout = JSON.parse(JSON.stringify(layout));
+    newLayout.font = { family: 'Outfit, sans-serif' };
+    newLayout.width = null;
+    newLayout.height = null;
+    newLayout.autosize = true;
+    newLayout.margin = { t: 80, l: 80, r: 80, b: 80 }; // More "luxury" breathing room
+    newLayout.paper_bgcolor = 'rgba(0,0,0,0)';
+    newLayout.plot_bgcolor = 'rgba(0,0,0,0)';
+
+    if (newLayout.title && typeof newLayout.title === 'object') {
+        newLayout.title.font = { size: 24, weight: 'bold', family: 'Outfit, sans-serif' };
+    }
+
+    // Show Modal
+    var myModal = new bootstrap.Modal(document.getElementById('chartModal'));
+    myModal.show();
+
+    // Render after modal is shown to ensure correct sizing
+    document.getElementById('chartModal').addEventListener('shown.bs.modal', function () {
+        Plotly.newPlot('chartModalContainer', data, newLayout, {
+            responsive: true,
+            displayModeBar: true, // Enable tools for deep dive
+            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+            displaylogo: false
+        });
+    }, { once: true });
+}
+
+// --- Journey Detail Modal Logic ---
+function openSectionDetail(sectionName) {
+    console.log("Opening section detail for:", sectionName);
+    try {
+        // 1. Get Trend Data (National)
+        const trendLabels = [];
+        const trendData = [];
+
+        sortedWaves.forEach(wave => {
+            const d = reportData.summary[wave];
+            if (d && d.sections && d.sections[sectionName]) {
+                const sect = d.sections[sectionName];
+                trendLabels.push(wave);
+                trendData.push(sect.count > 0 ? sect.sum / sect.count : 0);
+            }
+        });
+
+        // 2. Get Regional Leaderboard (Current Wave)
+        const cur = sortedWaves[sortedWaves.length - 1];
+        const regionScores = [];
+        Object.keys(reportData.regions).forEach(reg => {
+            const rWave = reportData.regions[reg][cur];
+            if (rWave && rWave.sections && rWave.sections[sectionName]) {
+                const sect = rWave.sections[sectionName];
+                regionScores.push({
+                    name: reg,
+                    score: sect.count > 0 ? sect.sum / sect.count : 0
+                });
+            }
+        });
+        // Top 5 Regions
+        const topRegions = regionScores.sort((a, b) => b.score - a.score).slice(0, 5);
+
+        // 2.5 Get Top/Bottom Items within this section (National - Current)
+        const sectionCode = sectionName.split('.')[0].trim();
+        const itemPerformances = [];
+        const nationalCur = reportData.summary[cur];
+
+        if (nationalCur && nationalCur.details && nationalCur.details[sectionCode]) {
+            Object.entries(nationalCur.details[sectionCode]).forEach(([code, item]) => {
+                if (item.count > 0) {
+                    itemPerformances.push({
+                        text: item.t,
+                        score: (item.sum / item.count) * 100
+                    });
+                }
+            });
+        }
+        const sortedItems = [...itemPerformances].sort((a, b) => b.score - a.score);
+        const topItems = sortedItems.slice(0, 3);
+        const bottomItems = sortedItems.slice(-3).reverse();
+
+        // 3. Render Modal Content
+        // Ensure modal structure exists
+        let modalEl = document.getElementById('sectionDetailModal');
+        if (!modalEl) {
+            modalEl = document.createElement('div');
+            modalEl.id = 'sectionDetailModal';
+            modalEl.className = 'modal fade';
+            modalEl.setAttribute('tabindex', '-1');
+            modalEl.innerHTML = `
+        <div class="modal-dialog modal-xl modal-dialog-centered" >
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="sectionDetailTitle">Journey Analysis</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body bg-light" id="sectionDetailBody"></div>
+            </div>
+            </div> `;
+            document.body.appendChild(modalEl);
+        }
+
+        document.getElementById('sectionDetailTitle').innerHTML = `
+            <div class="d-flex align-items-center">
+                <span class="badge bg-primary me-3" style="font-size: 0.7rem;">JOURNEY ANALYSIS</span>
+                <span>${sectionName}</span>
+            </div>`;
+        const body = document.getElementById('sectionDetailBody');
+        body.innerHTML = `
+        <div class="row g-4 d-flex">
+            <!-- Left: Chart & Item Insights -->
+            <div class="col-lg-8 flex-column d-flex">
+                <!-- Trend Chart Card -->
+                <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px; background: #fff;">
+                    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3">
+                                <i class="bi bi-graph-up text-primary"></i>
+                            </div>
+                            <h6 class="mb-0 fw-bold text-dark">National Trend (5 Waves)</h6>
+                        </div>
+                        <div class="small text-muted fst-italic">Last updated: ${cur}</div>
+                    </div>
+                    <div class="card-body p-4 pt-0">
+                        <div style="height: 280px; position: relative;">
+                            <canvas id="sectionTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Item Insights Grid -->
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px; border-top: 4px solid #10b981 !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-success bg-opacity-10 p-2 rounded-3 me-2">
+                                        <i class="bi bi-hand-thumbs-up-fill text-success"></i>
+                                    </div>
+                                    <h6 class="mb-0 fw-bold small text-uppercase" style="letter-spacing: 0.5px;">Top Strengths</h6>
+                                </div>
+                                ${topItems.map(item => `
+                                    <div class="mb-2 pb-2 border-bottom border-light last-child-no-border">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <span class="small text-dark fw-medium pe-2" style="line-height: 1.3;">${item.text}</span>
+                                            <span class="badge bg-soft-success text-success fw-bold" style="font-size: 0.7rem;">${item.score.toFixed(0)}%</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px; border-top: 4px solid #ef4444 !important;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-danger bg-opacity-10 p-2 rounded-3 me-2">
+                                        <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                                    </div>
+                                    <h6 class="mb-0 fw-bold small text-uppercase" style="letter-spacing: 0.5px;">Priority Improvements</h6>
+                                </div>
+                                ${bottomItems.map(item => `
+                                    <div class="mb-2 pb-2 border-bottom border-light last-child-no-border">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <span class="small text-dark fw-medium pe-2" style="line-height: 1.3;">${item.text}</span>
+                                            <span class="badge bg-soft-danger text-danger fw-bold" style="font-size: 0.7rem;">${item.score.toFixed(0)}%</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Regional Leaderboard -->
+            <div class="col-lg-4 d-flex flex-column">
+                <div class="card border-0 shadow-sm flex-grow-1" style="border-radius: 16px; overflow: hidden; background: #fff;">
+                    <div class="card-header bg-white py-3 border-0 d-flex align-items-center">
+                        <div class="bg-warning bg-opacity-10 p-2 rounded-3 me-3">
+                            <i class="bi bi-trophy-fill text-warning"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Regional Leaderboard</h6>
+                            <span class="text-muted" style="font-size: 0.65rem;">Impact Score</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light small text-muted text-uppercase" style="font-size: 0.6rem; letter-spacing: 1px; background-color: #f8fafc;">
+                                    <tr>
+                                        <th class="ps-4 border-0">Rank</th>
+                                        <th class="border-0">Region</th>
+                                        <th class="text-end pe-4 border-0">Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${topRegions.map((r, i) => `
+                                        <tr style="height: 60px;">
+                                            <td class="ps-4 border-light">
+                                                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold" 
+                                                     style="width:28px; height:28px; font-size: 0.75rem; 
+                                                     background: ${i == 0 ? '#FEF3C7' : '#F1F5F9'}; 
+                                                     color: ${i == 0 ? '#92400E' : '#475569'};">
+                                                    ${i + 1}
+                                                </div>
+                                            </td>
+                                            <td class="border-light">
+                                                <div class="fw-bold text-dark" style="font-size: 0.85rem;">${r.name}</div>
+                                                <div class="text-muted" style="font-size: 0.65rem;">Regional Performance</div>
+                                            </td>
+                                            <td class="text-end pe-4 border-light">
+                                                <div class="fw-bold ${r.score >= 86 ? 'text-success' : 'text-danger'}" style="font-size: 1rem;">${r.score.toFixed(1)}</div>
+                                                <div class="progress mt-1 ms-auto" style="height: 3px; width: 40px;">
+                                                    <div class="progress-bar ${r.score >= 86 ? 'bg-success' : 'bg-danger'}" style="width: ${r.score}%"></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="p-4 mt-auto">
+                            <div class="bg-light rounded-3 p-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-info-circle-fill text-primary me-2 fst-normal"></i>
+                                    <span class="small fw-bold text-primary">Insight</span>
+                                </div>
+                                <p class="mb-0 text-muted" style="font-size: 0.75rem; line-height: 1.4;">
+                                    ${topRegions[0].name} is leading with a score of ${topRegions[0].score.toFixed(1)}, while the gap to the next region is ${(topRegions[0].score - (topRegions[1] ? topRegions[1].score : 0)).toFixed(1)} points.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+
+        // 4. Show Modal
+        const myModal = new bootstrap.Modal(modalEl);
+        myModal.show();
+
+        // 5. Draw Chart (Wait for modal transition)
+        modalEl.addEventListener('shown.bs.modal', function () {
+            const ctx = document.getElementById('sectionTrendChart');
+            if (ctx) {
+                // Destroy old chart if exists (not strictly needed since we rebuild DOM, but good practice if I cached it)
+                // simplified: DOM is fresh.
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: trendLabels,
+                        datasets: [{
+                            label: 'National Score',
+                            data: trendData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: (context) => {
+                                const chart = context.chart;
+                                const { ctx, chartArea } = chart;
+                                if (!chartArea) return null;
+                                const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                                gradient.addColorStop(0, 'rgba(59, 130, 246, 0)');
+                                gradient.addColorStop(1, 'rgba(59, 130, 246, 0.2)');
+                                return gradient;
+                            },
+                            borderWidth: 4,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#3b82f6',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointHoverBackgroundColor: '#3b82f6',
+                            pointHoverBorderColor: '#fff',
+                            pointHoverBorderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 1000, easing: 'easeOutQuart' },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                min: trendData.length > 0 ? Math.max(0, Math.min(...trendData) - 5) : 50,
+                                max: 100,
+                                grid: { color: 'rgba(0,0,0,0.05)', borderDash: [5, 5] },
+                                ticks: { font: { size: 10 }, color: '#94a3b8' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { size: 10, weight: 'bold' }, color: '#475569' }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleFont: { size: 13, weight: 'bold' },
+                                bodyFont: { size: 12 },
+                                padding: 12,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function (context) { return 'Score: ' + context.parsed.y.toFixed(1); }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }, { once: true });
+    } catch (err) {
+        console.error("Critical error in openSectionDetail:", err);
+        alert("Error opening detail: " + err.message);
+    }
+}
+// --- VOC REVAMP MODULE (Categorization + Manager's Notes) ---
+let currentVocPage = 1;
+const vocPageSize = 12;
+let currentVocFilter = 'all';
+let currentVocTimeFilter = 'all'; // NEW: Global Time Filter
+let timeFilteredVocData = [];     // NEW: Data filtered by time (Source for charts/KPIs)
+let filteredVocData = [];         // DEPRECATED-ISH: Kept for compat, but essentially same as timeFilteredVocData now
+let currentGridData = [];         // Local data strictly for Feedback Explorer tiles
+let vocCategoryData = {}; // { categoryName: count }
+let vocNoteData = [];     // [{ note, count, sample }]
+
+// Color palette for categories
+const VOC_CAT_COLORS = {
+    'Hospitality': '#1E293B',
+    'Payment/Checkout': '#14B8A6',
+    'Speed of Service': '#3B82F6',
+    'Greeting/Closing': '#F59E0B',
+    'Staffing': '#7C3AED',
+    'Ambiance': '#EC4899',
+    'Facility Maintenance': '#EF4444',
+    'Staff Friendliness': '#06B6D4',
+    'Store Cleanliness': '#10B981',
+    'Cleanliness': '#10B981', // Added Cleanliness (Same as Store Cleanliness)
+    'Product Quality': '#F97316',
+    'Hygiene': '#84CC16'
+};
+
+function getVocCatColor(cat) {
+    return VOC_CAT_COLORS[cat] || '#94A3B8';
+}
+
+// Global normalization: map legacy AI category names to standardized ones
+const VOC_CAT_NORMALIZE = {
+    'Facility Maintenance': 'Cleanliness',
+    'Store Cleanliness': 'Cleanliness',
+    'Hygiene': 'Cleanliness',
+    'Store Ambience': 'Ambiance'
+};
+function normalizeVocTopics(item) {
+    const raw = item.topics || item.themes || [];
+    const mapped = raw.map(t => VOC_CAT_NORMALIZE[t] || t);
+    return [...new Set(mapped)];
+}
+
+function initVoc() {
+    const insightEl = document.getElementById("vocSmartInsights");
+    if (insightEl && reportData.vocInsights) {
+        insightEl.innerHTML = reportData.vocInsights;
+    }
+
+    if (reportData.voc && reportData.voc.length > 0) {
+        timeFilteredVocData = reportData.voc; // Default to full data
+        currentGridData = reportData.voc;
+    } else {
+        timeFilteredVocData = [];
+        currentGridData = [];
+    }
+
+    initVocTimeFilter(); // NEW: Populate time dropdown
+    calculateVocStats();
+    renderVocFilters();
+    renderVocGrid();
+    renderVocKpis();
+    renderVocRegionalHeatmap();
+    renderVocServiceStandards();
+    renderVocCategoryChart();
+    renderVocActionTiles(); // NEW: Executive Action Tiles
+    renderVocManagerNotes();
+}
+
+function initVocTimeFilter() {
+    const select = document.getElementById('vocTimeFilter');
+    if (!select || !reportData.voc) return;
+
+    // Get unique "Year - Wave" combos
+    const waves = new Set();
+    reportData.voc.forEach(item => {
+        if (item.year && item.wave) {
+            waves.add(`${item.year} - ${item.wave}`);
+        }
+    });
+
+    const sortedWaves = Array.from(waves).sort().reverse(); // Newest first
+
+    let html = '<option value="all">All Time Periods</option>';
+    sortedWaves.forEach(w => {
+        html += `<option value="${w}">${w}</option>`;
+    });
+
+    select.innerHTML = html;
+
+    // FIX: Default to latest wave instead of 'all'
+    const defaultVal = sortedWaves.length > 0 ? sortedWaves[0] : 'all';
+    select.value = defaultVal;
+
+    // Add event listener
+    select.onchange = (e) => filterVocByTime(e.target.value);
+
+    // Trigger initial filter
+    if (defaultVal !== 'all') {
+        setTimeout(() => filterVocByTime(defaultVal), 100);
+    }
+}
+
+function filterVocByTime(timeVal) {
+    currentVocTimeFilter = timeVal;
+
+    if (timeVal === 'all') {
+        timeFilteredVocData = reportData.voc;
+    } else {
+        timeFilteredVocData = reportData.voc.filter(item =>
+            `${item.year} - ${item.wave}` === timeVal
+        );
+    }
+
+    // Reset Category Filter when time changes (optional, but safer)
+    currentVocFilter = 'all';
+    const catSelect = document.getElementById('vocCategoryFilter');
+    if (catSelect) catSelect.value = 'all';
+
+    // Update Grid Data Source
+    currentGridData = timeFilteredVocData;
+
+    // Re-Calculate Stats & Re-Render EVERYTHING
+    calculateVocStats();
+    renderVocFilters(); // Re-populate category dropdown based on new time scope?? No, keep global categories? 
+    // Actually better to show categories available in THIS time period.
+    // Let's force re-render of filters.
+    const filterEl = document.getElementById('vocCategoryFilter');
+    if (filterEl) filterEl.innerHTML = ''; // Force clear to trigger re-population in renderVocFilters
+
+    renderVocGrid();
+    renderVocKpis();
+    renderVocRegionalHeatmap();
+    renderVocServiceStandards();
+    renderVocCategoryChart();
+    // renderVocTrendChart(); // Trend chart usually shows ALL time, so maybe don't filter this? 
+    // Actually, user said "dissect results", so maybe we hide trend chart or show only relevant point?
+    // Let's keep Trend Chart GLOBAL for context, or filter it? 
+    // Usually Trend Chart implies time series. If we filter to 1 wave, trend is 1 point.
+    // Let's leave Trend Chart showing ALL data for context, unless user wants otherwise.
+    // Implementing: Trend Chart uses reportData.voc (Global) to show context.
+    // Implementing: Trend Chart uses reportData.voc (Global) to show context.
+    renderVocManagerNotes();
+    renderVocGridSummary(); // FIX: Ensure summary tiles update on time change
+}
+
+function renderVocKpis() {
+    const total = timeFilteredVocData ? timeFilteredVocData.length : 0;
+    const topCat = Object.entries(vocCategoryData).sort((a, b) => b[1] - a[1])[0];
+    const topNote = vocNoteData[0];
+    const catCount = Object.keys(vocCategoryData).length;
+
+    if (document.getElementById("vocKpiTotal")) animateValue("vocKpiTotal", 0, total, 1000);
+    if (document.getElementById("vocKpiCatCount")) animateValue("vocKpiCatCount", 0, catCount, 800);
+
+    if (topCat) {
+        const el = document.getElementById("vocKpiTopCat");
+        const countEl = document.getElementById("vocKpiTopCatCount");
+        if (el) el.textContent = topCat[0];
+        if (countEl) countEl.textContent = topCat[1].toLocaleString() + ' mentions';
+    }
+    if (topNote) {
+        const el = document.getElementById("vocKpiTopNote");
+        const countEl = document.getElementById("vocKpiTopNoteCount");
+        if (el) el.textContent = topNote.note;
+        if (countEl) countEl.textContent = topNote.count.toLocaleString() + ' occurrences';
+    }
+}
+
+function renderVocCategoryChart() {
+    const container = document.getElementById('vocCategoryChart');
+    if (!container) return;
+
+    const sorted = Object.entries(vocCategoryData).sort((a, b) => b[1] - a[1]);
+    const labels = sorted.map(x => x[0]);
+    const values = sorted.map(x => x[1]);
+    const total = values.reduce((a, b) => a + b, 0);
+
+    // Update Total Text
+    const totalEl = document.getElementById('vocCatChartTotal');
+    if (totalEl) totalEl.textContent = total.toLocaleString() + ' total';
+
+    const colors = labels.map(l => getVocCatColor(l));
+    const parents = labels.map(() => "");
+
+    const data = [{
+        type: "treemap",
+        labels: labels,
+        parents: parents,
+        values: values,
+        textinfo: "label+value+percent root",
+        textposition: "middle center",
+        marker: {
+            colors: colors,
+            line: { width: 2, color: '#ffffff' }
+        },
+        hovertemplate: "<b>%{label}</b><br>Volume: %{value}<br>Share: %{percentRoot:.1%}<extra></extra>",
+        pathbar: { visible: false },
+        textfont: {
+            family: "Inter, sans-serif",
+            size: 14,
+            color: "#FFFFFF",
+            weight: "bold"
+        }
+    }];
+
+    const layout = {
+        margin: { t: 0, l: 0, r: 0, b: 0 },
+        paper_bgcolor: "transparent",
+        font: { family: "Inter, sans-serif" },
+        autosize: true
+    };
+
+    const config = { responsive: true, displayModeBar: false };
+
+    Plotly.newPlot('vocCategoryChart', data, layout, config).then(() => {
+        container.on('plotly_click', function (data) {
+            if (data.points && data.points.length > 0) {
+                const label = data.points[0].label;
+                showVocDrilldown(label);
+            }
+        });
+    });
+}
+
+
+function renderVocManagerNotes() {
+    const tbody = document.getElementById('vocManagerNotesBody');
+    if (!tbody) return;
+
+    const total = timeFilteredVocData ? timeFilteredVocData.length : 1;
+    const topNotes = vocNoteData.slice(0, 15);
+    const maxCount = topNotes.length > 0 ? topNotes[0].count : 1;
+
+    tbody.innerHTML = topNotes.map((item, i) => {
+        const pct = ((item.count / total) * 100).toFixed(1);
+        const barWidth = Math.round((item.count / maxCount) * 100);
+        const sampleTrunc = item.sample.length > 80 ? item.sample.substring(0, 80) + '…' : item.sample;
+
+        return `
+            <tr style="cursor:pointer;" data-note="${item.note}" onclick="filterVocGrid(this.dataset.note)" class="voc-note-row">
+                <td class="ps-4 py-3">
+                    <span class="badge rounded-pill fw-bold" style="background: ${i < 3 ? '#1E293B' : '#E2E8F0'}; color: ${i < 3 ? '#fff' : '#475569'}; min-width: 28px;">${i + 1}</span>
+                </td>
+                <td class="py-3">
+                    <div class="fw-bold" style="color: #1E293B; font-size: 0.9rem;">${item.note}</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">${pct}% of all feedback</div>
+                </td>
+                <td class="py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="flex-grow-1" style="height: 8px; background: #F1F5F9; border-radius: 4px; overflow: hidden;">
+                            <div style="width: ${barWidth}%; height: 100%; background: linear-gradient(90deg, #1E293B, #475569); border-radius: 4px; transition: width 0.6s;"></div>
+                        </div>
+                        <span class="fw-bold small" style="min-width: 50px; text-align: right; color: #1E293B;">${item.count.toLocaleString()}</span>
+                    </div>
+                </td>
+                <td class="py-3 pe-4">
+                    <div class="text-muted fst-italic" style="font-size: 0.78rem; line-height: 1.4;">"${sampleTrunc}"</div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderVocRegionalHeatmap() {
+    const container = document.getElementById("vocRegionalHeatmap");
+    if (!container || !reportData.regions) return;
+
+    // Phase 1: Group all data by region in one pass O(N)
+    const regionsMap = {};
+    Object.keys(reportData.regions).forEach(r => {
+        regionsMap[r] = { total: 0, catCount: {}, noteCount: {} };
+    });
+
+    const dataToProcess = timeFilteredVocData || [];
+    dataToProcess.forEach(item => {
+        const r = item.region;
+        if (!r || !regionsMap[r]) return;
+
+        const regObj = regionsMap[r];
+        regObj.total++;
+
+        // Categories
+        normalizeVocTopics(item).forEach(t => {
+            regObj.catCount[t] = (regObj.catCount[t] || 0) + 1;
+        });
+
+        // Notes
+        const insight = item.aiInsight || '';
+        const key = insight.includes(':') ? insight.split(':')[0].trim() : insight.trim();
+        if (key && key !== 'N/A') {
+            regObj.noteCount[key] = (regObj.noteCount[key] || 0) + 1;
+        }
+    });
+
+    // Phase 2: Convert Map to sorted array
+    const sortedRegions = Object.entries(regionsMap).map(([name, data]) => {
+        const topCat = Object.entries(data.catCount).sort((a, b) => b[1] - a[1])[0];
+        const topNote = Object.entries(data.noteCount).sort((a, b) => b[1] - a[1])[0];
+        return { name, total: data.total, topCat, topNote };
+    }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
+
+    container.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle" style="font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: #F8FAFC;">
+                        <th class="py-2 ps-3 text-muted text-uppercase small fw-bold" style="letter-spacing: 0.5px;">Region</th>
+                        <th class="py-2 text-muted text-uppercase small fw-bold" style="letter-spacing: 0.5px;">Feedback</th>
+                        <th class="py-2 text-muted text-uppercase small fw-bold" style="letter-spacing: 0.5px;">Top Category</th>
+                        <th class="py-2 pe-3 text-muted text-uppercase small fw-bold" style="letter-spacing: 0.5px;">#1 Manager Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sortedRegions.map(r => `
+                        <tr>
+                            <td class="py-2 ps-3 fw-bold" style="color: #1E293B;">${r.name}</td>
+                            <td class="py-2">
+                                <span class="badge rounded-pill" style="background: #F1F5F9; color: #475569;">${r.total.toLocaleString()}</span>
+                            </td>
+                            <td class="py-2">
+                                ${r.topCat ? `<span class="badge rounded-pill px-2 py-1" style="background: ${getVocCatColor(r.topCat[0])}20; color: ${getVocCatColor(r.topCat[0])}; border: 1px solid ${getVocCatColor(r.topCat[0])}40; font-size: 0.75rem;">${r.topCat[0]}</span>` : '<span class="text-muted small">—</span>'}
+                            </td>
+                            <td class="py-2 pe-3">
+                                ${r.topNote ? `<span class="small fw-medium" style="color: #B45309;"><i class="bi bi-clipboard2-pulse me-1"></i>${r.topNote[0]} <span class="text-muted">(${r.topNote[1]})</span>` : '<span class="text-muted small">—</span>'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderVocServiceStandards() {
+    const curWave = sortedWaves[sortedWaves.length - 1];
+    const summary = reportData.summary[curWave];
+    if (!summary || !summary.sections) return;
+
+    const sA = summary.sections['A. Grooming & Greeting'] ? Math.round(summary.sections['A. Grooming & Greeting'].sum / summary.sections['A. Grooming & Greeting'].count) : 0;
+    const sB = summary.sections['B. Selling Skill'] ? Math.round(summary.sections['B. Selling Skill'].sum / summary.sections['B. Selling Skill'].count) : 0;
+    const sC = summary.sections['C. Closing & Farewell'] ? Math.round(summary.sections['C. Closing & Farewell'].sum / summary.sections['C. Closing & Farewell'].count) : 0;
+
+    // Update SVG circles
+    const setCircle = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('stroke-dasharray', `${val}, 100`);
+    };
+    setCircle('circleWelcome', sA);
+    setCircle('circleSelling', sB);
+    setCircle('circleClosing', sC);
+
+    // Update percentage text
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val + '%';
+    };
+    setVal('valWelcome', sA);
+    setVal('valSelling', sB);
+    setVal('valClosing', sC);
+}
+
+function filterVocGrid(type) {
+    currentVocFilter = type;
+    currentVocPage = 1;
+
+    if (!timeFilteredVocData) return;
+
+    if (type === 'all') {
+        currentGridData = timeFilteredVocData;
+    } else {
+        currentGridData = timeFilteredVocData.filter(item => {
+            const topics = normalizeVocTopics(item);
+            const insight = item.aiInsight || '';
+            const noteKey = insight.includes(':') ? insight.split(':')[0].trim() : insight.trim();
+            return topics.includes(type) || noteKey === type;
+        });
+    }
+
+    // Sync dropdown UI
+    renderVocFilters(); // NEW: Refresh dropdown if needed
+
+    try {
+        renderVocGrid();
+        renderVocGridSummary(); // Update summary tiles
+    } catch (e) {
+        console.error("VoC Filter Error:", e);
+    }
+}
+
+function renderVocFilters() {
+    const select = document.getElementById('vocCategoryFilter');
+    if (!select) return;
+
+    // Only re-render if empty or has just the default option
+    // OR if we want to ensure the correct option is selected
+    if (select.options.length <= 1) {
+        // Use vocCategoryData which is populated by calculateVocStats (but wait, calculateVocStats runs on filtered data?)
+        // YES, we want categories available in the CURRENT TIME VIEW.
+        // calculateVocStats populates global `vocCategoryData` based on `timeFilteredVocData` now.
+
+        const sortedCats = Object.entries(vocCategoryData).sort((a, b) => b[1] - a[1]);
+        let optionsHtml = '<option value="all">All Categories</option>';
+        sortedCats.forEach(([cat, count]) => {
+            optionsHtml += `<option value="${cat}" ${currentVocFilter === cat ? 'selected' : ''}>${cat} (${count})</option>`;
+        });
+        select.innerHTML = optionsHtml;
+    }
+
+    // Ensure correct selection state
+    if (select.value !== currentVocFilter) {
+        select.value = currentVocFilter;
+    }
+}
+
+function changeVocPage(delta) {
+    const maxPage = Math.ceil(currentGridData.length / vocPageSize);
+    const newPage = currentVocPage + delta;
+    if (newPage > 0 && newPage <= maxPage) {
+        currentVocPage = newPage;
+        renderVocGrid();
+        document.getElementById("vocFeedbackGrid").scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function renderVocGrid() {
+    const grid = document.getElementById("vocFeedbackGrid");
+    if (!grid) return;
+
+    grid.innerHTML = "";
+
+    const start = (currentVocPage - 1) * vocPageSize;
+    const end = start + vocPageSize;
+    const pageData = currentGridData.slice(start, end);
+
+    pageData.forEach((item, index) => {
+        const tile = createFeedbackTile(item, index);
+        grid.appendChild(tile);
+    });
+
+    const maxPage = Math.ceil(currentGridData.length / vocPageSize);
+    const countEl = document.getElementById("vocGridCount");
+    const indicatorEl = document.getElementById("vocPageIndicator");
+
+    if (countEl) countEl.textContent = `Showing ${currentGridData.length > 0 ? start + 1 : 0}–${Math.min(end, currentGridData.length)} of ${currentGridData.length} feedback`;
+    if (indicatorEl) indicatorEl.textContent = `Page ${currentVocPage} of ${maxPage || 1}`;
+
+    const prevBtn = document.getElementById("btnVocPrev");
+    const nextBtn = document.getElementById("btnVocNext");
+
+    if (prevBtn) prevBtn.disabled = currentVocPage === 1;
+    if (nextBtn) nextBtn.disabled = currentVocPage >= maxPage || maxPage === 0;
+    if (nextBtn) nextBtn.disabled = currentVocPage >= maxPage || maxPage === 0;
+
+    renderVocGridSummary(); // Ensure summary is rendered
+}
+
+function renderVocGridSummary() {
+    const container = document.getElementById("vocGridSummary");
+    if (!container) return;
+
+    const data = currentGridData || [];
+    const count = data.length;
+
+    if (count === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    // Calc Stats
+    const pos = data.filter(i => i.sentiment === 'positive').length;
+    const score = Math.round((pos / count) * 100);
+
+    const cats = {};
+    const notes = {};
+    data.forEach(i => {
+        const topics = normalizeVocTopics(i);
+        if (topics[0]) cats[topics[0]] = (cats[topics[0]] || 0) + 1;
+
+        const insight = i.aiInsight || '';
+        const key = insight.includes(':') ? insight.split(':')[0].trim() : insight.trim();
+        if (key && key !== 'N/A') notes[key] = (notes[key] || 0) + 1;
+    });
+
+    const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
+    const topNote = Object.entries(notes).sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
+
+    const cards = [
+        { label: 'Total Feedback', value: count.toLocaleString(), icon: 'bi-chat-right-text', color: '#3B82F6' },
+        { label: 'Positive Sentiment', value: score + '%', icon: 'bi-emoji-smile', color: '#10B981' },
+        { label: 'Top Category', value: topCat[0], icon: 'bi-tags', color: '#F59E0B' },
+        { label: 'Top Issue', value: topNote[0], icon: 'bi-exclamation-circle', color: '#EF4444' }
+    ];
+
+    container.innerHTML = cards.map(c => `
+        <div class="col-md-3">
+             <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center h-100" style="border-radius: 12px; background: white;">
+                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                     style="width: 45px; height: 45px; background: ${c.color}15; color: ${c.color};">
+                    <i class="bi ${c.icon} fs-5"></i>
+                </div>
+                <div>
+                    <div class="text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">${c.label}</div>
+                    <div class="fw-bold text-dark fs-5">${c.value}</div>
+                </div>
+             </div>
+        </div>
+    `).join('');
+}
+
+function createFeedbackTile(item, index) {
+    const col = document.createElement("div");
+    col.className = "col-md-6 col-xl-4";
+
+    // Category badge (primary topic)
+    const topics = normalizeVocTopics(item);
+    const primaryTopic = topics[0] || 'General';
+    const catColor = getVocCatColor(primaryTopic);
+
+    let topicBadgesHtml = topics.map(t =>
+        `<span class="badge rounded-pill me-1 mb-1" style="background: ${getVocCatColor(t)}15; color: ${getVocCatColor(t)}; border: 1px solid ${getVocCatColor(t)}30; font-size: 0.7rem; font-weight: 600;">${t}</span>`
+    ).join('');
+
+    // Manager's Note
+    let noteHtml = "";
+    if (item.aiInsight && item.aiInsight !== 'N/A') {
+        const notePrefix = item.aiInsight.includes(':') ? item.aiInsight.split(':')[0].trim() : '';
+        const noteBody = item.aiInsight.includes(':') ? item.aiInsight.split(':').slice(1).join(':').trim() : item.aiInsight;
+        noteHtml = `
+            <div class="mt-3 p-3 rounded-3" style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border-left: 3px solid #F59E0B;">
+                <div class="d-flex align-items-center mb-1">
+                    <i class="bi bi-clipboard2-pulse me-1" style="color: #B45309; font-size: 0.8rem;"></i>
+                    <span class="fw-bold" style="color: #B45309; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Manager's Note${notePrefix ? ': ' + notePrefix : ''}</span>
+                </div>
+                <div class="fw-medium" style="color: #78350F; font-size: 0.82rem; line-height: 1.4;">${noteBody}</div>
+            </div>
+        `;
+    }
+
+    const delay = (index % 12) * 50;
+
+    col.innerHTML = `
+        <div class="card h-100 border-0 feedback-card animate-entry" 
+             style="border-radius: 14px; transition: all 0.2s; animation-delay: ${delay}ms; border: 1px solid #E2E8F0;">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="d-flex flex-wrap gap-1">${topicBadgesHtml}</div>
+                    <span class="text-muted small fw-bold flex-shrink-0 ms-2" style="font-size: 0.7rem; letter-spacing: 0.5px; color: #94A3B8;">${item.wave || ''} ${item.year || ''}</span>
+                </div>
+                <div class="mb-2 flex-grow-1">
+                    <p class="mb-0" style="font-style: italic; line-height: 1.65; font-size: 0.92rem; color: #334155;">"${item.text}"</p>
+                    ${noteHtml}
+                </div>
+                <div class="mt-auto pt-3" style="border-top: 1px solid #F1F5F9;">
+                   <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center me-2" style="width:30px; height:30px; background: ${catColor}15;">
+                                <i class="bi bi-shop" style="color: ${catColor}; font-size: 0.75rem;"></i>
+                            </div>
+                            <div style="line-height:1.2">
+                                <!-- FIX: Explicitly force wrap -->
+                                <div class="small fw-bold" style="color: #1E293B; white-space: normal; word-break: break-word;" title="${item.siteName || 'Store'}">${item.siteName || 'Store'}</div>
+                                <div style="font-size: 0.65rem; color: #94A3B8;">${item.region || 'Region'}</div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <i class="bi bi-patch-check-fill" style="color: #14B8A6;" title="AI Enhanced"></i>
+                        </div>
+                   </div>
+                </div>
+            </div>
+        </div>
+    `;
+    return col;
+}
+
+// INITIALIZATION ENTRY POINT
+window.onload = function () {
+    initSummary();
+    initRegions();
+
+    // Hook into Regional Dropdown for VoC
+    const regionSelector = document.getElementById('regionSelector');
+    if (regionSelector) {
+        regionSelector.addEventListener('change', function () {
+            renderRegionalVoc(this.value);
+        });
+        // Initial Render
+        setTimeout(() => renderRegionalVoc('National'), 500);
+    }
+    // But initRegions relies on current tab? 
+    // Let's check initRegions implementation. It attaches to current tab?
+    // No, it renders charts to IDs. 
+    // If IDs are unique, it's fine.
+    initBranches();
+    initStoreTable(); // Initialize Store List
+    initVoc(); // START VOC ENGINE
+
+    // Show summary by default — UNLESS in standalone mode
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'standalone') {
+        // Standalone: Navigate directly to store detail
+        const targetStoreName = urlParams.get('store');
+        if (targetStoreName) {
+            try {
+                let targetName = decodeURIComponent(targetStoreName).replace(/^"|"$/g, '');
+                console.log('Standalone: Looking for store:', targetName);
+
+                let targetId = null;
+                const allStores = Object.entries(reportData.stores);
+                const matchEntry = allStores.find(([key, s]) => s.meta.name.trim().toLowerCase() === targetName.trim().toLowerCase());
+
+                if (matchEntry) {
+                    targetId = matchEntry[0]; // Use the key as ID
+                    console.log('Standalone: Found store ID:', targetId);
+                }
+
+                if (targetId) {
+                    showTab('stores');
+                    viewStore(targetId);
+                } else {
+                    console.error('Standalone: Store not found:', targetName);
+                    showTab('stores');
+                    var searchInput = document.getElementById('storeSearch');
+                    if (searchInput) {
+                        searchInput.value = targetName;
+                        renderStoreList();
+                    }
+                }
+            } catch (e) {
+                console.error('Standalone error:', e);
+                showTab('stores');
+            }
+        } else {
+            showTab('stores');
+        }
+    } else {
+        showTab('summary');
+    }
+};
+
+
+// --- TREND ANALYSIS ---
+// --- REPLACED BY ACTION TILES ---
+function renderVocActionTiles() {
+    const container = document.getElementById('vocActionTiles');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    // 1. Get Top 3 Categories from Current Time Scope
+    // We already have vocCategoryData populated by calculateVocStats based on timeFilteredVocData
+    const topCategories = Object.entries(vocCategoryData)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+    if (topCategories.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center text-muted p-4">No sufficient data for action plan.</div>';
+        return;
+    }
+
+    const totalVolume = timeFilteredVocData.length || 1;
+
+    // 2. Render Cards
+    topCategories.forEach(([cat, count], index) => {
+        const percentage = Math.round((count / totalVolume) * 100);
+        const color = getVocCatColor(cat);
+        const bgLight = color + '15'; // 10% opacity
+
+        // Find Top Manager Note for this category
+        const catItems = timeFilteredVocData.filter(i => (i.topics || []).includes(cat));
+        const noteCounts = {};
+        catItems.forEach(item => {
+            const insight = item.aiInsight || '';
+            const key = insight.includes(':') ? insight.split(':')[0].trim() : insight.trim();
+            if (key && key !== 'N/A') noteCounts[key] = (noteCounts[key] || 0) + 1;
+        });
+        const topNoteEntry = Object.entries(noteCounts).sort((a, b) => b[1] - a[1])[0];
+        const topNote = topNoteEntry ? topNoteEntry[0] : "General Improvement";
+
+        const card = document.createElement('div');
+        card.className = "col-12";
+        card.innerHTML = `
+            <div class="card h-100 border-0 shadow-sm animate-entry ps-2" style="background: linear-gradient(to right, #ffffff, #f8fafc); border-left: 4px solid ${color} !important; border-radius: 8px;">
+                <div class="card-body py-3 px-4 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                             style="width: 48px; height: 48px; background: ${bgLight}; color: ${color}; flex-shrink: 0;">
+                            <span class="fw-bold fs-5">${index + 1}</span>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="fw-bold text-dark mb-0">${cat}</h6>
+                                <span class="badge rounded-pill text-dark bg-light border">${percentage}% Impact</span>
+                            </div>
+                            <div class="text-muted small" style="font-size: 0.85rem;">
+                                Priority: <span class="fw-bold text-dark">${topNote}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                         <button class="btn btn-sm btn-white border shadow-sm text-secondary rounded-pill px-3" 
+                            onclick="openVocActionPlan('${cat}')">
+                            View Briefing <i class="bi bi-arrow-right ms-1"></i>
+                         </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// --- NEW: INTERACTIVE ACTION PLAN MODAL (High Density Situation Report) ---
+const MANAGER_ACTION_MAP = {
+    "Proactive Engagement": "Implement mandatory 'Active Greeting' at entrance. Proactively offer to hold items at cashier for hands-free shopping.",
+    "Staffing Level": "Review peak hour schedules. Activate 'All Hands on Deck' protocol when queue exceeds 3 customers.",
+    "Hygiene Standard": "Conduct hourly restroom checks. Ensure sanitation logs are signed by Store Head / PIC visible to customers.",
+    "Product Availability": "Check warehouse inventory vs display. Restock 'Fast Moving' SKUs every 4 hours.",
+    "Service Speed": "Retrain cashier on POS shortcuts. Open backup counter immediately if transaction time > 2 mins.",
+    "Product Knowledge": "Schedule 15-min 'Product Briefing' before shift. Focus on new arrivals and USP explanations.",
+    "Ambience": "Adjust lighting and temperature (24°C). Ensure playlist volume is balanced for conversation.",
+    "Queue Management": "Deploy mobile POS or queue buster. Manager must step in to pack items during rush.",
+    "Fitting Room": "Clear clothes from cabins immediately after use. Check mirror cleanliness every 30 mins."
+};
+
+function openVocActionPlan(category) {
+    const modal = new bootstrap.Modal(document.getElementById('vocActionPlanModal'));
+
+    // 1. Data Prep
+    const catItems = timeFilteredVocData.filter(i => (i.topics || []).includes(category));
+    const totalVol = timeFilteredVocData.length || 1;
+    const catVol = catItems.length;
+    const percentage = ((catVol / totalVol) * 100).toFixed(1);
+
+    // 2. Aggregate Manager Notes (Top 3)
+    const noteCounts = {};
+    catItems.forEach(item => {
+        const insight = item.aiInsight || '';
+        const key = insight.includes(':') ? insight.split(':')[0].trim() : insight.trim();
+        if (key && key !== 'N/A') noteCounts[key] = (noteCounts[key] || 0) + 1;
+    });
+    const topNotes = Object.entries(noteCounts)
+        .sort((a, b) => b[1] - a[1]) // Sort desc
+        .slice(0, 3); // Top 3
+
+    // 3. Regional Hotspots (Top 3 Regions)
+    const regCounts = {};
+    catItems.forEach(item => {
+        if (item.region) regCounts[item.region] = (regCounts[item.region] || 0) + 1;
+    });
+    // Show ALL regions (no slice)
+    const topRegions = Object.entries(regCounts).sort((a, b) => b[1] - a[1]);
+    const maxRegVal = topRegions.length > 0 ? topRegions[0][1] : 1;
+
+    // 4. Branch Watchlist (Top 7 Branches)
+    const branchCounts = {};
+    catItems.forEach(item => {
+        if (item.branch) {
+            branchCounts[item.branch] = (branchCounts[item.branch] || 0) + 1;
+        }
+    });
+    const topBranches = Object.entries(branchCounts).sort((a, b) => b[1] - a[1]).slice(0, 7);
+
+    // 5. Extract Sample Voices (Longest text)
+    const voices = catItems
+        .filter(i => i.text && i.text.length > 20)
+        .sort((a, b) => b.text.length - a.text.length)
+        .slice(0, 4);
+
+    // --- POPULATE UI ---
+    document.getElementById('vocActionPlanCat').textContent = category;
+    document.getElementById('vocActionPlanImpact').textContent = `${percentage}% of Total Issues`;
+    document.getElementById('vocActionPlanShare').textContent = `${percentage}%`;
+    document.getElementById('vocActionPlanVolume').textContent = catVol.toLocaleString();
+
+    // Mandates
+    const mandatesContainer = document.getElementById('vocActionPlanMandates');
+    mandatesContainer.innerHTML = topNotes.map((n, i) => {
+        const actionText = MANAGER_ACTION_MAP[n[0]] || "Review operational procedures and conduct retraining for this specific issue.";
+        return `
+        <div class="d-flex gap-3">
+            <div class="rounded-circle bg-white shadow-sm border d-flex align-items-center justify-content-center text-primary fw-bold"
+                 style="width: 36px; height: 36px; flex-shrink: 0; font-size: 1.1rem;">${i + 1}</div>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold text-dark mb-1" style="font-size: 0.95rem;">${n[0]}</h6>
+                <div class="small text-secondary mb-2 fst-italic border-start border-3 border-primary ps-2 bg-light py-1 rounded-end"
+                     style="font-size: 0.85rem;">
+                     "${actionText}"
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="progress flex-grow-1" style="height: 6px; background: #e2e8f0; border-radius: 4px;">
+                        <div class="progress-bar bg-primary" style="width: ${Math.min(100, (n[1] / catVol) * 100 * 1.5)}%; border-radius: 4px;"></div>
+                    </div>
+                    <span class="text-muted xsmall fw-bold">${n[1]} cases</span>
+                </div>
+            </div>
+        </div>
+    `;
+    }).join('');
+
+    // Voices
+    const voicesContainer = document.getElementById('vocActionPlanVoices');
+    if (voices.length > 0) {
+        voicesContainer.innerHTML = voices.map(v => `
+            <div class="voice-card bg-white p-3 rounded-3 shadow-sm border border-light h-100 d-flex flex-column" onclick="this.classList.toggle('expanded')">
+                <i class="bi bi-quote text-primary opacity-25 display-6 mb-n3"></i>
+                <div class="voice-text text-dark small fst-italic mt-2 mb-2 flex-grow-1" style="font-size: 0.85rem; line-height: 1.5;">"${v.text}"</div>
+                <div class="text-end text-muted xsmall fw-bold border-top pt-2 mt-auto d-flex justify-content-between align-items-center">
+                    <span class="text-primary opacity-50 xsmall fst-normal"><i class="bi bi-arrows-expand me-1"></i>Click to expand</span>
+                    <span>${v.siteName || v.store_name || v.siteCode || 'Store'}</span>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        voicesContainer.innerHTML = '<div class="text-muted small fst-italic col-span-2">No specific comments available.</div>';
+    }
+
+    // Regional Hotspots
+    const regionsContainer = document.getElementById('vocActionPlanRegions');
+    regionsContainer.innerHTML = regionsContainer ? topRegions.map(r => `
+        <div class="mb-2">
+            <div class="d-flex align-items-center justify-content-between xsmall mb-1">
+                <span class="fw-bold text-dark w-50 text-truncate">${r[0]}</span>
+                <span class="text-muted">${r[1]}</span>
+            </div>
+            <div class="progress" style="height: 6px; background: #f1f5f9; border-radius: 4px;">
+                <div class="progress-bar bg-warning" style="width: ${(r[1] / maxRegVal) * 100}%; border-radius: 4px;"></div>
+            </div>
+        </div>
+    `).join('') : '';
+
+    // Branch Watchlist
+    const storesContainer = document.getElementById('vocActionPlanStores');
+    if (storesContainer) {
+        if (topBranches.length > 0) {
+            storesContainer.innerHTML = topBranches.map(s => `
+                <tr>
+                    <td class="ps-3 border-0 py-2">
+                        <div class="fw-bold text-dark xsmall">${s[0]}</div>
+                    </td>
+                    <td class="text-end pe-3 border-0 py-2 fw-bold text-danger xsmall">${s[1]}</td>
+                </tr>
+            `).join('');
+        } else {
+            storesContainer.innerHTML = '<tr><td colspan="2" class="text-center text-muted xsmall py-3">No specific branch data</td></tr>';
+        }
+    }
+
+    modal.show();
+}
+// function renderVocTrendChart() { ... } // DEPRECATED
+function renderVocTrendChart() {
+    const container = document.getElementById('vocTrendChart');
+    if (!container) return;
+
+    // Use sortedWaves as X-axis (global from base.html)
+    // We assume sortedWaves contains strings like "Wave 1 2024"
+    if (typeof sortedWaves === 'undefined' || !sortedWaves) return;
+
+    const counts = sortedWaves.map(waveKey => {
+        let count = 0;
+        filteredVocData.forEach(item => {
+            // Loose matching: check if item.wave + item.year is inside waveKey
+            // e.g. waveKey="Wave 1 2024", item.wave="Wave 1", item.year="2024"
+            if (waveKey.includes(item.year) && waveKey.includes(item.wave)) {
+                count++;
+            }
+        });
+        return count;
+    });
+
+    const data = [{
+        x: sortedWaves,
+        y: counts,
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: { shape: 'spline', color: '#002060', width: 3 },
+        marker: { size: 8, color: '#F59E0B', line: { width: 2, color: '#fff' } },
+        name: 'Volume'
+    }];
+
+    const layout = {
+        margin: { t: 20, l: 40, r: 20, b: 40 },
+        paper_bgcolor: "transparent",
+        font: { family: "Inter, sans-serif" },
+        xaxis: {
+            showgrid: false,
+            tickfont: { size: 10, color: '#64748B' }
+        },
+        yaxis: {
+            showgrid: true,
+            gridcolor: '#F1F5F9',
+            tickfont: { size: 10, color: '#64748B' }
+        },
+        showlegend: false
+    };
+
+    const config = { responsive: true, displayModeBar: false };
+    Plotly.newPlot('vocTrendChart', data, layout, config);
+}
+
+// --- DRILLDOWN MODAL LOGIC (Luxurized) ---
+let currentDrillCategory = '';
+let currentDrillRegion = '';
+
+function renderVocDrilldownStats(items, level) {
+    const row = document.getElementById('vocDrilldownStatsRow');
+    if (!row) return;
+    row.innerHTML = '';
+
+    const count = items.length;
+
+    // Issue Density (NEW)
+    const uniqueStores = new Set(items.map(i => i.siteCode || i.siteName));
+    const density = uniqueStores.size > 0 ? (count / uniqueStores.size).toFixed(1) : 0;
+
+    // Top Unit
+    let topUnit = 'N/A';
+    if (count > 0) {
+        const counts = {};
+        items.forEach(i => {
+            const key = level === 'region' ? (i.region || 'Unknown') : (level === 'branch' ? (i.branch || 'Unknown') : (i.siteName || 'Unknown'));
+            counts[key] = (counts[key] || 0) + 1;
+        });
+        topUnit = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+    const cards = [
+        { label: 'Feedback Volume', value: count, type: 'number', subtitle: 'Total verified entries' },
+        { label: 'Issue Density', value: density, type: 'number', subtitle: 'Avg feedback per store' },
+        { label: 'Leading ' + (level === 'region' ? 'Region' : (level === 'branch' ? 'Branch' : 'Store')), value: topUnit, type: 'text', subtitle: 'Highest frequency' }
+    ];
+
+    cards.forEach((c, idx) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4 animate-entry';
+        col.style.animationDelay = (idx * 150) + 'ms';
+        col.innerHTML = `
+            <div class="card border-0 glass-card p-4 h-100 shadow-sm" style="transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <label class="xsmall fw-bold text-uppercase tracking-wider text-muted mb-0" style="font-family: 'Inter', sans-serif;">${c.label}</label>
+                    <div class="rounded-pill p-1 bg-light-subtle"><i class="bi bi-graph-up xsmall text-primary"></i></div>
+                </div>
+                <div class="stat-value-premium h2 mb-1">${c.value}</div>
+                <div class="xsmall text-muted fw-medium mt-1 opacity-75 d-flex align-items-center">
+                    <span class="badge bg-light text-dark rounded-pill me-2 px-2" style="font-size: 0.6rem;">INFO</span>
+                    ${c.subtitle}
+                </div>
+            </div>
+        `;
+        row.appendChild(col);
+    });
+}
+
+function showVocDrilldown(category) {
+    currentDrillCategory = category;
+
+    const modalEl = document.getElementById('vocDrilldownModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        updateDrilldownBreadcrumb('region');
+        renderVocDrilldownRegions();
+    }
+}
+
+function updateDrilldownBreadcrumb(level) {
+    const nav = document.getElementById('vocDrilldownBreadcrumb');
+    const title = document.getElementById('vocDrilldownTitle');
+
+    if (level === 'region') {
+        nav.innerHTML = '<li class="breadcrumb-item active">' + currentDrillCategory + '</li>';
+        title.textContent = "Regional Breakdown";
+    } else if (level === 'branch') {
+        nav.innerHTML = '<li class="breadcrumb-item"><a href="#" onclick="renderVocDrilldownRegions()">' + currentDrillCategory + '</a></li><li class="breadcrumb-item active">' + currentDrillRegion + '</li>';
+        title.textContent = "Branch Breakdown";
+    }
+}
+
+function renderVocDrilldownRegions() {
+    updateDrilldownBreadcrumb('region');
+    const chart = document.getElementById('vocDrilldownChart');
+    const cardGrid = document.getElementById('vocDrilldownCardGrid');
+    const table = document.getElementById('vocDrilldownTableContainer');
+
+    if (chart) chart.classList.add('d-none');
+    if (table) table.classList.add('d-none');
+    if (cardGrid) {
+        cardGrid.classList.remove('d-none');
+        cardGrid.innerHTML = '';
+    }
+
+    // Filter by Category
+    const catData = reportData.voc.filter(item => {
+        return normalizeVocTopics(item).includes(currentDrillCategory);
+    });
+
+    // Group by Region
+    const counts = {};
+    catData.forEach(item => {
+        const r = item.region || 'Unknown';
+        counts[r] = (counts[r] || 0) + 1;
+    });
+
+    // Update Stats Row
+    renderVocDrilldownStats(catData, 'region');
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+    sorted.forEach(([region, count], idx) => {
+        const card = createBreakdownCard(region, count, 'region', () => {
+            currentDrillRegion = region;
+            renderVocDrilldownBranches(region);
+        }, idx);
+        cardGrid.appendChild(card);
+    });
+}
+
+function renderVocDrilldownBranches(region) {
+    updateDrilldownBreadcrumb('branch');
+    const chart = document.getElementById('vocDrilldownChart');
+    const cardGrid = document.getElementById('vocDrilldownCardGrid');
+    const table = document.getElementById('vocDrilldownTableContainer');
+
+    if (chart) chart.classList.add('d-none');
+    if (table) table.classList.add('d-none');
+    if (cardGrid) {
+        cardGrid.classList.remove('d-none');
+        cardGrid.innerHTML = '';
+    }
+
+    // Filter by Category AND Region
+    const branchData = reportData.voc.filter(item => {
+        return normalizeVocTopics(item).includes(currentDrillCategory) && item.region === region;
+    });
+
+    // Group by Branch
+    const counts = {};
+    branchData.forEach(item => {
+        const b = item.branch || 'Unknown';
+        counts[b] = (counts[b] || 0) + 1;
+    });
+
+    // Update Stats Row
+    renderVocDrilldownStats(branchData, 'branch');
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+    sorted.forEach(([branch, count], idx) => {
+        const card = createBreakdownCard(branch, count, 'branch', () => {
+            renderVocDrilldownStoreTable(branch);
+        }, idx);
+        cardGrid.appendChild(card);
+    });
+}
+
+function createBreakdownCard(label, value, type, onClick, index) {
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-4 animate-entry';
+    col.style.animationDelay = (index * 100) + 'ms';
+
+    const icon = type === 'region' ? 'bi-geo-alt' : 'bi-building';
+    const accent = type === 'region' ? '#4F46E5' : '#10B981';
+
+    col.innerHTML = `
+        <div class="card h-100 border-0 breakdown-nav-card p-4 transition" 
+             style="border-radius: 20px; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); background: #F8FAFC; border-left: 4px solid ${accent} !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                     style="width: 50px; height: 50px; background: white; min-width: 50px; border: 1px solid ${accent}20;">
+                    <i class="bi ${icon}" style="color: ${accent}; font-size: 1.25rem;"></i>
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                    <div class="text-muted text-uppercase fw-bold xsmall mb-1 tracking-wider" style="font-size: 0.6rem; opacity: 0.8;">${type} Explorer</div>
+                    <h5 class="fw-bold mb-0 text-dark text-truncate" style="font-family: 'Outfit', sans-serif; font-size: 1.05rem;">${label}</h5>
+                </div>
+                <div class="text-end">
+                    <div class="h3 fw-bold mb-0" style="color: #1E293B; line-height: 1;">${value}</div>
+                    <div class="text-muted" style="font-size: 0.65rem; font-weight: 600; text-uppercase;">Feedbacks</div>
+                </div>
+            </div>
+            <div class="mt-3 pt-3 d-flex align-items-center justify-content-between border-top" style="border-top: 1px solid rgba(0,0,0,0.03) !important;">
+                <span class="badge rounded-pill px-3 py-1 bg-white text-primary border fw-bold" style="font-size: 0.6rem; letter-spacing: 0.3px;">OPEN DRILLDOWN</span>
+                <div class="rounded-circle bg-white shadow-sm d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; border: 1px solid rgba(0,0,0,0.05);">
+                    <i class="bi bi-chevron-right text-primary" style="font-size: 0.8rem;"></i>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const cardContent = col.querySelector('.card');
+
+    // Proper event handling
+    cardContent.addEventListener('click', function () {
+        this.style.transform = 'scale(0.95)';
+        this.style.opacity = '0.7';
+        setTimeout(() => {
+            this.style.transform = '';
+            this.style.opacity = '';
+            onClick();
+        }, 150);
+    });
+
+    // Premium hover effects
+    cardContent.onmouseenter = () => {
+        cardContent.style.transform = 'translateY(-5px)';
+        cardContent.style.background = 'white';
+        cardContent.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+    };
+    cardContent.onmouseleave = () => {
+        cardContent.style.transform = 'translateY(0)';
+        cardContent.style.background = '#F8FAFC';
+        cardContent.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)';
+    };
+
+    return col;
+}
+
+// NEW: Drilldown Pagination Globals
+let currentDrillPage = 1;
+const drillPageSize = 10;
+let currentDrillStoreData = []; // Array of {code, name, region, count}
+
+function changeDrillPage(delta) {
+    const maxPage = Math.ceil(currentDrillStoreData.length / drillPageSize);
+    const newPage = currentDrillPage + delta;
+    if (newPage > 0 && newPage <= maxPage) {
+        currentDrillPage = newPage;
+        renderDrillTablePage();
+    }
+}
+
+function renderVocDrilldownStoreTable(branch) {
+    // Hide Chart and Cards, Show Table
+    document.getElementById('vocDrilldownChart').classList.add('d-none');
+    document.getElementById('vocDrilldownCardGrid').classList.add('d-none');
+    document.getElementById('vocDrilldownTableContainer').classList.remove('d-none');
+    document.getElementById('vocDrilldownTableContainer').classList.add('animate-entry');
+
+    // Title
+    const title = document.getElementById('vocDrilldownTitle');
+    title.textContent = branch + ' Stores';
+    title.className = "modal-title fw-bold text-dark animate-entry";
+
+    // 1. Filter Feedback by Category + Region + Branch
+    const storeItems = reportData.voc.filter(item => {
+        return normalizeVocTopics(item).includes(currentDrillCategory) &&
+            item.region === currentDrillRegion &&
+            item.branch === branch;
+    });
+
+    // Update Stats Row
+    renderVocDrilldownStats(storeItems, 'store');
+
+    // 2. Group by Store
+    const storeStats = {};
+    storeItems.forEach(item => {
+        const code = item.siteCode;
+        if (!storeStats[code]) {
+            storeStats[code] = {
+                name: item.siteName || 'Unknown Store',
+                code: code,
+                count: 0,
+                region: item.region || 'Unknown'
+            };
+        }
+        storeStats[code].count++;
+    });
+
+    // 3. Convert to Array and Sort by Volume Desc
+    currentDrillStoreData = Object.values(storeStats).sort((a, b) => b.count - a.count);
+
+    // 4. Reset Pagination and Render
+    currentDrillPage = 1;
+    renderDrillTablePage();
+}
+
+function renderDrillTablePage() {
+    const tbody = document.querySelector('#vocDrilldownTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const start = (currentDrillPage - 1) * drillPageSize;
+    const end = start + drillPageSize;
+    const pageData = currentDrillStoreData.slice(start, end);
+
+    pageData.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'default';
+        tr.style.transition = "background-color 0.2s";
+        tr.onmouseover = () => tr.style.backgroundColor = "#F8FAFC";
+        tr.onmouseout = () => tr.style.backgroundColor = "transparent";
+
+        tr.innerHTML = `
+            <td class="ps-4 py-3 fw-bold text-primary" style="font-family: monospace; font-size: 0.95rem;">${item.code}</td>
+            <td class="py-3 text-dark fw-medium">${item.name}</td>
+            <td class="py-3"><span class="badge bg-light text-secondary border fw-normal">${item.region}</span></td>
+            <td class="py-3 pe-4 text-end fw-bold text-dark">${item.count}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Update Info Text
+    const total = currentDrillStoreData.length;
+    const showEnd = Math.min(end, total);
+    const infoEl = document.getElementById('vocDrillPagInfo');
+    if (infoEl) infoEl.textContent = `Showing ${total > 0 ? start + 1 : 0}-${showEnd} of ${total}`;
+
+    // Update Buttons
+    const maxPage = Math.ceil(total / drillPageSize);
+    const btnPrev = document.getElementById('btnDrillPrev');
+    const btnNext = document.getElementById('btnDrillNext');
+
+    if (btnPrev) {
+        btnPrev.disabled = currentDrillPage === 1;
+        btnPrev.onclick = () => changeDrillPage(-1); // Re-assign handler
+        btnPrev.className = currentDrillPage === 1 ? "btn btn-light text-muted border px-4 py-2" : "btn btn-white border px-4 py-2 fw-medium text-secondary shadow-sm";
+    }
+    if (btnNext) {
+        btnNext.disabled = currentDrillPage >= maxPage || maxPage === 0;
+        btnNext.onclick = () => changeDrillPage(1);
+        btnNext.className = (currentDrillPage >= maxPage || maxPage === 0) ? "btn btn-light text-muted border px-4 py-2" : "btn btn-white border px-4 py-2 fw-medium text-secondary shadow-sm";
+    }
+}
+
+
+function calculateVocStats() {
+    // Reset global data containers
+    vocCategoryData = {};
+    const noteCounts = {}; // Key: noteKey, Value: { count: number, sample: string }
+
+    if (!timeFilteredVocData) return;
+
+    timeFilteredVocData.forEach(item => {
+        // 1. Categories
+        const uniqueTopics = normalizeVocTopics(item);
+        uniqueTopics.forEach(t => {
+            vocCategoryData[t] = (vocCategoryData[t] || 0) + 1;
+        });
+
+        // 2. Manager Notes (Extract key from AI Insight)
+        let noteKey = null;
+        let noteBody = '';
+        if (item.aiInsight && item.aiInsight !== 'N/A') {
+            const hasColon = item.aiInsight.includes(':');
+            noteKey = hasColon ? item.aiInsight.split(':')[0].trim() : item.aiInsight.trim();
+            noteBody = hasColon ? item.aiInsight.split(':').slice(1).join(':').trim() : item.aiInsight;
+        }
+
+        if (noteKey) {
+            if (!noteCounts[noteKey]) {
+                noteCounts[noteKey] = {
+                    count: 0,
+                    sample: noteBody || item.text || ''
+                };
+            }
+            noteCounts[noteKey].count++;
+        }
+    });
+
+    // Convert notes object to sorted array for the table
+    vocNoteData = Object.entries(noteCounts)
+        .map(([note, data]) => ({
+            note: note,
+            count: data.count,
+            sample: data.sample
+        }))
+        .sort((a, b) => b.count - a.count);
+}
+// --- Regional Executive Summary Modal ---
+function openRegionalDetail(regionName, page = 1) {
+    console.log("Opening Regional Detail for:", regionName, "Page:", page);
+    const curWave = sortedWaves[sortedWaves.length - 1];
+    const prevWave = sortedWaves.length > 1 ? sortedWaves[sortedWaves.length - 2] : null;
+
+    const d = reportData.regions[regionName][curWave];
+    const prevD = prevWave ? reportData.regions[regionName][prevWave] : null;
+
+    if (!d) { console.error("No data found for region:", regionName); return; }
+
+    const score = d.sum / d.count;
+    const prevScore = prevD ? prevD.sum / prevD.count : 0;
+    const diff = score - prevScore;
+
+    // 1. Journeys Analysis (Top 3 & Bottom 3)
+    const journeys = Object.entries(d.sections).map(([k, v]) => ({
+        n: k,
+        s: v.sum / v.count
+    })).sort((a, b) => b.s - a.s);
+
+    const top3 = journeys.slice(0, 3);
+    const bottom3 = journeys.slice().reverse().slice(0, 3);
+
+    // 2. Critical Stores Watchlist (< 86)
+    // DEBUG: Log the filtering process
+    console.log(`Filtering Critical Stores for ${regionName} < 86`);
+    const criticalStores = Object.values(reportData.stores)
+        .filter(s => {
+            // Case-insensitive match for robustness
+            const regMatch = s.meta.region && s.meta.region.toLowerCase() === regionName.toLowerCase();
+            const hasRes = s.results && s.results[curWave];
+            if (!regMatch || !hasRes) return false;
+
+            const sScore = s.results[curWave].totalScore;
+            return sScore < 86;
+        })
+        .map(s => {
+            const sScore = s.results[curWave].totalScore;
+            // Find worst journey for this store
+            const worstJ = Object.entries(s.results[curWave].sections)
+                .map(([k, v]) => ({ n: k, s: (v.sum !== undefined ? v.sum / v.count : v) }))
+                .sort((a, b) => a.s - b.s)[0];
+            return { n: s.meta.name, s: sScore, w: worstJ ? worstJ.n : 'N/A' };
+        })
+        .sort((a, b) => a.s - b.s); // Lowest first
+
+    console.log(`Found ${criticalStores.length} critical stores.`);
+
+    // Pagination Logic
+    const PAGE_SIZE = 5;
+    const totalPages = Math.ceil(criticalStores.length / PAGE_SIZE);
+
+    // Safety check for page number
+    if (page < 1) page = 1;
+    if (page > totalPages && totalPages > 0) page = totalPages;
+
+    const startIdx = (page - 1) * PAGE_SIZE;
+    const endIdx = startIdx + PAGE_SIZE;
+    const paginatedStores = criticalStores.slice(startIdx, endIdx);
+
+    // 3. Sparkline Data (All Waves)
+    const trendData = sortedWaves.map(w => {
+        const ad = reportData.regions[regionName][w];
+        return ad ? ad.sum / ad.count : null;
+    });
+
+    // --- QUALITATIVE DATA PREP (Action-Oriented) ---
+    // FIX: Strict filter — only latest wave (e.g. "2025 Wave 2")
+    const latestWaveParts = curWave.split(' '); // e.g. "2025 Wave 2" -> ["2025", "Wave", "2"]
+    const regionVoc = reportData.voc.filter(v => {
+        const rMatch = regionName === 'National' || v.region === regionName;
+        // Strict wave match: year + wave name must both match
+        const wMatch = v.year && v.wave && (`${v.year} ${v.wave}` === curWave);
+        return rMatch && wMatch;
+    });
+
+    const totalVoc = regionVoc.length;
+    let themeBadgeHtml = '';
+    let voicesGridHtml = '<div class="col-12 text-center text-muted py-4">No qualitative insights available for this period.</div>';
+
+    // Moved outside if-block so recapTilesHtml can access it
+    const themeCounts = {};
+    regionVoc.forEach(v => {
+        normalizeVocTopics(v).forEach(t => themeCounts[t] = (themeCounts[t] || 0) + 1);
+    });
+
+    if (totalVoc > 0) {
+        // 1. Priority Themes (Top 8) — use normalized topics
+        const sortedThemes = Object.entries(themeCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+
+        if (sortedThemes.length > 0) {
+            themeBadgeHtml = `
+                <div class="d-flex gap-2 overflow-auto pb-2" style="scrollbar-width: thin;">
+                    ${sortedThemes.map(([t, c]) => `
+                        <span class="badge bg-white text-dark shadow-sm border px-3 py-2 fw-normal d-inline-flex align-items-center flex-shrink-0">
+                            ${t} <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-2">${c}</span>
+                        </span>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // 2. Insight Tiles (Top 12)
+        // Sort: Has Manager Note > Length > Recent
+        const voices = regionVoc
+            .sort((a, b) => {
+                const aNote = a.aiInsight && a.aiInsight !== 'N/A' ? 1 : 0;
+                const bNote = b.aiInsight && b.aiInsight !== 'N/A' ? 1 : 0;
+                if (aNote !== bNote) return bNote - aNote;
+                return b.text.length - a.text.length;
+            })
+            .slice(0, 12);
+
+        voicesGridHtml = voices.map(v => {
+            const hasNote = v.aiInsight && v.aiInsight !== 'N/A';
+            const noteText = hasNote ? (v.aiInsight.includes(':') ? v.aiInsight.split(':')[0].trim() : 'Action Required') : 'Customer Feedback';
+            const cat = v.category || v.themes?.[0] || 'General';
+
+            return `
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm feedback-tile" style="background: #F8FAFC; transition: all 0.2s;" 
+                     onclick="this.classList.toggle('expanded');">
+                    <div class="card-body p-3 d-flex flex-column">
+                        <!-- Header -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-white border text-dark shadow-sm">${cat}</span>
+                            <span class="text-muted xsmall fw-bold" style="white-space: normal; word-break: break-word; text-align: right; max-width: 180px;">${v.siteName || 'Store'}</span>
+                        </div>
+                        
+                        <!-- Manager Action Highlight -->
+                        ${hasNote ? `
+                        <div class="mb-2">
+                             <div class="d-flex align-items-center text-primary mb-1">
+                                <i class="bi bi-lightning-charge-fill me-1 small"></i>
+                                <span class="fw-bold xsmall text-uppercase ls-1">Priority Action</span>
+                             </div>
+                             <div class="fw-bold text-dark small" style="line-height: 1.3;">${noteText}</div>
+                        </div>
+                        ` : ''}
+
+                        <!-- Truncated Feedback -->
+                        <div class="feedback-text mt-auto">
+                            <p class="mb-0 text-secondary small fst-italic text-truncate-multiline" style="line-height: 1.5;">"${v.text}"</p>
+                        </div>
+                        
+                        <!-- Toggle Hint -->
+                        <div class="text-center mt-2 pt-2 border-top border-light d-none expand-hint">
+                            <span class="text-primary xsmall fw-bold">Click to Collapse</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // --- PRE-COMPUTE RECAP TILES HTML ---
+    let recapTilesHtml = '';
+    if (totalVoc > 0) {
+        // Most & Least commented category
+        const sortedCats = Object.entries(themeCounts).sort((a, b) => b[1] - a[1]);
+        const mostCat = sortedCats[0] || ['N/A', 0];
+        const leastCat = sortedCats[sortedCats.length - 1] || ['N/A', 0];
+
+        // Most commented branch
+        const branchCounts = {};
+        regionVoc.forEach(v => {
+            if (v.branch) branchCounts[v.branch] = (branchCounts[v.branch] || 0) + 1;
+        });
+        const topBranch = Object.entries(branchCounts).sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
+
+        const recapCards = [
+            { label: 'Total Feedback', value: totalVoc.toLocaleString(), icon: 'bi-chat-right-text', color: '#3B82F6' },
+            { label: 'Most Commented Category', value: mostCat[0], icon: 'bi-arrow-up-circle', color: '#EF4444' },
+            { label: 'Least Commented Category', value: leastCat[0], icon: 'bi-arrow-down-circle', color: '#10B981' },
+            { label: 'Most Commented Branch', value: topBranch[0], icon: 'bi-building', color: '#8B5CF6' }
+        ];
+        recapTilesHtml = recapCards.map(c =>
+            '<div class="col-md-3 col-6">' +
+            '<div class="card border-0 shadow-sm p-3 h-100" style="border-radius: 12px; background: white;">' +
+            '<div class="d-flex align-items-center">' +
+            '<div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; background: ' + c.color + '15; color: ' + c.color + '; flex-shrink: 0;">' +
+            '<i class="bi ' + c.icon + '"></i></div>' +
+            '<div style="min-width: 0;"><div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">' + c.label + '</div>' +
+            '<div class="fw-bold text-dark" style="font-size: 1.1rem;">' + c.value + '</div></div>' +
+            '</div></div></div>'
+        ).join('');
+    }
+
+    // --- RENDER HTML ---
+    const html = `
+        <!-- Header Stats -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="data-panel h-100 d-flex flex-column justify-content-center">
+                    <div class="text-muted small fw-bold text-uppercase ls-1 mb-2">Overall Performance</div>
+                    <div class="d-flex align-items-baseline gap-3">
+                        <div class="display-4 fw-bold text-dark">${score.toFixed(1)}</div>
+                        <div class="${diff >= 0 ? 'text-success' : 'text-danger'} fw-bold">
+                            ${diff >= 0 ? '<i class="bi bi-arrow-up"></i>' : '<i class="bi bi-arrow-down"></i>'} ${Math.abs(diff).toFixed(2)}
+                        </div>
+                    </div>
+                     <div class="progress-bar-premium mt-3"><div class="fill ${score < 86 ? 'fill-danger' : 'fill-blue'}" style="width: ${score}%"></div></div>
+                </div>
+            </div>
+             <div class="col-md-8">
+                <div class="data-panel h-100 p-0 overflow-hidden">
+                     <div class="glass-header-dark py-2 px-3 small fw-bold">Performance Trend (5 Waves)</div>
+                     <div id="regModalSparkline" style="height: 150px; width:100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategic Gap Analysis -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-success bg-opacity-10 text-success fw-bold border-0 py-3">
+                        <i class="bi bi-trophy-fill me-2"></i> Winning Journeys (Top 3)
+                    </div>
+                    <div class="list-group list-group-flush">
+                        ${top3.map((j, i) => `
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="badge bg-success bg-opacity-25 text-success rounded-circle p-2" style="width:24px;height:24px;display:flex;justify-content:center;align-items:center;">${i + 1}</span>
+                                    <span class="fw-medium">${j.n}</span>
+                                </div>
+                                <span class="fw-bold text-success">${j.s.toFixed(1)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                 <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-danger bg-opacity-10 text-danger fw-bold border-0 py-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Critical Focus Areas (Bottom 3)
+                    </div>
+                     <div class="list-group list-group-flush">
+                        ${bottom3.map((j, i) => `
+                             <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div class="d-flex align-items-center gap-3">
+                                     <span class="badge bg-danger bg-opacity-25 text-danger rounded-circle p-2" style="width:24px;height:24px;display:flex;justify-content:center;align-items:center;">${i + 1}</span>
+                                    <span class="fw-medium">${j.n}</span>
+                                </div>
+                                <span class="fw-bold text-danger">${j.s.toFixed(1)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUALITATIVE INTELLIGENCE (Row 3 - Action Tiles) -->
+        <div class="card mb-4 border-0 shadow-sm accent-stripe-purple">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-chat-square-quote-fill me-2 text-primary"></i> Qualitative Analysis & Action Plans</h6>
+                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">${totalVoc} Insights</span>
+            </div>
+            <div class="card-body p-4 bg-light">
+                <!-- Priority Themes -->
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted xsmall fw-bold mb-2 ls-1">Priority Themes</h6>
+                    ${themeBadgeHtml || '<div class="text-muted small">No themes detected.</div>'}
+                </div>
+                
+                <!-- AI Recap Summary Tiles -->
+                <div class="row g-3 mb-4">
+                    ${recapTilesHtml}
+                </div>
+                
+                <!-- Insight Tiles Grid -->
+                <div class="row g-3">
+                    ${voicesGridHtml}
+                </div>
+            </div>
+        </div>
+
+        <!-- Critical Watchlist (Paginated) -->
+        <div class="card border-0 shadow-sm">
+             <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-eye-fill me-2"></i> Critical Watchlist (Stores < 86)</h6>
+                <span class="badge bg-danger rounded-pill">${criticalStores.length} Stores</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="bg-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-4">Store Name</th>
+                            <th>Overall Score</th>
+                            <th>Primary Issue (Lowest Journey)</th>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${paginatedStores.length > 0 ? paginatedStores.map(s => `
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">${s.n}</td>
+                                <td><span class="badge bg-danger">${s.s.toFixed(1)}</span></td>
+                                <td class="text-secondary small"><i class="bi bi-arrow-down-right text-danger me-1"></i> ${s.w}</td>
+                                <td class="text-end pe-4">
+                                     <!-- STANDALONE MODE LINK -->
+                                     <button class="btn btn-sm btn-outline-dark rounded-pill" 
+                                        onclick="window.open('?mode=standalone&store=' + encodeURIComponent('${s.n}'), '_blank')">
+                                        View Details <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('') : `<tr><td colspan="4" class="text-center py-4 text-muted">No critical stores found in this region. Good job!</td></tr>`}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination Controls -->
+            ${totalPages > 1 ? `
+            <div class="card-footer bg-white py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-sm btn-outline-secondary ${page === 1 ? 'disabled' : ''}" 
+                        onclick="openRegionalDetail('${regionName}', ${page - 1})">
+                        <i class="bi bi-chevron-left"></i> Prev
+                    </button>
+                    <span class="small text-muted">Page ${page} of ${totalPages}</span>
+                    <button class="btn btn-sm btn-outline-secondary ${page === totalPages ? 'disabled' : ''}" 
+                        onclick="openRegionalDetail('${regionName}', ${page + 1})">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+
+    document.getElementById("regionalExecBody").innerHTML = html;
+    document.getElementById("regionalExecTitle").innerText = regionName + " Briefing";
+
+    const activeRegStoresModal = Object.values(reportData.stores).filter(s => s.meta.region === regionName && !s.meta.code.startsWith('9')).length;
+    document.getElementById("regionalExecSubtitle").innerText = `${activeRegStoresModal} Outlets Active • Wave ${curWave.replace('Wave ', '')}`;
+
+    var modalEl = document.getElementById('regionalExecModal');
+    // Ensure Modal Class is XL
+    modalEl.querySelector('.modal-dialog').className = 'modal-dialog modal-xl modal-dialog-centered';
+
+    var myModal = bootstrap.Modal.getInstance(modalEl);
+    if (!myModal) {
+        myModal = new bootstrap.Modal(modalEl);
+    }
+    myModal.show();
+
+    // Render Sparkline (Premium)
+    setTimeout(() => {
+        // Target Line (86)
+        const targetLine = sortedWaves.map(() => 86);
+
+        Plotly.newPlot('regModalSparkline', [
+            {
+                x: sortedWaves,
+                y: trendData.filter(x => x !== null),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Region Score',
+                line: { shape: 'spline', color: '#0F172A', width: 4 },
+                marker: { size: 8, color: '#0F172A', line: { color: 'white', width: 2 } },
+                fill: 'tozeroy',
+                fillcolor: 'rgba(15, 23, 42, 0.05)'
+            },
+            {
+                x: sortedWaves,
+                y: targetLine,
+                mode: 'lines',
+                name: 'Target (86)',
+                line: { color: '#EF4444', width: 1.5, dash: 'dot' },
+                hoverinfo: 'none'
+            }
+        ], {
+            margin: { t: 20, l: 40, r: 20, b: 30 },
+            showlegend: true,
+            legend: { orientation: 'h', y: 1.1, x: 0.5, xanchor: 'center', bgcolor: 'rgba(0,0,0,0)' },
+            xaxis: {
+                showgrid: false,
+                tickfont: { size: 11, family: 'Inter', color: '#64748B' },
+                fixedrange: true
+            },
+            yaxis: {
+                showgrid: true,
+                gridcolor: '#F1F5F9',
+                tickfont: { size: 11, family: 'Inter', color: '#64748B' },
+                range: [60, 100],
+                fixedrange: true
+            },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            hovermode: 'x unified'
+        }, { responsive: true, displayModeBar: false });
+    }, 200);
+}
+// --- Standalone Mode Logic (CSS only — navigation handled in window.onload) ---
+(function () {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'standalone') {
+        document.body.classList.add('standalone-mode');
+        var sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.style.display = 'none';
+    }
+})();
+
+// --- REGIONAL VOC LOGIC (Snippet View) ---
+function renderRegionalVoc(regionName) {
+    const titleEl = document.getElementById('vocRegionTitle');
+    const subtitleEl = document.getElementById('vocSnippetSubtitle');
+    const posEl = document.getElementById('vocSnippetPosPct');
+    const negEl = document.getElementById('vocSnippetNegPct');
+    const barEl = document.getElementById('vocSnippetSentimentBar');
+    const themesEl = document.getElementById('vocSnippetThemes');
+    const btnEl = document.getElementById('btnVocDeepDive');
+
+    if (titleEl) titleEl.textContent = regionName;
+
+    // 1. Filter Data (Use Latest Wave)
+    const waves = Object.keys(reportData.summary).sort();
+    const curWave = waves[waves.length - 1];
+    console.log(`[VoC] Filtering for Region: ${regionName}, Wave: ${curWave}`);
+
+    const regionVoc = reportData.voc.filter(v => {
+        const rMatch = regionName === 'National' || v.region === regionName;
+        let wMatch = true;
+        if (v.wave) {
+            wMatch = curWave.includes(v.wave) || (v.year && curWave.includes(v.year));
+        }
+        return rMatch && wMatch;
+    });
+
+    const total = regionVoc.length;
+
+    // Update Subtitle with Count (No Sentiment)
+    if (subtitleEl) {
+        subtitleEl.innerHTML = `<span class="fw-bold text-dark">${total}</span> insights found in <span class="badge bg-light text-dark border">${curWave}</span>`;
+    }
+
+    // Hide/Clear Sentiment Elements if they exist (Clean up)
+    if (posEl) posEl.parentElement.style.display = 'none'; // Hide the percent row
+    if (barEl) barEl.style.display = 'none'; // Hide the bar itself
+
+    // 2. Top Themes (Snippet: Top 4)
+    const themeCounts = {};
+    regionVoc.forEach(v => {
+        (v.themes || []).forEach(t => themeCounts[t] = (themeCounts[t] || 0) + 1);
+        (v.topics || []).forEach(t => themeCounts[t] = (themeCounts[t] || 0) + 1);
+    });
+
+    const sortedThemes = Object.entries(themeCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4);
+
+    if (themesEl) {
+        if (sortedThemes.length > 0) {
+            themesEl.innerHTML = sortedThemes.map(([theme, count]) => `
+                <span class="badge bg-light text-dark border rounded-pill px-3">
+                    ${theme}
+                </span>
+            `).join('');
+        } else {
+            themesEl.innerHTML = '<span class="badge bg-light text-muted border">No Data</span>';
+        }
+    }
+
+    // 3. Update Deep Dive Button
+    if (btnEl) {
+        btnEl.onclick = function () {
+            openRegionalDetail(regionName);
+        };
+    }
+}
+
+function createMiniFeedbackCard(item) {
+    let borderClass = item.sentiment === 'Positive' ? 'border-success' : (item.sentiment === 'Negative' ? 'border-danger' : 'border-secondary');
+    let icon = item.sentiment === 'Positive' ? 'bi-hand-thumbs-up-fill text-success' : (item.sentiment === 'Negative' ? 'bi-exclamation-triangle-fill text-danger' : 'bi-chat-text-fill text-muted');
+
+    return `
+        <div class="list-group-item border-0 border-start border-4 ${borderClass} bg-light mb-2 rounded-end shadow-sm p-3">
+            <div class="d-flex justify-content-between mb-2">
+                <small class="fw-bold text-dark"><i class="${icon} me-2"></i>${item.category || item.themes?.[0] || 'General'}</small>
+                <small class="text-muted" style="font-size: 0.75rem;">${item.siteName}</small>
+            </div>
+            <p class="mb-1 text-secondary fst-italic small">"${item.text}"</p>
+            ${item.aiInsight && item.aiInsight !== 'N/A' ? `<div class="mt-2 p-2 bg-white rounded border border-light small text-primary"><i class="bi bi-stars me-1"></i> AI Note: ${item.aiInsight}</div>` : ''}
+        </div>
+    `;
+}
+
+
+
+// --- NEW FIX: DYNAMIC ACTION PLAN EXTRACTOR ---
+
+function generateStoreActionPlan(storeData, currentWaveKey, feedbackData) {
+    const res = storeData.results ? storeData.results[currentWaveKey] : null;
+    const container = document.getElementById("stActionPlanContainer");
+    if (!container) return;
+
+    const planData = {
+        storeName: storeData.meta ? storeData.meta.name : "Unknown Store",
+        wave: currentWaveKey,
+        generatedAt: new Date().toLocaleDateString('en-GB'),
+        actions: []
+    };
+
+    // --- RISING STAR PROTOCOL (Unassessed/Blank Stores) ---
+    if (!res || !res.sections || Object.keys(res.sections).length === 0) {
+        planData.actions = [
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section A) Tampilan Tampak Depan Outlet',
+                action: 'Lakukan Pengecekan Harian: Pastikan kesiapan operasional dasar seperti kebersihan fasad, area parkir, kaca depan, dan nyala lampu toko (Signage) sebelum opening.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section B) Sambutan Hangat Ketika Masuk',
+                action: 'Roleplay Interaksi Awal: Latih Retail Assistant untuk selalu siap dengan Senyum 1 Jari, Tangan Kanan di Dada Kiri, dan sapaan "Selamat Datang di EIGER" kepada setiap pelanggan yang masuk.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section C) Suasana & Kenyamanan Outlet',
+                action: 'Inspeksi Suasana: Periksa temperatur AC agar tetap sejuk, pastikan musik background sesuai standar Eiger, dan tidak ada aroma tidak sedap di seluruh area toko.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section D) Tata Letak Presentasi Produk',
+                action: 'Cek Visual Merchandising (VM): Pastikan semua produk dipajang sesuai panduan VM terbaru, pengelompokan warna rapi, dan semua manekin menggunakan outfit lengkap terbaru.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section E) Komunikasi Penjelasan Produk',
+                action: 'Roleplay Product Knowledge: Lakukan tanya jawab singkat antar staf mengenai fitur utama produk (Teknologi Tropic, dll.) agar sigap saat ditanya fungsi dan kelebihan barang oleh pelanggan.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section F) Pengalaman Mencoba Produk',
+                action: 'Standar Fitting Room: Pastikan kamar ganti bersih dari sampah/hanger bekas, cermin tidak bercap tangan, dan staf selalu proaktif menawarkan ukuran atau alternatif warna kepada pelanggan.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section G) Ketersediaan Harga Produk',
+                action: 'Inspeksi Price Tag & Promo: Keliling area toko untuk memastikan setiap barang memiliki label harga (price tag) yang benar, dan materi promo (POP) terpasang tegak dan tidak kedaluwarsa.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section H) Pembelian & Pembayaran Kasir',
+                action: 'Roleplay SOP Kasir: Lakukan simulasi penawaran produk tambahan (add-on), konfirmasi Member EAC, stempel kartu garansi, input data akurat, hingga salam penutup.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section I) Interaksi Penanganan Keluhan',
+                action: 'Simulasi Handling Complaint: Diskusikan cara meredam emosi pelanggan menggunakan teknik empati, serta pemahaman batas wewenang pengembalian/tukar barang sesuai kebijakan Eiger.',
+                status: 'pending'
+            },
+            {
+                type: 'Baseline (Rising Star)',
+                source: '(Section J) Kesan Perpisahan Kepada Pela..',
+                action: 'Roleplay Kesan Terakhir: Latih staf (termasuk Security) untuk selalu memberikan salam perpisahan yang hangat (contoh: "Terima kasih, selamat berpetualang kembali!") hingga pelanggan keluar pintu.',
+                status: 'pending'
+            }
+        ];
+        window._currentStoreActionPlan = planData;
+        renderActionPlan(planData.actions);
+        return;
+    }
+
+    // 1. EXTRACT ALL QUANTITATIVE ITEMS
+    let quantGaps = [];
+    if (res.sections && reportData.summary && reportData.summary[currentWaveKey] && reportData.summary[currentWaveKey].sections) {
+        const natSections = reportData.summary[currentWaveKey].sections;
+        for (const [sec, val] of Object.entries(res.sections)) {
+            const natVal = natSections[sec] ? (natSections[sec].sum / natSections[sec].count) : val;
+            const gap = val - natVal;
+            quantGaps.push({ section: sec, score: val, gap: gap });
+        }
+    }
+
+    // 2. EXTRACT QUALITATIVE (Themes) - strictly for the current wave
+    let negThemesArr = [];
+    if (feedbackData && feedbackData.length > 0) {
+        // Filter feedback by current wave AND negative sentiment
+        const negativeFb = feedbackData.filter(f => f.wave === currentWaveKey && f.sentiment === 'negative');
+        if (negativeFb.length > 0) {
+            let negThemes = {};
+            negativeFb.forEach(f => {
+                let topics = normalizeVocTopics(f);
+                topics.forEach(t => {
+                    if (!negThemes[t]) negThemes[t] = { count: 0, examples: [], insights: [] };
+                    negThemes[t].count++;
+                    if (negThemes[t].examples.length < 3) negThemes[t].examples.push(f.text);
+                    if (f.aiInsight && f.aiInsight !== 'N/A') negThemes[t].insights.push(f.aiInsight);
+                });
+            });
+            negThemesArr = Object.entries(negThemes).sort((a, b) => b[1].count - a[1].count);
+        }
+    }
+
+    // 3. COMPILE ACTION PLAN (Maximized, No Hard Limit)
+
+    // A. Priority 1: Critical Quantitative Gaps (Gap < 0)
+    const negativeGaps = quantGaps.filter(q => q.gap < -2.0).sort((a, b) => a.gap - b.gap); // Focus on significant gaps
+    negativeGaps.forEach(issue => {
+        planData.actions.push({
+            type: 'Evaluasi Kuantitatif',
+            source: `${issue.section} (Skor: ${issue.score.toFixed(1)}, Gap vs Nat: ${issue.gap.toFixed(1)})`,
+            action: `Fokus pada standardisasi prosedur untuk area ${issue.section}. Lakukan tinjauan ulang panduan operasional nasional bersama tim untuk menutup jarak performa yang kritis ini.`,
+            status: 'pending'
+        });
+    });
+
+    // B. Priority 2: Top Qualitative Complaints (Themes with >= 2 mentions, or top 3 if fewer)
+    let themesToAdd = negThemesArr.filter(t => t[1].count >= 2);
+    if (themesToAdd.length === 0 && negThemesArr.length > 0) themesToAdd = negThemesArr.slice(0, 3);
+
+    themesToAdd.forEach(theme => {
+        let referenceText = '';
+        if (theme[1].insights && theme[1].insights.length > 0) {
+            referenceText = `Analisa AI: "${theme[1].insights[0]}"`;
+        } else {
+            const rawText = theme[1].examples[0];
+            referenceText = `Contoh: "${rawText.length > 150 ? rawText.substring(0, 150) + '...' : rawText}"`;
+        }
+
+        planData.actions.push({
+            type: 'Suara Pelanggan (VOC)',
+            source: `Keluhan Berulang: ${theme[0]} (${theme[1].count} penyebutan)`,
+            action: `Tangani keluhan berulang mengenai ${theme[0]}. Perhatikan hal ini: ${referenceText}. Diskusikan segera dengan tim untuk evaluasi dan mencegah kejadian serupa.`,
+            status: 'pending'
+        });
+    });
+
+    // C. Priority 3: Pareto Items (Lowest Absolute Scores)
+    // Always provide the 3 lowest scoring areas to push for perfection, even if they are above national average
+    // FIX: Do not generate "Optimalisasi" tasks for items that are already 100%.
+    const lowestScores = [...quantGaps].filter(q => q.score < 100).sort((a, b) => a.score - b.score).slice(0, 3);
+    lowestScores.forEach(issue => {
+        // Only add if we haven't already added this section as a negative gap
+        const alreadyAdded = planData.actions.find(a => a.source && a.source.includes(issue.section));
+        if (!alreadyAdded) {
+            planData.actions.push({
+                type: 'Optimalisasi (Pareto)',
+                source: `${issue.section} (Skor: ${issue.score.toFixed(1)})`,
+                action: `Walaupun performa secara fungsional sudah baik, ${issue.section} adalah salah satu area dengan skor terbawah di toko ini. Terapkan roleplay atau evaluasi singkat untuk mendorong skor ini lebih mendekati nilai sempurna.`,
+                status: 'pending'
+            });
+        }
+    });
+
+    // D. FALLBACK/GENERAL ADVICE if somehow still less than 3
+    const genericAdvice = [
+        "Pertahankan tren positif yang ada saat ini. Lanjutkan sesi briefing reguler secara rutin dan berikan apresiasi kepada staf yang berprestasi untuk menjaga konsistensi toko.",
+        "Lakukan sinkronisasi selama 10 menit setiap hari sebelum toko buka untuk menyelaraskan target pelayanan pelanggan hari ini.",
+        "Minta tim untuk meninjau kembali modul product knowledge terbaru agar lebih percaya diri saat menangani pertanyaan seputar produk."
+    ];
+
+    let genericIndex = 0;
+    while (planData.actions.length < 3 && genericIndex < genericAdvice.length) {
+        planData.actions.push({
+            type: 'Saran Best Practice',
+            source: 'Perawatan Berkala Toko',
+            action: genericAdvice[genericIndex],
+            status: 'pending'
+        });
+        genericIndex++;
+    }
+
+    // Store globally for export
+    window._currentStoreActionPlan = planData;
+    renderActionPlan(planData.actions);
+}
+
+function renderActionPlan(actions) {
+    const container = document.getElementById("stActionPlanContainer");
+    if (!container) return;
+    container.innerHTML = "";
+
+    actions.forEach((item, idx) => {
+        let iconClass = 'bi-star-fill text-warning';
+        let bgClass = 'bg-warning';
+
+        if (item.type.includes('Kuantitatif')) {
+            iconClass = 'bi-bar-chart-line-fill text-danger';
+            bgClass = 'bg-danger';
+        } else if (item.type.includes('Suara Pelanggan')) {
+            iconClass = 'bi-chat-left-quote-fill text-purple';
+            bgClass = 'bg-dark';
+        } else if (item.type.includes('Optimalisasi')) {
+            iconClass = 'bi-arrow-up-right-circle-fill text-primary';
+            bgClass = 'bg-primary';
+        }
+
+        const html = `
+            <div class="d-flex align-items-start p-3 bg-white border border-${bgClass.replace('bg-', '')} border-opacity-25 rounded-3 shadow-sm hover-shadow mb-3" style="transition: all 0.2s;">
+                <div class="form-check mt-1 me-3">
+                    <input class="form-check-input border-secondary" type="checkbox" id="actionCb${idx}" style="cursor: pointer; width: 1.25rem; height: 1.25rem;">
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                        <span class="badge ${bgClass} fw-bold px-2 py-1 shadow-sm" style="font-size: 0.65rem; letter-spacing: 0.5px; border-radius: 6px;"><i class="bi ${iconClass} text-white me-1"></i>${item.type}</span>
+                        <span class="text-muted fw-bold d-inline-flex align-items-center rounded bg-light px-2 py-1 border" style="font-size: 0.70rem;"><i class="bi bi-bullseye me-1"></i>${item.source}</span>
+                    </div>
+                    <label class="form-check-label fw-medium text-dark mt-1" for="actionCb${idx}" style="cursor: pointer; line-height: 1.5; font-size: 0.95rem;">
+                        ${item.action}
+                    </label>
+                </div>
+            </div>
+        `;
+        container.innerHTML += html;
+    });
+}
+
+function copyActionPlanJSON() {
+    if (!window._currentStoreActionPlan) return alert("No action plan available.");
+    const jsonStr = JSON.stringify(window._currentStoreActionPlan, null, 2);
+    navigator.clipboard.writeText(jsonStr).then(() => {
+        alert("Action Plan API Payload copied to clipboard!");
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
+}
+
+function exportActionPlanPDF() {
+    if (!window._currentStoreActionPlan) return alert("No action plan available.");
+    const plan = window._currentStoreActionPlan;
+
+    // Simple print window for the action plan
+    const printWin = window.open('', '_blank');
+    let printHtml = `
+        <html>
+        <head>
+            <title>Action Plan - ${plan.storeName}</title>
+            <style>
+                body { font-family: sans-serif; padding: 20px; color: #333; line-height: 1.6; }
+                h2 { color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+                .item { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+                .meta { font-size: 0.85em; color: #666; font-weight: bold; margin-bottom: 5px; }
+                .action { font-size: 1.05em; margin-top: 5px; }
+                .header-meta { color: #777; margin-bottom: 30px; }
+            </style>
+        </head>
+        <body>
+            <h2>Store Action Plan & Monitoring</h2>
+            <div class="header-meta">
+                <strong>Store:</strong> ${plan.storeName} <br>
+                <strong>Wave:</strong> ${plan.wave} <br>
+                <strong>Generated On:</strong> ${plan.generatedAt}
+            </div>
+    `;
+
+    plan.actions.forEach(a => {
+        printHtml += `
+            <div class="item">
+                <div class="meta">[${a.type.toUpperCase()}] Source: ${a.source}</div>
+                <div class="action">${a.action}</div>
+                <br>
+                <div><i>Status: ______ Checked By: ______ Date: ______</i></div>
+            </div>
+        `;
+    });
+
+    printHtml += `
+        </body>
+        </html>
+    `;
+
+    printWin.document.write(printHtml);
+    printWin.document.close();
+    printWin.focus();
+    printWin.print();
+}
